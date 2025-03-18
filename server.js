@@ -54,7 +54,8 @@ const userOrderRoute = require('./Routes/User/order/orderRoute');
 const userSliderRoute = require('./Routes/User/Slider/SliderRoute');
 const adminCoinRoute = require('./Routes/Admin/Coin/CoinRoute')
 const adminBannerRoute = require('./Routes/Admin/Banner/BannerRoute')
-
+const adminOrderRoute = require('./Routes/Admin/Order/AdminOrderRoute')
+const vendorOrderRoute = require('./Routes/Vendor/Order/VendorOrderRoute')
 
 const homeRoute = require('./Routes/User/Home/HomeRoute')
 
@@ -76,6 +77,7 @@ app.use('/admin/offer', offerRoutes)
 app.use('/admin/product', adminProductRoute) 
 app.use('/admin/wishlist', adminWishlistRoute)
 app.use('/admin/profile', adminProfileRoute)
+app.use('/admin/orders', adminOrderRoute)
 
 app.use('/admin/coin',adminCoinRoute)
 
@@ -94,7 +96,7 @@ app.use('/vendor/offer', vendorOfferRoute)
 app.use('/vendor/coupon', vendorCouponRoute)
 app.use('/vendor/wishlist', vendorWishlistRoute)
 app.use('/vendor/profile', vendorProfileRoute)
-
+app.use('/vendor/orders', vendorOrderRoute)
 
 
 
