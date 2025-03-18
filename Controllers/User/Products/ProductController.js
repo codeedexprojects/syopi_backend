@@ -312,7 +312,7 @@ exports.getHomePage = async (req, res) => {
       userId = req.user.id;
     }
 
-    // Fetch all products (ensure salesCount and price fields are included)
+    // Fetch all products (ensure salesCount, price, offerPrice, and rating fields are included)
     const allProducts = await getProduct(userId);
 
     if (!allProducts || allProducts.length === 0) {
@@ -330,47 +330,61 @@ exports.getHomePage = async (req, res) => {
 
     // Section: Products under ₹1000
     const affordableProducts = allProducts
-   .filter(product => 
-    product.variants.some(variant => 
-      Number(variant.offerPrice ?? variant.price) < 1000 // Check offerPrice first, fallback to price
-    )
-  )
-  .slice(0, 10);
-    
+      .filter(product =>
+        product.variants.some(variant =>
+          Number(variant.offerPrice ?? variant.price) < 1000 // Check offerPrice first, fallback to price
+        )
+      )
+      .slice(0, 10);
+
     // Section: Products sorted from lowest price to highest
     const lowToHighProducts = [...allProducts]
       .sort((a, b) => a.price - b.price) // Sort by price ascending
       .slice(0, 10); // Limit to 10 products
 
-    // Fetch featured products (incredible delights)
+    // Fetch featured products (incredible delights) based on best offers
     const bestOfferProducts = allProducts
-  .filter(product => 
-    product.variants.some(variant => 
-      variant.offerPrice !== null && variant.offerPrice < variant.price // Ensure offerPrice is lower
-    )
-  )
-  .sort((a, b) => { 
-    const maxDiscountA = Math.max(...a.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-    const maxDiscountB = Math.max(...b.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-    return maxDiscountB - maxDiscountA; // Sort by highest discount
-  })
-  .slice(0, 5); // Get top 5 best offer products
+      .filter(product =>
+        product.variants.some(variant =>
+          variant.offerPrice !== null && variant.offerPrice < variant.price // Ensure offerPrice is lower
+        )
+      )
+      .sort((a, b) => {
+        const maxDiscountA = Math.max(...a.variants.map(v => v.price - (v.offerPrice ?? v.price)));
+        const maxDiscountB = Math.max(...b.variants.map(v => v.price - (v.offerPrice ?? v.price)));
+        return maxDiscountB - maxDiscountA; // Sort by highest discount
+      })
+      .slice(0, 5); // Get top 5 best offer products
 
-   
-  const activeSliders = await Slider.find({isActive:true})
-  const activeBanners = await Banner.find({isActive:true})
+    // "Your Top Picks in the Best Price" – combining best-selling and best-priced products
+    const topPicksBestPrice = allProducts
+      .filter(product => 
+        product.salesCount > 0 && 
+        product.variants.some(variant => variant.offerPrice !== null && variant.offerPrice < variant.price)
+      )
+      .sort((a, b) => {
+        const maxDiscountA = Math.max(...a.variants.map(v => v.price - (v.offerPrice ?? v.price)));
+        const maxDiscountB = Math.max(...b.variants.map(v => v.price - (v.offerPrice ?? v.price)));
+        return maxDiscountB - maxDiscountA; // Sort by best discount
+      })
+      .slice(0, 10); // Limit to 10 products for this section
 
+    // Fetch active sliders and banners
+    const activeSliders = await Slider.find({isActive:true});
+    const activeBanners = await Banner.find({isActive:true});
+
+    // Return the response with all the sections
     res.status(200).json({
-      products: topProducts,
-      featured: bestOfferProducts, // Featured products
-      affordable: affordableProducts, // Products under ₹1000
-      lowToHigh: lowToHighProducts, // Sorted by price (low to high)
-      sliders: activeSliders, 
-      banner:activeBanners
+      topProducts,
+      bestOfferProducts, // Featured products with best offers
+      affordableProducts, // Products under ₹1000
+      lowToHighProducts, // Products sorted from low to high price
+      topPicksBestPrice, // Your Top Picks in the Best Price section
+      activeSliders, 
+      activeBanners
     });
+
   } catch (error) {
     res.status(500).json({ message: "Error fetching homepage products", error: error.message });
   }
 };
-
-
