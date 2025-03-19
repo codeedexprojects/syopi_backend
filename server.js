@@ -35,6 +35,7 @@ const userProducts=require('./Routes/User/Products/Products')
 
 const userCart=require('./Routes/User/Cart/CartRoute')
 const Checkout=require('./Routes/User/Checkout/CheckoutRoute')
+const Review = require('./Routes/User/Reviews/Review')
 
 
 
@@ -53,6 +54,7 @@ const vendorProfileRoute = require('./Routes/Vendor/Profile/profileRoute');
 const userOrderRoute = require('./Routes/User/order/orderRoute');
 const userSliderRoute = require('./Routes/User/Slider/SliderRoute');
 const adminCoinRoute = require('./Routes/Admin/Coin/CoinRoute')
+const adminDeliveryChargeRoute = require('./Routes/Admin/DeliveryCharge/DeliveryChargeRoute')
 const adminBannerRoute = require('./Routes/Admin/Banner/BannerRoute')
 
 
@@ -78,6 +80,7 @@ app.use('/admin/wishlist', adminWishlistRoute)
 app.use('/admin/profile', adminProfileRoute)
 
 app.use('/admin/coin',adminCoinRoute)
+app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
 
 app.use('/admin/banner', adminBannerRoute)
 
@@ -112,6 +115,7 @@ app.use('/user/checkout',Checkout)
 app.use('/user/order',userOrderRoute)
 app.use('/user/slider',userSliderRoute)
 app.use('/user/home', homeRoute)
+app.use('/user/review', Review)
 
 //Landing page
 app.use('/home', homeRoute)
