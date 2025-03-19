@@ -36,7 +36,8 @@ const userProducts=require('./Routes/User/Products/Products')
 const userCart=require('./Routes/User/Cart/CartRoute')
 const Checkout=require('./Routes/User/Checkout/CheckoutRoute')
 const Review = require('./Routes/User/Reviews/Review')
-
+const Dashboard = require('./Routes/Admin/Dashboard/DashboardRoute')
+const VendorDashboard = require('./Routes/Vendor/Dashboard/VendorDashboardRoute')
 
 
 
@@ -85,7 +86,7 @@ app.use('/admin/brand', adminBrandRoute)
 
 app.use('/admin/coin',adminCoinRoute)
 app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
-
+app.use('/admin/dashboard',Dashboard)
 app.use('/admin/banner', adminBannerRoute)
 
 
@@ -102,6 +103,7 @@ app.use('/vendor/coupon', vendorCouponRoute)
 app.use('/vendor/wishlist', vendorWishlistRoute)
 app.use('/vendor/profile', vendorProfileRoute)
 app.use('/vendor/orders', vendorOrderRoute)
+app.use('/vendor/dashboard',VendorDashboard)
 
 
 
