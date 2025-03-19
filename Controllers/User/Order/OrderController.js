@@ -173,10 +173,35 @@ exports.getUserOrder = async (req, res) => {
          // Fetch vendor-specific orders (each product has its own status)
          const vendorOrders = await VendorOrder.find({userId} )
          .populate("productId")  
-         .populate("addressId")   
+         .populate("addressId")
+         .populate("orderId", "paymentMethod discountedAmount totalPrice finalPayableAmount")  
          .sort({ createdAt: -1 });
-        console.log(vendorOrders)
-        res.status(200).json({ success: true,vendorOrders });
+        // console.log(vendorOrders)
+        // res.status(200).json({ success: true,vendorOrders });
+         // Format createdAt before sending the response
+         const formattedOrders = vendorOrders.map(order => ({
+            ...order._doc,  // Spread existing document data
+            createdAt: new Date(order.createdAt).toLocaleString("en-US", { 
+                year: "numeric", 
+                month: "2-digit", 
+                day: "2-digit", 
+                hour: "2-digit", 
+                minute: "2-digit", 
+                second: "2-digit",
+                hour12: false
+            }),
+            updatedAt: new Date(order.createdAt).toLocaleString("en-US", { 
+                year: "numeric", 
+                month: "2-digit", 
+                day: "2-digit", 
+                hour: "2-digit", 
+                minute: "2-digit", 
+                second: "2-digit",
+                hour12: false
+            })
+        }));
+
+        res.status(200).json({ success: true, vendorOrders: formattedOrders });
     }
     catch (error) {
         console.error(error);
