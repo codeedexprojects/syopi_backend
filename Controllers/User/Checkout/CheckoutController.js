@@ -4,11 +4,12 @@ const Coupon = require('../../../Models/Admin/couponModel')
 const User=require('../../../Models/User/UserModel')
 const mongoose=require('mongoose')
 const CoinSettings = require("../../../Models/Admin/CoinModel");
+const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel')
 
 // create checkout
 exports.createCheckout = async (req, res) => {
     const { cartId } = req.body;
-    console.log(cartId)
+    // console.log(cartId)
     const userId=req.user.id
     try {
         if (!userId || !cartId) {
@@ -21,12 +22,26 @@ exports.createCheckout = async (req, res) => {
         if (String(cart.userId) !== userId) {
             return res.status(403).json({ message: 'Unauthorized: Cart does not belong to the user.' });
         }
+         // Fetch delivery settings from admin
+         const deliverySetting = await DeliverySetting.findOne();
+         if (!deliverySetting) {
+             return res.status(500).json({ message: "Delivery settings not found" });
+         }
+          // Calculate subtotal
+        const subtotal = cart.subtotal;
+
+        // Determine delivery charge based on minAmountForFreeDelivery
+        const deliveryCharge = subtotal >= deliverySetting.minAmountForFreeDelivery ? 0 : deliverySetting.deliveryCharge;
+
+        // Final total = Subtotal + Delivery Charge
+        const finalTotal = subtotal + deliveryCharge;
+
         const newCheckout = new Checkout({
             userId,
             cartId,
-            subtotal: cart.subtotal,
-            finalTotal: cart.subtotal
-
+            subtotal,
+            deliveryCharge,
+            finalTotal
         });
         await newCheckout.save();
         res.status(201).json({

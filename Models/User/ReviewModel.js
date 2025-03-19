@@ -22,9 +22,9 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       maxlength: 500,
     },
-    image: {
-      type: String, 
-    }
+    // image: {
+    //   type: String, 
+    // }
   },
   {
     timestamps: true,

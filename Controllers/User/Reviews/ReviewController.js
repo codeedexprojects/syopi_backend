@@ -1,19 +1,21 @@
 const Review = require("../../../Models/User/ReviewModel");
-const Order = require("../../../Models/User/OrderModel");
+const Order = require("../../../Models/Vendor/VendorOrderModel");
 const Product = require("../../../Models/Admin/productModel");
 
 // Add Review
 exports.addReview = async (req, res) => {
   const {  productId, rating, message } = req.body;
-  const image = req.files
-  const userId=req.user._id
+  // const image = req.files
+  const userId=req.user.id
 
   try {
     const order = await Order.findOne({
       userId,
-      "products.productId": productId,
+      productId: productId,
       status: "Delivered", 
     });
+    
+
 
     if (!order) {
       return res.status(403).json({
@@ -26,12 +28,18 @@ exports.addReview = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
+    // Check if the user has already reviewed this product
+    const existingReview = await Review.findOne({ userId, productId });
+    if (existingReview) {
+      return res.status(400).json({ message: "You have already reviewed this product." });
+    }
+
     const review = new Review({
       userId,
       productId,
       rating,
       message,
-      image,
+      // image,
     });
 
     await review.save();
