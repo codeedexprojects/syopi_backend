@@ -58,6 +58,7 @@ const adminDeliveryChargeRoute = require('./Routes/Admin/DeliveryCharge/Delivery
 const adminBannerRoute = require('./Routes/Admin/Banner/BannerRoute')
 const adminOrderRoute = require('./Routes/Admin/Order/AdminOrderRoute')
 const vendorOrderRoute = require('./Routes/Vendor/Order/VendorOrderRoute')
+const adminBrandRoute = require('./Routes/Admin/Brand/BrandRoute')
 
 const homeRoute = require('./Routes/User/Home/HomeRoute')
 
@@ -80,6 +81,7 @@ app.use('/admin/product', adminProductRoute)
 app.use('/admin/wishlist', adminWishlistRoute)
 app.use('/admin/profile', adminProfileRoute)
 app.use('/admin/orders', adminOrderRoute)
+app.use('/admin/brand', adminBrandRoute)
 
 app.use('/admin/coin',adminCoinRoute)
 app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
