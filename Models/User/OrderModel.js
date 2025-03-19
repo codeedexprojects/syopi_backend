@@ -127,7 +127,7 @@ orderSchema.pre('save', async function (next) {
       this.totalPrice = checkout.subtotal || 0;
       this.discountedAmount = checkout.ReducedDiscount || 0;
       this.deliveryCharge = this.deliveryCharge || 0;
-      this.finalPayableAmount = (checkout.finalTotal || 0) + this.deliveryCharge;
+      this.finalPayableAmount = checkout.finalTotal || 0
       this.coupon = checkout.coupon;
 
       if (!this.finalPayableAmount || this.finalPayableAmount <= 0 || !this.totalPrice || this.totalPrice <= 0) {

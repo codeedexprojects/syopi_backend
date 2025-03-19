@@ -36,7 +36,8 @@ const CheckoutSchema = new mongoose.Schema(
       coinValue: { type: Number, default: 0 }
     }],
     ReducedDiscount: { type: Number, default: 0 },
-    finalTotal: { type: Number, required: true }, // Subtotal - Discounts (Coupon + Coins)
+    deliveryCharge: { type: Number, default: 0 }, // New field for delivery charge
+    finalTotal: { type: Number, required: true }, // Subtotal + Delivery Charge - Discounts
     isProcessed: {
       type: Boolean, default: false
     },
@@ -153,11 +154,13 @@ CheckoutSchema.pre('save', async function (next) {
       }));
 
       this.coinDiscount = coinDiscount;
-      this.finalTotal = Math.max(0, Math.round(this.subtotal - this.couponDiscount - this.coinDiscount));
+      this.finalTotal = Math.max(0, Math.round(this.subtotal - this.couponDiscount - this.coinDiscount + this.deliveryCharge));
+
     } else {
       this.coinDiscount = 0;
       this.vendorCoinBreakdown = [];
-      this.finalTotal = Math.max(0, Math.round(this.subtotal - this.couponDiscount));
+      this.finalTotal = Math.max(0, Math.round(this.subtotal - this.couponDiscount + this.deliveryCharge));
+
     }
 
     this.ReducedDiscount=this.couponDiscount + this.coinDiscount
