@@ -2,7 +2,7 @@ const getProduct = require('../../../utils/getProducts');
 const Slider = require('../../../Models/Admin/SliderModel');
 const Banner = require('../../../Models/Admin/BannerModel')
 const Review = require("../../../Models/User/ReviewModel");
-
+const moment = require("moment");
 
 // get all products
 exports.getallProducts = async(req,res) => {
@@ -200,8 +200,13 @@ exports.getProductById = async (req, res) => {
         const reviews = await Review.find({ productId: id })
             .populate("userId", "name")
             .sort({ createdAt: -1 });
+            const formattedReview = reviews.map(review => ({
+              ...review._doc,  // Spread existing document data
+              createdAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+              updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
+          }));
 
-        res.status(200).json({ product, reviews });
+        res.status(200).json({ product, reviews:formattedReview });
   
       // res.status(200).json(product);
     } catch (err) {

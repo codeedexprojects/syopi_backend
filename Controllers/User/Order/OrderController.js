@@ -6,6 +6,7 @@ const Cart = require("../../../Models/User/cartModel");
 const VendorOrder = require('../../../Models/Vendor/VendorOrderModel')
 const CoinSettings = require("../../../Models/Admin/CoinModel");
 const User = require('../../../Models/User/UserModel')
+const moment = require("moment");
 
 // place order
 exports.placeOrder = async (req, res) => {
@@ -176,29 +177,12 @@ exports.getUserOrder = async (req, res) => {
          .populate("addressId")
          .populate("orderId", "paymentMethod discountedAmount totalPrice finalPayableAmount")  
          .sort({ createdAt: -1 });
-        // console.log(vendorOrders)
-        // res.status(200).json({ success: true,vendorOrders });
+       
          // Format createdAt before sending the response
          const formattedOrders = vendorOrders.map(order => ({
             ...order._doc,  // Spread existing document data
-            createdAt: new Date(order.createdAt).toLocaleString("en-US", { 
-                year: "numeric", 
-                month: "2-digit", 
-                day: "2-digit", 
-                hour: "2-digit", 
-                minute: "2-digit", 
-                second: "2-digit",
-                hour12: false
-            }),
-            updatedAt: new Date(order.createdAt).toLocaleString("en-US", { 
-                year: "numeric", 
-                month: "2-digit", 
-                day: "2-digit", 
-                hour: "2-digit", 
-                minute: "2-digit", 
-                second: "2-digit",
-                hour12: false
-            })
+            createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+             updatedAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss")
         }));
 
         res.status(200).json({ success: true, vendorOrders: formattedOrders });

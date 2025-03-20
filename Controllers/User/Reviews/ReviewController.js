@@ -43,6 +43,16 @@ exports.addReview = async (req, res) => {
     });
 
     await review.save();
+  
+      // Recalculate product's average rating
+      const reviews = await Review.find({ productId });
+      const totalReviews = reviews.length;
+      const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews;
+
+      // Update product with the new average rating
+      product.averageRating = averageRating.toFixed(1);
+      product.reviewCount = totalReviews
+      await product.save();
 
     res.status(201).json({ message: "Review added successfully", review });
   } catch (error) {
