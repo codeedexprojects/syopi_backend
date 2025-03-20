@@ -299,8 +299,8 @@ exports.getHomePage = async (req, res) => {
 
     // Sort products based on salesCount (highest to lowest)
     const sortedProducts = allProducts
-      .filter(product => product.salesCount && product.salesCount > 0)
-      .sort((a, b) => b.salesCount - a.salesCount);
+      .filter(product => product.totalSales && product.totalSales > 0)
+      .sort((a, b) => b.totalSales - a.totalSales);
 
     // Limit results (default to top 10)
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
