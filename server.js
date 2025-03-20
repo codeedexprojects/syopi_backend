@@ -32,6 +32,7 @@ const vendorSliderRoute = require('./Routes/Vendor/Slider/SliderRoute');
 const UserCategories=require('./Routes/User/Category/CategoryRoute')
 const UserSubCategories=require('./Routes/User/SubCategory/SubCategoryRoute')
 const userProducts=require('./Routes/User/Products/Products')
+const userBrands = require('./Routes/User/Brand/BrandRoute')
 
 const userCart=require('./Routes/User/Cart/CartRoute')
 const Checkout=require('./Routes/User/Checkout/CheckoutRoute')
@@ -122,6 +123,7 @@ app.use('/user/order',userOrderRoute)
 app.use('/user/slider',userSliderRoute)
 app.use('/user/home', homeRoute)
 app.use('/user/review', Review)
+app.use('/user/brand', userBrands)
 
 //Landing page
 app.use('/home', homeRoute)
