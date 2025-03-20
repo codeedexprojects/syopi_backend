@@ -48,18 +48,17 @@ exports.updateOrderStatus = async (req, res) => {
         }
 
         // Update UserOrder
-        const updatedUserOrder = await UserOrder.findOneAndUpdate(
-            { _id: orderId },  // Find User order by ID
-            { status },         // Update status
-            { new: true }       // Return the updated order
-        );
+        // const updatedUserOrder = await UserOrder.findOneAndUpdate(
+        //     { _id: orderId },  // Find User order by ID
+        //     { status },         // Update status
+        //     { new: true }       // Return the updated order
+        // );
 
         if (!updatedUserOrder) {
             console.warn("Warning: User order not found for Vendor order", orderId);
         }
 
         console.log("Updated Vendor Order:", updatedVendorOrder);
-        console.log("Updated User Order:", updatedUserOrder);
 
         return res.status(200).json({ success: true, message: "Order status updated", order: updatedVendorOrder });
     } catch (error) {
