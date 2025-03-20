@@ -1,7 +1,9 @@
 const getProduct = require('../../../utils/getProducts');
 const Slider = require('../../../Models/Admin/SliderModel');
-const Banner = require('../../../Models/Admin/BannerModel')
-const Brand = require('../../../Models/Admin/BrandModel')
+const Banner = require('../../../Models/Admin/BannerModel');
+const Review = require("../../../Models/User/ReviewModel");
+const Brand = require('../../../Models/Admin/BrandModel');
+
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
@@ -172,8 +174,14 @@ exports.getProductById = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
+        // Fetch reviews for the product
+        const reviews = await Review.find({ productId: id })
+            .populate("userId", "name")
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ product, reviews });
   
-      res.status(200).json(product);
+      // res.status(200).json(product);
     } catch (err) {
       res.status(500).json({ message: "Error fetching product", error: err.message });
     }
