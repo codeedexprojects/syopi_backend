@@ -2,12 +2,12 @@ const Product = require('../../../Models/Admin/productModel');
 const Order = require('../../../Models/Vendor/VendorOrderModel');
 const User = require('../../../Models/User/UserModel');
 
-const getAdminDashboard = async (req, res) => {
+exports.getAdminDashboard = async (req, res) => {
   try {
     //  Get Product Data
     const totalProducts = await Product.countDocuments();
-    const outOfStock = await Product.countDocuments({ stock: { $lte: 0 } });
-    const limitedStock = await Product.countDocuments({ stock: { $lte: 10, $gt: 0 } });
+    const outOfStock = await Product.countDocuments({ totalStock: { $lte: 0 } });
+    const limitedStock = await Product.countDocuments({ totalStock: { $lte: 10, $gt: 0 } });
 
     //  Get Orders Data
     const totalOrders = await Order.countDocuments();
@@ -42,4 +42,4 @@ const getAdminDashboard = async (req, res) => {
   }
 };
 
-module.exports = { getAdminDashboard };
+

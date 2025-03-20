@@ -12,7 +12,10 @@ const VendorOrderSchema = new mongoose.Schema(
     itemTotal: { type: Number, required: true },
     color: { type: String, required: true },
     size: { type: String, required: true },
-    status: { type: String, enum: ["Pending", "Shipped", "Delivered", "Cancelled"], default: "Pending" },
+    status: { type: String,  enum: {
+      values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
+      message: 'Invalid order status'
+    }, default: "Pending" },
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
