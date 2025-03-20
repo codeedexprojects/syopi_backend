@@ -22,6 +22,8 @@ exports.createProduct = async (req, res) => {
         description,
         brand,
         type,
+        isReturnable,
+        returnWithinDays,
         features, // Additional features like material/soleMaterial
         variants, // Nested variants as JSON
       } = req.body;
@@ -72,6 +74,8 @@ exports.createProduct = async (req, res) => {
         description,
         brand,
         type,
+        isReturnable,
+        returnWithinDays,
         variants: parsedVariants, // Add parsed variants here
         features: parsedFeatures, // Add parsed features here
         owner: req.body.owner,
@@ -243,6 +247,8 @@ exports.updateProduct = async (req, res) => {
         images: updatedImages,
         category: req.body.category || product.category,
         subcategory: req.body.subcategory || product.subcategory,
+        isReturnable:req.body.isReturnable || product.isReturnable,
+        returnWithinDays:req.body.returnWithinDays || product.returnWithinDays,
         features: Object.keys(parsedFeatures).length > 0 ? parsedFeatures : product.features,
         variants: parsedVariants.length > 0 ? parsedVariants : product.variants,
       };
