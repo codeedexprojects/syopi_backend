@@ -9,6 +9,7 @@ const multerConfig=require('../../../Middlewares/MulterConfig')
 
 // get category
 router.get('/view',attachWishlistIfAuthenticated,productController.getallProducts)
+
 // view by id
 router.get('/view/:id',attachWishlistIfAuthenticated,productController.getProductById)
 
@@ -18,6 +19,7 @@ router.get('/view/:id',attachWishlistIfAuthenticated,productController.getProduc
 
 // Get similar products
 router.get('/similar/:id', attachWishlistIfAuthenticated, productController.getSimilarProducts);
+
 
 
 

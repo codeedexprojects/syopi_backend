@@ -4,10 +4,12 @@ const Banner = require('../../../Models/Admin/BannerModel');
 const Review = require("../../../Models/User/ReviewModel");
 const moment = require("moment");
 const Brand = require('../../../Models/Admin/BrandModel');
-const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel')
+const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
+const { header } = require('express-validator');
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
+    
     const { brand, productType, minPrice, maxPrice, size, newArrivals, discountMin, discountMax, sort, search } = req.query;
     
     let userId = req.user?.id;  // Safe optional chaining
@@ -19,7 +21,7 @@ exports.getallProducts = async (req, res) => {
 
     let brandId = null;
     if (brand) {
-      const brandDoc = await Brand.findOne({ $or: [{ name: brand }, { _id: brand }] });
+      const brandDoc = await Brand.find({ $or: [{ name: brand }, { _id: brand }] });
       if (brandDoc) {
         brandId = brandDoc._id.toString(); // Ensure it's a string
       } else {
@@ -118,7 +120,8 @@ exports.getallProducts = async (req, res) => {
       });
     }
 
-    res.status(200).json({ total: filteredProducts.length, products: filteredProducts });
+    const brandList = await Brand.find({}, 'name');
+    res.status(200).json({ total: filteredProducts.length, products: filteredProducts, brandList });
 
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error: error.message });
@@ -374,3 +377,4 @@ exports.getHomePage = async (req, res) => {
     res.status(500).json({ message: "Error fetching homepage products", error: error.message });
   }
 };
+

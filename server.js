@@ -64,6 +64,7 @@ const adminBrandRoute = require('./Routes/Admin/Brand/BrandRoute')
 const AdminPurchaseRoute = require('./Routes/Admin/PurchaseManagement/AdminPurchaseRoute')
 const VendorPurchaseRoute = require('./Routes/Vendor/PurchaseManagement/VendorPurchaseRoute')
 const AffordableProductRoute = require('./Routes/Admin/AffordableProducts/AffordableProductRoute')
+const HomepageEditorRoute = require('./Routes/Admin/Homepage/HomepageEditorRoute')
 
 const homeRoute = require('./Routes/User/Home/HomeRoute')
 
@@ -89,6 +90,7 @@ app.use('/admin/orders', adminOrderRoute)
 app.use('/admin/brand', adminBrandRoute)
 app.use('/admin/purchase', AdminPurchaseRoute)
 app.use('/admin/affordableproducts', AffordableProductRoute)
+app.use('/admin/homepageedit', HomepageEditorRoute)
 
 app.use('/admin/coin',adminCoinRoute)
 app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
