@@ -4,7 +4,7 @@ const Banner = require('../../../Models/Admin/BannerModel');
 const Review = require("../../../Models/User/ReviewModel");
 const moment = require("moment");
 const Brand = require('../../../Models/Admin/BrandModel');
-
+const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel')
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
@@ -321,13 +321,7 @@ exports.getHomePage = async (req, res) => {
     const topProducts = sortedProducts.slice(0, limit);
 
     // Section: Products under ₹1000
-    const affordableProducts = allProducts
-      .filter(product =>
-        product.variants.some(variant =>
-          Number(variant.offerPrice ?? variant.price) < 1000 // Check offerPrice first, fallback to price
-        )
-      )
-      .slice(0, 10);
+    const affordableProducts = await affordableProductsModel.find()
 
     // Section: Products sorted from lowest price to highest
     const lowToHighProducts = [...allProducts]
