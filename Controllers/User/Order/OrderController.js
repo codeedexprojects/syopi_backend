@@ -89,6 +89,8 @@ exports.placeOrder = async (req, res) => {
                 quantity: item.quantity,
                 price: item.price,
                 itemTotal: item.price * item.quantity,
+                discountedPrice:item.DiscountedPrice,
+                couponDiscountedValue:item.couponDiscountedValue,
                 color: item.color,  // ✅ Added color
                 size: item.size, 
                 status: "Pending",
