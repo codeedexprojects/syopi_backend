@@ -1,20 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const affordableProductController = require('../../../Controllers/Admin/AffordableProducts/AffordableProductController');
-const lowestPriceProductController = require('../../../Controllers/Admin/LowestPriceProducts/LowestProductsController');
+const HomepageController = require('../../../Controllers/Admin/HomePage/HomepageController');
 const verifyToken = require('../../../Middlewares/jwtConfig');
 const multerConfig = require('../../../Middlewares/MulterConfig');
 
 // Affordable Products Routes
-router.post('/affordable/create', verifyToken(['admin']), multerConfig.single('image'), affordableProductController.createAffordableProduct);
-router.get('/view', verifyToken(['admin']), affordableProductController.getAllAffordableProducts);
-router.patch('/affordable/update/:id', verifyToken(['admin']), multerConfig.single('image'), affordableProductController.updateAffordableProduct);
-router.delete('/affordable/delete/:id', verifyToken(['admin']), affordableProductController.deleteAffordableProduct);
+router.post('/affordable/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createAffordableProduct);
+router.get('/view', verifyToken(['admin']), HomepageController.getAllProducts);
+router.patch('/affordable/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateAffordableProduct);
+router.delete('/affordable/delete/:id', verifyToken(['admin']), HomepageController.deleteAffordableProduct);
 
 // Lowest Price Products Routes
-router.post('/lowest-price/create', verifyToken(['admin']), multerConfig.single('image'), lowestPriceProductController.createLowestPriceProduct);
-router.get('/view', verifyToken(['admin']), lowestPriceProductController.getAllLowestPriceProducts);
-router.patch('/lowest-price/update/:id', verifyToken(['admin']), multerConfig.single('image'), lowestPriceProductController.updateLowestPriceProduct);
-router.delete('/lowest-price/delete/:id', verifyToken(['admin']), lowestPriceProductController.deleteLowestPriceProduct);
+router.post('/lowest-price/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createLowestPriceProduct);
+router.patch('/lowest-price/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateLowestPriceProduct);
+router.delete('/lowest-price/delete/:id', verifyToken(['admin']), HomepageController.deleteLowestPriceProduct);
 
 module.exports = router;
