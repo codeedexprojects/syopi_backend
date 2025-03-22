@@ -6,10 +6,10 @@ const vendorSchema = new mongoose.Schema({
         type: String,
         required:[true, "ownername is required"],
     },
-    email:{
-        type:String,
+    email: {
+        type: String,
         required:[true, "Email is required"],
-        unique:true,
+        unique: true,
         match: [
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
             "Please enter a valid email address"
@@ -96,8 +96,35 @@ const vendorSchema = new mongoose.Schema({
     role: {
         type: String,
         default: "vendor"
+    },
+    // New field for bank details
+    bankDetails: {
+        bankName: {
+            type: String,
+            required: [true, "Bank name is required"],
+        },
+        accountNumber: {
+            type: String,
+            required: [true, "Account number is required"],
+            match: [
+                /^\d{9,18}$/, // Ensure account number is a valid format (adjust length as needed)
+                "Please enter a valid account number"
+            ]
+        },
+        accountHolderName: {
+            type: String,
+            required: [true, "Account holder name is required"],
+        },
+        ifscCode: {
+            type: String,
+            required: [true, "IFSC code is required"],
+            match: [
+                /^[A-Za-z]{4}\d{7}$/, // Ensure IFSC code follows the proper format
+                "Please enter a valid IFSC code"
+            ]
+        }
     }
-},{ timestamps: true });
+}, { timestamps: true });
 
 vendorSchema.pre('save',async function(next){
     if(this.isModified('password')){
