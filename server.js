@@ -39,6 +39,8 @@ const Checkout=require('./Routes/User/Checkout/CheckoutRoute')
 const Review = require('./Routes/User/Reviews/Review')
 const Dashboard = require('./Routes/Admin/Dashboard/DashboardRoute')
 const VendorDashboard = require('./Routes/Vendor/Dashboard/VendorDashboardRoute')
+const AdminCommission = require('./Routes/Admin/commission/CommissionRoute')
+const VendorPayout=require('./Routes/Admin/VendorPayout/VendorPayoutRoute')
 
 
 
@@ -94,6 +96,9 @@ app.use('/admin/coin',adminCoinRoute)
 app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
 app.use('/admin/dashboard',Dashboard)
 app.use('/admin/banner', adminBannerRoute)
+app.use('/admin/commission', AdminCommission)
+app.use('/admin/vendorpayout', VendorPayout)
+
 
 
 
