@@ -91,7 +91,8 @@ exports.placeOrder = async (req, res) => {
                 itemTotal: item.price * item.quantity,
                 discountedPrice:item.DiscountedPrice,
                 couponDiscountedValue:item.couponDiscountedValue,
-                color: item.color,  // ✅ Added color
+                color: item.color,
+                colorName:item.colorName,
                 size: item.size, 
                 status: "Pending",
             });
@@ -210,9 +211,15 @@ exports.getSingleOrder = async (req, res) => {
                 message: 'Order not found',
             });
         }
+          // Format createdAt and updatedAt before sending response
+        const formattedOrder = {
+            ...order._doc,  // Spread existing order data
+            createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+            updatedAt: moment(order.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+        };
         res.status(200).json({
            success: true,
-            order,
+            order:formattedOrder,
         });
     } catch (error) {
         console.error(error);
