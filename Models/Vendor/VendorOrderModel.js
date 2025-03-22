@@ -15,6 +15,7 @@ const VendorOrderSchema = new mongoose.Schema(
     discountedPrice:  { type: Number, default: 0 },
     couponDiscountedValue: { type: Number, default: 0 },
     color: { type: String, required: true },
+    colorName: { type: String, required: true },
     size: { type: String, required: true },
     status: { type: String,  enum: {
       values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
