@@ -8,23 +8,28 @@ const Brand = require('../../../Models/Admin/BrandModel');
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
-    
     const { brand, productType, minPrice, maxPrice, size, newArrivals, discountMin, discountMax, sort, search } = req.query;
-    
-    let userId = req.user?.id;  // Safe optional chaining
+
+    let userId = req.user?.id; // Optional chaining to avoid errors
     const allProducts = await getProduct(userId);
 
     if (!allProducts || allProducts.length === 0) {
       return res.status(404).json({ message: "No products found" });
     }
 
-    let brandId = null;
+    let brandIds = [];
     if (brand) {
-      const brandDoc = await Brand.find({ $or: [{ name: brand }, { _id: brand }] });
-      if (brandDoc) {
-        brandId = brandDoc._id.toString(); // Ensure it's a string
-      } else {
-        return res.status(404).json({ message: "Brand not found" });
+      const brandArray = brand.split(",").map((b) => b.trim()); // Convert to array and remove spaces
+
+      const brandDocs = await Brand.find({ $or: [{ name: { $in: brandArray } }, { _id: { $in: brandArray } }] });
+
+      if (brandDocs.length > 0) {
+        brandIds = brandDocs.map((doc) => doc._id.toString()); // Extract valid brand IDs
+      }
+
+      // ✅ Return empty product list if no valid brands are found
+      if (brandArray.length > 0 && brandIds.length === 0) {
+        return res.status(200).json({ message: "No matching brands found", total: 0, products: [] });
       }
     }
 
@@ -36,11 +41,12 @@ exports.getallProducts = async (req, res) => {
     const discountMaxValue = discountMax ? parseFloat(discountMax) : null;
     const searchQuery = search ? search.trim().toLowerCase() : null;
 
+    // Filtering products
     const filteredProducts = allProducts.filter((product) => {
       let isMatching = true;
 
-      // Brand filtering
-      if (brandId && product.brand?.toString() !== brandId) {
+      // ✅ Brand filtering (supports multiple selections)
+      if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) {
         isMatching = false;
       }
 
@@ -103,7 +109,7 @@ exports.getallProducts = async (req, res) => {
     });
 
     if (!filteredProducts.length) {
-      return res.status(404).json({ message: "No products found matching the criteria" });
+      return res.status(200).json({ message: "No products found matching the criteria", total: 0, products: [] });
     }
 
     // Sorting
@@ -119,13 +125,16 @@ exports.getallProducts = async (req, res) => {
       });
     }
 
+    // Fetch all available brands for filtering options
     const brandList = await Brand.find({}, 'name');
+
     res.status(200).json({ total: filteredProducts.length, products: filteredProducts, brandList });
 
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
 
 
 // // search product
