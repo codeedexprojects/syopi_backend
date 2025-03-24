@@ -8,9 +8,9 @@ const Brand = require('../../../Models/Admin/BrandModel');
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
-    const { brand, productType, minPrice, maxPrice, size, newArrivals, discountMin, discountMax, sort, search } = req.query;
+    const { brand, productType, minPrice, maxPrice, size, newArrivals, discountMin, discountMax, sort, search, minRating, maxRating } = req.query;
 
-    let userId = req.user?.id; // Optional chaining to avoid errors
+    let userId = req.user?.id;
     const allProducts = await getProduct(userId);
 
     if (!allProducts || allProducts.length === 0) {
@@ -19,15 +19,13 @@ exports.getallProducts = async (req, res) => {
 
     let brandIds = [];
     if (brand) {
-      const brandArray = brand.split(",").map((b) => b.trim()); // Convert to array and remove spaces
-
+      const brandArray = brand.split(",").map((b) => b.trim());
       const brandDocs = await Brand.find({ $or: [{ name: { $in: brandArray } }, { _id: { $in: brandArray } }] });
 
       if (brandDocs.length > 0) {
-        brandIds = brandDocs.map((doc) => doc._id.toString()); // Extract valid brand IDs
+        brandIds = brandDocs.map((doc) => doc._id.toString());
       }
 
-      // ✅ Return empty product list if no valid brands are found
       if (brandArray.length > 0 && brandIds.length === 0) {
         return res.status(200).json({ message: "No matching brands found", total: 0, products: [] });
       }
@@ -39,25 +37,27 @@ exports.getallProducts = async (req, res) => {
 
     const discountMinValue = discountMin ? parseFloat(discountMin) : null;
     const discountMaxValue = discountMax ? parseFloat(discountMax) : null;
+    const minRatingValue = minRating ? parseFloat(minRating) : null;
+    const maxRatingValue = maxRating ? parseFloat(maxRating) : null;
     const searchQuery = search ? search.trim().toLowerCase() : null;
 
     // Filtering products
     const filteredProducts = allProducts.filter((product) => {
       let isMatching = true;
 
-      // ✅ Brand filtering (supports multiple selections)
+      // ✅ Brand filtering
       if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) {
         isMatching = false;
       }
 
-      // Product type filtering
+      // ✅ Product type filtering
       if (productType && product.productType !== productType) {
         isMatching = false;
       }
 
-      // Price filtering
+      // ✅ Price filtering
       if ((minPrice || maxPrice) && product.variants?.length) {
-        const firstVariant = product.variants[0]; // Ensure first variant exists
+        const firstVariant = product.variants[0];
         const offerPrice = firstVariant?.offerPrice || 0;
 
         if ((minPrice && offerPrice < parseFloat(minPrice)) || (maxPrice && offerPrice > parseFloat(maxPrice))) {
@@ -65,7 +65,7 @@ exports.getallProducts = async (req, res) => {
         }
       }
 
-      // Size filtering
+      // ✅ Size filtering
       if (sizesArray && product.variants) {
         const sizeMatch = product.variants.some((variant) =>
           variant.sizes?.some((s) => sizesArray.includes(s.size))
@@ -73,14 +73,14 @@ exports.getallProducts = async (req, res) => {
         if (!sizeMatch) isMatching = false;
       }
 
-      // New arrivals filtering
+      // ✅ New arrivals filtering
       if (newArrivals === "true" && new Date(product.createdAt) < newArrivalDate) {
         isMatching = false;
       }
 
-      // Discount filtering
+      // ✅ Discount filtering
       if ((discountMinValue || discountMaxValue) && product.offers?.length) {
-        const offer = product.offers[0]; // First offer
+        const offer = product.offers[0];
         let discountPercentage = 0;
 
         if (offer.offerType === "percentage") {
@@ -96,7 +96,17 @@ exports.getallProducts = async (req, res) => {
         isMatching = false;
       }
 
-      // Search filtering
+      // ✅ Rating filtering
+      if ((minRatingValue !== null || maxRatingValue !== null) && product.averageRating !== undefined) {
+        const productRating = product.averageRating || 0;
+
+        if ((minRatingValue !== null && productRating < minRatingValue) ||
+            (maxRatingValue !== null && productRating > maxRatingValue)) {
+          isMatching = false;
+        }
+      }
+
+      // ✅ Search filtering
       if (searchQuery) {
         const searchWords = searchQuery.split(" ");
         const isMatch = searchWords.every((word) =>
@@ -112,7 +122,7 @@ exports.getallProducts = async (req, res) => {
       return res.status(200).json({ message: "No products found matching the criteria", total: 0, products: [] });
     }
 
-    // Sorting
+    // ✅ Sorting
     if (sort) {
       if (!["asc", "desc"].includes(sort)) {
         return res.status(400).json({ message: 'Invalid sort parameter. Use "asc" or "desc"' });
@@ -134,6 +144,7 @@ exports.getallProducts = async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
 
 
 
