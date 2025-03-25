@@ -1,4 +1,5 @@
 const User = require('../../../Models/User/UserModel');
+const Coin = require('../../../Models/Admin/CoinModel')
 const bcrypt = require('bcrypt');
 const { generateAccessToken, generateRefreshToken } = require('../../../utils/tokenUtils');
 const jwt = require('jsonwebtoken');
@@ -53,12 +54,15 @@ exports.verifyOTP = async(req,res) => {
       return res.status(400).json({ message: 'Invalid OTP. Please try again.' })
     }
 
+    const settings = await Coin.findOne();
+    const referralCoinReward = settings?.referralCoins || 40; // Default to 40 if not found
+
     // validate refferedBy (optional)
     let referredUser = null;
     if(cachedData.referredBy){
       referredUser = await User.findOneAndUpdate(
         { referralCode: cachedData.referredBy },
-        { $inc: { coins: 40 } },
+        { $inc: { coins: referralCoinReward } },
         { new: true }
       );
 

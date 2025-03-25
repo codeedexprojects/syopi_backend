@@ -135,10 +135,10 @@ exports.getallProducts = async (req, res) => {
       });
     }
 
-    // Fetch all available brands for filtering options
-    const brandList = await Brand.find({}, 'name');
+    // // Fetch all available brands for filtering options
+    // const brandList = await Brand.find({}, 'name');
 
-    res.status(200).json({ total: filteredProducts.length, products: filteredProducts, brandList });
+    res.status(200).json({ total: filteredProducts.length, products: filteredProducts });
 
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error: error.message });

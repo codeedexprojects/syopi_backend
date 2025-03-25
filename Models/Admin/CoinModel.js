@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 
-const CoinSettingsSchema = new mongoose.Schema({
-  percentage: { type: Number, required: true, default: 4 }, // Percentage of order value converted to coins
-  minAmount: { type: Number, required: true, default: 100 }, // Min order amount to earn coins
-  updatedAt: { type: Date, default: Date.now }
+const coinSettingsSchema = new mongoose.Schema({
+  percentage: { type: Number, default: 0 }, // Coin percentage (e.g., for cashback)
+  minAmount: { type: Number, default: 0 }, // Minimum amount for earning coins
+  referralCoins: { type: Number, default: 50 }, // Default referral coin amount
+  updatedAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("CoinSettings", CoinSettingsSchema);
+module.exports = mongoose.model("CoinSettings", coinSettingsSchema);
