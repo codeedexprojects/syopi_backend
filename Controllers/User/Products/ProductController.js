@@ -8,7 +8,11 @@ const Brand = require('../../../Models/Admin/BrandModel');
 // get all products
 exports.getallProducts = async (req, res) => {
   try {
-    const { brand, productType, minPrice, maxPrice, size, newArrivals, discountMin, discountMax, sort, search, minRating, maxRating } = req.query;
+    const { 
+      brand, productType, minPrice, maxPrice, size, newArrivals, 
+      discountMin, discountMax, sort, search, minRating, maxRating, 
+      page = 1, limit = 20  // ✅ Set default limit to 20 products per page
+    } = req.query;
 
     let userId = req.user?.id;
     const allProducts = await getProduct(userId);
@@ -135,15 +139,28 @@ exports.getallProducts = async (req, res) => {
       });
     }
 
-    // // Fetch all available brands for filtering options
-    // const brandList = await Brand.find({}, 'name');
+    // ✅ Pagination Logic
+    const pageNumber = parseInt(page) || 1; // Ensure page is a number
+    const pageSize = parseInt(limit) || 20; // Set default limit to 20
 
-    res.status(200).json({ total: filteredProducts.length, products: filteredProducts });
+    const startIndex = (pageNumber - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    
+    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+    // ✅ Response with pagination info
+    res.status(200).json({
+      total: filteredProducts.length,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(filteredProducts.length / pageSize),
+      products: paginatedProducts
+    });
 
   } catch (error) {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
 
 
 
