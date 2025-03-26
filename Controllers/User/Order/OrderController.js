@@ -229,3 +229,47 @@ exports.getSingleOrder = async (req, res) => {
         });
     }
 };
+
+//for returning the order
+exports.requestOrderReturn = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const userId = req.user.id; 
+
+        const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        if (order.status !== "Delivered") {
+            return res.status(400).json({ success: false, message: "Only delivered orders can be returned" });
+        }
+
+        if (order.returnStatus === "Returned") {
+            return res.status(400).json({ success: false, message: "Order already returned" });
+        }
+
+        const product = order.productId;
+        if (!product.isReturnable) {
+            return res.status(400).json({ success: false, message: "This product is not returnable" });
+        }
+
+        let returnDeadline = new Date(order.updatedAt);
+        returnDeadline.setDate(returnDeadline.getDate() + product.returnWithinDays);
+
+        if (new Date() > returnDeadline) {
+            return res.status(400).json({ success: false, message: "Return period expired" });
+        }
+
+        order.returnStatus = "Processing"; // Auto-approved
+        order.refundDate = new Date();
+        order.refundDate.setDate(order.refundDate.getDate() + 5); // Refund after 5 days
+
+        await order.save();
+
+        res.status(200).json({ success: true, message: "Return initiated. Refund will be processed soon." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error requesting return", error: error.message });
+    }
+};
