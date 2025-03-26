@@ -21,6 +21,8 @@ const VendorOrderSchema = new mongoose.Schema(
       values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
       message: 'Invalid order status'
     }, default: "Pending" },
+    deliveredAt: { type:Date
+    },
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

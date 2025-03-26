@@ -24,35 +24,50 @@ exports.getAllOrders = async (req, res) => {
 // Update order status
 exports.updateOrderStatus = async (req, res) => {
     try {
-        
-    const {status, orderId} = req.body;
-        console.log(status, orderId);
-        
-        // Check if status is valid
+        const { status, orderId } = req.body;
+        console.log("Updating order status:", status, "Order ID:", orderId);
+
+        // Check if the status is valid
         const validStatuses = ["Pending", "Processing", "In-Transit", "Delivered", "Cancelled", "Returned"];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid order status" });
         }
-        const updatedOrder = await VendorOrder.findOneAndUpdate({_id:orderId}, { status }, { new: true });
-        
-        const userOrder = await UserOrder.findOneAndUpdate(
-            { _id: orderId }, // Assuming there’s a reference to UserOrder in VendorOrder
-            { status },
-            { new: true }
+
+        // If status is Delivered, set deliveredAt to current date
+        const updateFields = { status };
+        if (status === "Delivered") {
+            updateFields.deliveredAt = new Date();
+        }
+
+        // Update VendorOrder
+        const updatedVendorOrder = await VendorOrder.findOneAndUpdate(
+            { _id: orderId },  
+            updateFields,         
+            { new: true }       
         );
 
-        if (!userOrder) {
+        if (!updatedVendorOrder) {
+            return res.status(404).json({ success: false, message: "Vendor order not found" });
+        }
+
+        // Update UserOrder (if applicable)
+        const updatedUserOrder = await UserOrder.findOneAndUpdate(
+            { _id: orderId },  
+            updateFields,         
+            { new: true }       
+        );
+
+        if (!updatedUserOrder) {
             console.warn("Warning: User order not found for Vendor order", orderId);
         }
 
-        if (!updatedOrder) {
-            return res.status(404).json({ success: false, message: "Order not found" });
-        }
-        console.log(updatedOrder);
-        return res.status(200).json({ success: true, message: "Order status updated", order: updatedOrder });
+        console.log("Updated Vendor Order:", updatedVendorOrder);
+
+        return res.status(200).json({ success: true, message: "Order status updated", order: updatedVendorOrder });
     } catch (error) {
         console.error("Error updating order status:", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
 

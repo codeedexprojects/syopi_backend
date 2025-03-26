@@ -29,30 +29,36 @@ exports.updateOrderStatus = async (req, res) => {
     try {
         const { status, orderId } = req.body;
         console.log("Updating order status:", status, "Order ID:", orderId);
-        
+
         // Check if the status is valid
         const validStatuses = ["Pending", "Processing", "In-Transit", "Delivered", "Cancelled", "Returned"];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid order status" });
         }
 
+        // If status is Delivered, set deliveredAt to current date
+        const updateFields = { status };
+        if (status === "Delivered") {
+            updateFields.deliveredAt = new Date();
+        }
+
         // Update VendorOrder
         const updatedVendorOrder = await VendorOrder.findOneAndUpdate(
-            { _id: orderId },  // Find Vendor order by ID
-            { status },         // Update status
-            { new: true }       // Return the updated order
+            { _id: orderId },  
+            updateFields,         
+            { new: true }       
         );
 
         if (!updatedVendorOrder) {
             return res.status(404).json({ success: false, message: "Vendor order not found" });
         }
 
-        // Update UserOrder
-        // const updatedUserOrder = await UserOrder.findOneAndUpdate(
-        //     { _id: orderId },  // Find User order by ID
-        //     { status },         // Update status
-        //     { new: true }       // Return the updated order
-        // );
+        // Update UserOrder (if applicable)
+        const updatedUserOrder = await UserOrder.findOneAndUpdate(
+            { _id: orderId },  
+            updateFields,         
+            { new: true }       
+        );
 
         if (!updatedUserOrder) {
             console.warn("Warning: User order not found for Vendor order", orderId);
