@@ -1,14 +1,30 @@
 const SubCategory=require('../../../Models/Admin/SubCategoryModel')
 
 // get all Subcategories
-exports.getSubCategories = async (req,res) => {
+exports.getSubCategories = async (req, res) => {
     try {
-        const subCategories = await SubCategory.find().populate('category')
-        res.status(200).json({subCategories});
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20; // Default limit set to 20
+        const skip = (page - 1) * limit;
+
+        const subCategories = await SubCategory.find()
+            .populate('category')
+            .skip(skip)
+            .limit(limit);
+
+        const totalSubCategories = await SubCategory.countDocuments();
+
+        res.status(200).json({
+            subCategories,
+            totalPages: Math.ceil(totalSubCategories / limit),
+            currentPage: page,
+            totalSubCategories
+        });
     } catch (err) {
-        res.status(500).json({message: 'Error fetching categories', error:err.message})
+        res.status(500).json({ message: 'Error fetching subcategories', error: err.message });
     }
-}
+};
+
 
 // get a subCategory by id 
 
