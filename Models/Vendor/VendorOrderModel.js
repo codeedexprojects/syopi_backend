@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const VendorPayout = require('../Admin/vendorPayout')
-const AdminCommission = require('../Admin/CommissionModel')
+const AdminCommission = require('../Admin/CommissionModel');
+const { type } = require("express/lib/response");
 
 const VendorOrderSchema = new mongoose.Schema(
   {
@@ -21,8 +22,7 @@ const VendorOrderSchema = new mongoose.Schema(
       values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
       message: 'Invalid order status'
     }, default: "Pending" },
-    deliveredAt: { type:Date
-    },
+    deliveredAt: {type: Date},
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
