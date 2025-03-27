@@ -42,15 +42,31 @@ exports.getSubCategoryById = async(req,res) => {
 }
 
 // get a subcategorieds by category
-exports.getSubCategoryByCategory = async(req,res) => {
+exports.getSubCategoryByCategory = async (req, res) => {
     const { id } = req.params;
     try {
-        const subCategory = await SubCategory.find({category:id}).populate('category')
-        if(!subCategory){
-            return res.status(404).json({ message: "SubCategory not found" });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20; // Default limit 20
+        const skip = (page - 1) * limit;
+
+        const subCategories = await SubCategory.find({ category: id })
+            .populate('category')
+            .skip(skip)
+            .limit(limit);
+
+        const totalSubCategories = await SubCategory.countDocuments({ category: id });
+
+        if (!subCategories.length) {
+            return res.status(404).json({ message: "SubCategories not found" });
         }
-        res.status(200).json(subCategory);
+
+        res.status(200).json({
+            subCategories,
+            totalPages: Math.ceil(totalSubCategories / limit),
+            currentPage: page,
+            totalSubCategories
+        });
     } catch (err) {
-        res.status(500).json({message: 'Error fetching subcategory',error: err.message});
+        res.status(500).json({ message: 'Error fetching subcategories', error: err.message });
     }
-}
+};
