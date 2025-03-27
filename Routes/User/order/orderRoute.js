@@ -14,6 +14,7 @@ router.get('/view',verifyToken(['customer']),orderController.getUserOrder)
 
 // by orderId
 router.get('/view/:orderId', verifyToken(['customer']),orderController.getSingleOrder);
+router.post('/return/:orderId', verifyToken(['customer']),orderController.requestOrderReturn);
 
 
 module.exports=router
