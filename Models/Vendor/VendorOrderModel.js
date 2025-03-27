@@ -17,16 +17,23 @@ const VendorOrderSchema = new mongoose.Schema(
     color: { type: String, required: true },
     colorName: { type: String, required: true },
     size: { type: String, required: true },
-    status: { type: String,  enum: {
-      values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
-      message: 'Invalid order status'
-    }, default: "Pending" },
-    returnStatus: { type: String, enum: ["Not_requested", "Processing", "Returned"], default: "Not_requested" },
-    refundDate: { type: Date },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { timestamps: true }
-);
+status: { 
+  type: String,  
+  enum: {
+    values: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
+    message: 'Invalid order status'
+  }, 
+  default: "Pending" 
+},
+deliveredAt: { type: Date }, 
+returnStatus: { 
+  type: String, 
+  enum: ["Not_requested", "Processing", "Returned"], 
+  default: "Not_requested" 
+},
+refundDate: { type: Date },
+createdAt: { type: Date, default: Date.now },
+
 
 // Pre-save hook to manage vendor payout creation and updates
 VendorOrderSchema.pre("save", async function (next) {
