@@ -3,7 +3,10 @@ const getProduct = require('../../../utils/getProducts');
 // const Banner = require('../../../Models/Admin/BannerModel');
 const Review = require("../../../Models/User/ReviewModel");
 const moment = require("moment");
+const axios = require("axios");
 const Brand = require('../../../Models/Admin/BrandModel');
+
+
 // const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
 // get all products
 exports.getallProducts = async (req, res) => {
@@ -299,6 +302,46 @@ exports.getSimilarProducts = async (req, res) => {
     res.status(200).json({ products: similarProducts });
   } catch (error) {
     res.status(500).json({ message: "Error fetching similar products", error: error.message });
+  }
+};
+
+// Get Expected Delivery Date based on Pincode
+exports.getExpectedDeliveryDate = async (req, res) => {
+  const { pincode } = req.query;
+
+  try {
+      const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = response.data;
+
+      if (data[0].Status === "Success") {
+          const state = data[0].PostOffice[0].State.toLowerCase();
+          const officeType = data[0].PostOffice[0].BranchType.toLowerCase();
+
+          let daysToAdd;
+          if (state === "kerala") {
+              daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 1 : 2;
+          } else {
+              daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 5 : 7;
+          }
+
+          const deliveryDate = moment().add(daysToAdd, 'days').format("YYYY-MM-DD");
+
+          return res.status(200).json({
+              success: true,
+              message: "Expected delivery date calculated successfully",
+              deliveryDate
+          });
+      }
+      return res.status(400).json({
+          success: false,
+          message: "Invalid Pincode",
+      });
+  } catch (error) {
+      console.error("Error fetching pincode data:", error.message);
+      return res.status(500).json({
+          success: false,
+          message: "Error occurred while calculating delivery date",
+      });
   }
 };
   

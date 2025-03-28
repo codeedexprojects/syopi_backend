@@ -20,7 +20,7 @@ router.get('/view/:id',attachWishlistIfAuthenticated,productController.getProduc
 // Get similar products
 router.get('/similar/:id', attachWishlistIfAuthenticated, productController.getSimilarProducts);
 
-
+router.get('/expected_date',productController.getExpectedDeliveryDate)
 
 
 // // sorting based on price
