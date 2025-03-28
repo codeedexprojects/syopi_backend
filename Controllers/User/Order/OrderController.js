@@ -94,7 +94,7 @@ exports.placeOrder = async (req, res) => {
                 color: item.color,
                 colorName:item.colorName,
                 size: item.size, 
-                status: "Pending",
+                status: "Confirmed",
             });
             
             await vendorOrder.save();
@@ -173,13 +173,19 @@ exports.placeOrder = async (req, res) => {
 exports.getUserOrder = async (req, res) => {
     const userId = req.user.id
     try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.max(1, parseInt(req.query.limit) || 10);
+        const skip = (page - 1) * limit;
+        const totalOrders = await VendorOrder.countDocuments({ userId });
         // const userOrder = await Order.find(userId).sort({ createdAt: -1 })
          // Fetch vendor-specific orders (each product has its own status)
          const vendorOrders = await VendorOrder.find({userId} )
          .populate("productId")  
          .populate("addressId")
          .populate("orderId", "paymentMethod discountedAmount totalPrice finalPayableAmount")  
-         .sort({ createdAt: -1 });
+         .sort({ createdAt: -1 })
+         .skip(skip)
+         .limit(limit);
        
          // Format createdAt before sending the response
          const formattedOrders = vendorOrders.map(order => ({
@@ -187,8 +193,23 @@ exports.getUserOrder = async (req, res) => {
             createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
              updatedAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss")
         }));
+           // Pagination metadata
+           const totalPages = Math.ceil(totalOrders / limit);
+           const hasNextPage = page < totalPages;
+           const hasPrevPage = page > 1;
 
-        res.status(200).json({ success: true, vendorOrders: formattedOrders });
+        // res.status(200).json({ success: true, vendorOrders: formattedOrders });
+        res.status(200).json({
+            success: true,
+            vendorOrders: formattedOrders,
+            pagination: {
+                totalOrders,
+                totalPages,
+                currentPage: page,
+                hasNextPage,
+                hasPrevPage,
+            }
+        });
     }
     catch (error) {
         console.error(error);
@@ -255,7 +276,7 @@ exports.requestOrderReturn = async (req, res) => {
             return res.status(400).json({ success: false, message: "This product is not returnable" });
         }
 
-        let returnDeadline = new Date(order.updatedAt);
+        let returnDeadline = new Date(order.deliveredAt);
         returnDeadline.setDate(returnDeadline.getDate() + product.returnWithinDays);
 
         if (new Date() > returnDeadline) {

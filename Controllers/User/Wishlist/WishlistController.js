@@ -29,8 +29,22 @@ exports.getUserWishlist = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const wishlist = await Wishlist.find({ userId }).populate("productId");
-    res.status(200).json({ wishlist });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
+    const totalWishlistItems = await Wishlist.countDocuments({ userId });
+    const wishlist = await Wishlist.find({ userId }).populate("productId").skip(skip).limit(limit);
+     // Pagination metadata
+     const totalPages = Math.ceil(totalWishlistItems / limit);
+     const hasNextPage = page < totalPages;
+     const hasPrevPage = page > 1;
+    res.status(200).json({ wishlist ,pagination: {
+      totalWishlistItems,
+      totalPages,
+      currentPage: page,
+      hasNextPage,
+      hasPrevPage,
+  }});
   } catch (error) {
     res
       .status(500)
