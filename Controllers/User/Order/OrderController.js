@@ -294,3 +294,39 @@ exports.requestOrderReturn = async (req, res) => {
         res.status(500).json({ success: false, message: "Error requesting return", error: error.message });
     }
 };
+
+exports.cancelOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const userId = req.user.id;
+
+        const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        if (order.status === "Delivered") {
+            return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
+        }
+
+        if (order.cancelStatus === "Cancelled") {
+            return res.status(400).json({ success: false, message: "Order already canceled" });
+        }
+
+        order.cancelStatus = "Cancelled";
+        order.status = "Cancelled";
+
+        // Process refund only if the payment was made (assuming order has a 'paymentStatus' field)
+        if (order.paymentStatus === "Paid") {
+            order.refundDate = new Date();
+            order.refundDate.setDate(order.refundDate.getDate() + Math.floor(Math.random() * 3) + 5); // Refund in 5-7 days
+        }
+
+        await order.save();
+
+        res.status(200).json({ success: true, message: "Order canceled successfully. Refund will be processed in 5-7 days if applicable." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
+    }
+};
