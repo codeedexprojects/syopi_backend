@@ -4,11 +4,13 @@ const profileController = require('../../../Controllers/User/Profile/profileCont
 const verifyToken = require('../../../Middlewares/jwtConfig');
 const multerConfig = require('../../../Middlewares/MulterConfig');
 
-// get user profile
-router.get('/view',verifyToken(['customer']),profileController.getUserProfile);
+// Get user profile
+router.get('/view', verifyToken(['customer']), profileController.getUserProfile);
 
-// update user 
-router.patch('/update',verifyToken(['customer']),multerConfig.single('image'),profileController.updateUserData);
+// Update user 
+router.patch('/update', verifyToken(['customer']), multerConfig.single('image'), profileController.updateUserData);
 
+// Delete user account
+router.delete('/delete', verifyToken(['customer']), profileController.deleteUserAccount);
 
 module.exports = router;
