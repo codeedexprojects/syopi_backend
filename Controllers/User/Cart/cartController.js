@@ -5,7 +5,7 @@ const Product=require('../../../Models/Admin/productModel')
 
 // create cart or add new product to cart
 exports.createOrUpdateCart = async (req, res) => {
-  const { userId, productId, quantity, color,colorName, size } = req.body;
+  const { userId, productId, quantity, color, colorName, size } = req.body;
 
   if (!userId || !productId || !quantity || !color || !size || !colorName) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -30,6 +30,23 @@ exports.createOrUpdateCart = async (req, res) => {
       return res.status(404).json({ success: false, message: `Size ${size} not found for variant with color ${color}` });
     }
 
+    // Check stock availability
+  // Show "Out of Stock" if stock is 0
+  if (sizeDetails.stock === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: `Out of Stock for size ${size} with color ${colorName}` 
+    });
+  }
+
+  // Check stock availability
+  if (sizeDetails.stock < quantity) {
+    return res.status(400).json({ 
+      success: false, 
+      message: `Only ${sizeDetails.stock} items available in stock for size ${size} with color ${colorName}`
+    });
+  }
+
     // Find or create the user's cart
     let cart = await Cart.findOne({ userId });
     if (!cart) {
@@ -45,8 +62,17 @@ exports.createOrUpdateCart = async (req, res) => {
     );
 
     if (existingItemIndex > -1) {
+      // Check if updating quantity exceeds stock
+      const newQuantity = cart.items[existingItemIndex].quantity + quantity;
+      if (newQuantity > sizeDetails.stock) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Cannot add more than ${sizeDetails.stock} items in the cart`
+        });
+      }
+
       // Update quantity for existing product in the cart
-      cart.items[existingItemIndex].quantity += quantity;
+      cart.items[existingItemIndex].quantity = newQuantity;
 
       if (cart.items[existingItemIndex].quantity <= 0) {
         // Remove item if quantity becomes 0 or negative
@@ -60,7 +86,6 @@ exports.createOrUpdateCart = async (req, res) => {
         color,
         colorName, 
         size,
-       
       });
     } else {
       return res.status(400).json({ success: false, message: 'Quantity must be greater than zero' });
@@ -79,6 +104,7 @@ exports.createOrUpdateCart = async (req, res) => {
     });
   }
 };
+
 
   
 

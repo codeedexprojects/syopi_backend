@@ -316,6 +316,9 @@ exports.getSingleOrder = async (req, res) => {
 exports.requestOrderReturn = async (req, res) => {
     try {
         const { orderId } = req.params;
+        const { reason, description } = req.body; // Extract return reason and description
+        console.log(reason, description);
+        
         const userId = req.user.id; 
 
         const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
@@ -344,9 +347,11 @@ exports.requestOrderReturn = async (req, res) => {
             return res.status(400).json({ success: false, message: "Return period expired" });
         }
 
-        order.returnStatus = "Processing"; // Auto-approved
+        order.returnStatus = "Processing"; // Auto-approved return
+        order.cancellationOrReturnReason = reason; // Store return reason
+        order.cancellationOrReturnDescription = description || ""; // Store return description (optional)
         order.refundDate = new Date();
-        order.refundDate.setDate(order.refundDate.getDate() + 5); // Refund after 5 days
+        order.refundDate.setDate(order.refundDate.getDate() + 5); // Refund in 5 days
 
         await order.save();
 
@@ -356,9 +361,13 @@ exports.requestOrderReturn = async (req, res) => {
     }
 };
 
+
 exports.cancelOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
+        const { reason, description } = req.body; // Extract reason and description
+        console.log(reason, description);
+
         const userId = req.user.id;
 
         const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
@@ -377,6 +386,8 @@ exports.cancelOrder = async (req, res) => {
 
         order.cancelStatus = "Cancelled";
         order.status = "Cancelled";
+        order.cancellationOrReturnReason = reason; // Store the reason for cancellation
+        order.cancellationOrReturnDescription = description || ""; // Store description if provided
 
         // Process refund only if the payment was made (assuming order has a 'paymentStatus' field)
         if (order.paymentStatus === "Paid") {
@@ -386,8 +397,12 @@ exports.cancelOrder = async (req, res) => {
 
         await order.save();
 
-        res.status(200).json({ success: true, message: "Order canceled successfully. Refund will be processed in 5-7 days if applicable." });
+        res.status(200).json({ 
+            success: true, 
+            message: "Order canceled successfully. Refund will be processed in 5-7 days if applicable." 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
     }
 };
+
