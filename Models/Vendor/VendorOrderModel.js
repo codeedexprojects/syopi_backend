@@ -31,6 +31,8 @@ const VendorOrderSchema = new mongoose.Schema(
       enum: ["Not_requested", "Processing", "Returned"], 
       default: "Not_requested" 
     },
+    cancellationOrReturnReason: { type: String, default: "" }, 
+    cancellationOrReturnDescription: { type: String, default: "" },  
     refundDate: { type: Date },
     createdAt: { type: Date, default: Date.now }
   },
