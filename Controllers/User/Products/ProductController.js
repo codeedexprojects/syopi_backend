@@ -306,7 +306,6 @@ exports.getSimilarProducts = async (req, res) => {
 };
 
 // Get Expected Delivery Date based on Pincode
-// Get Expected Delivery Date based on Pincode
 exports.getExpectedDeliveryDate = async (req, res) => {
   const { pincode } = req.query;
 
@@ -344,6 +343,7 @@ exports.getExpectedDeliveryDate = async (req, res) => {
               message: "Expected delivery date calculated successfully",
               deliveryDate: deliveryDate.format("YYYY-MM-DD"),
               deliveryMessage,
+              pincode
           });
       }
 
