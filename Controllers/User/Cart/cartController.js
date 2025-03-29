@@ -21,7 +21,7 @@ exports.createOrUpdateCart = async (req, res) => {
     // Validate variant existence
     const variant = product.variants.find(v => v.color === color);
     if (!variant) {
-      return res.status(404).json({ success: false, message: `Variant with color ${color} not found` });
+      return res.status(404).json({ success: false, message: `Variant with color ${color} ${colorName}not found` });
     }
 
     // Validate size existence
