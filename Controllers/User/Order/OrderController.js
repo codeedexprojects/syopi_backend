@@ -282,26 +282,38 @@ exports.getUserOrder = async (req, res) => {
 }
 
 
-// by orderid
 exports.getSingleOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const order = await VendorOrder.findById(orderId).populate('productId').populate('addressId');
+        const order = await VendorOrder.findById(orderId)
+            .populate('productId')
+            .populate('addressId');
+
         if (!order) {
             return res.status(404).json({
                 success: false,
                 message: 'Order not found',
             });
         }
-          // Format createdAt and updatedAt before sending response
+
+        // Check for return expiry
+        const deliveredDate = moment(order.deliveredAt);
+        const returnWithinDays = order.productId.returnWithinDays || 0; // Use the returnWithinDays from the product
+        const expiryDate = moment(deliveredDate).add(returnWithinDays, 'days');
+        const returnExpired = moment().isAfter(expiryDate);
+
+        // Format createdAt, updatedAt, and add returnExpired before sending response
         const formattedOrder = {
             ...order._doc,  // Spread existing order data
             createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
-            updatedAt: moment(order.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+            updatedAt: moment(order.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+            deliveredAt: moment(order.deliveredAt).format("YYYY-MM-DD HH:mm:ss"),
+            returnExpired,  // Add returnExpired field
         };
+
         res.status(200).json({
-           success: true,
-            order:formattedOrder,
+            success: true,
+            order: formattedOrder,
         });
     } catch (error) {
         console.error(error);
@@ -311,6 +323,7 @@ exports.getSingleOrder = async (req, res) => {
         });
     }
 };
+
 
 //for returning the order
 exports.requestOrderReturn = async (req, res) => {
@@ -346,7 +359,7 @@ exports.requestOrderReturn = async (req, res) => {
         if (new Date() > returnDeadline) {
             return res.status(400).json({ success: false, message: "Return period expired" });
         }
-
+        order.status = "Returned"
         order.returnStatus = "Processing"; // Auto-approved return
         order.cancellationOrReturnReason = reason; // Store return reason
         order.cancellationOrReturnDescription = description || ""; // Store return description (optional)
