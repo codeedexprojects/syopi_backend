@@ -219,6 +219,74 @@ exports.resetPassword = async (req, res) => {
 };
 
 // Google Login Callback
+
+// exports.googleLoginCallback = async(req, res, next) => {
+//   console.log(req.user)
+//     try {
+//       // Extract email correctly
+//       const email = req.user?.emails?.[0]?.value;
+//       const googleId = req.user?.id;
+
+//       if (!email) {
+//         return res.status(400).json({ message: 'Google login failed: email not found.' });
+//       }
+
+//       // Check if a user with this email or googleId exists
+//       let existingUser = await User.findOne({ $or: [{ googleId}, { email }] });
+
+//       if (existingUser) {
+//         // // If user exists, link the Google ID to the existing user (if it's not already set)
+//         // if (!existingUser.googleId) {
+//         //   existingUser.googleId = user.id;  // Link the Google ID to the user
+//         //   await existingUser.save();
+//         // }
+//          // Generate JWT token
+//       const token = jwt.sign({ id: existingUser._id, role: existingUser.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+//       res.status(200).json({
+//         message: 'Google login successful',
+//         token,
+//         user: {
+//           name: existingUser.name,
+//           email: existingUser.email,
+//           role: existingUser.role,
+//           userId: existingUser._id,
+//         },
+//       });
+//       } 
+//       // If the user does not exist, create a new user
+//     const newUser = new User({
+//       name: req.user?.displayName || req.user?.name,
+//       email: req.user?.emails?.[0]?.value,
+//       googleId: req.user?.id,
+//     });
+
+//     // Save the new user to the database
+//     await newUser.save();
+
+//     // Generate a JWT token after creating the user
+//     const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+//     // Respond with the user details and token
+//     res.status(200).json({
+//       message: 'Google login successful',
+//       token,
+//       user: {
+//         name: newUser.name,
+//         email: newUser.email,
+//         role: newUser.role,
+//         userId: newUser._id,
+//       },
+//     });
+//     } catch (error) {
+//       console.error('Error during Google login callback:', error);
+//       res.status(500).json({ message: 'Server error', error: error.message });
+//     }
+//   (req, res, next);
+// };
+
+
+
 exports.googleLoginCallback = (req, res, next) => {
   passport.authenticate('google', { session: false }, async (err, user, info) => {
       if (err) {
