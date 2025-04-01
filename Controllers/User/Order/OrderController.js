@@ -393,11 +393,10 @@ exports.cancelOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
         }
 
-        if (order.cancelStatus === "Cancelled") {
+        if (order.status === "Cancelled") {
             return res.status(400).json({ success: false, message: "Order already canceled" });
         }
 
-        order.cancelStatus = "Cancelled";
         order.status = "Cancelled";
         order.cancellationOrReturnReason = reason; // Store the reason for cancellation
         order.cancellationOrReturnDescription = description || ""; // Store description if provided
