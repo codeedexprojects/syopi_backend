@@ -319,19 +319,34 @@ exports.getExpectedDeliveryDate = async (req, res) => {
 
           let daysToAdd;
           if (state === "kerala") {
+              // Inside Kerala: Head/Sub office -> 1 day, Branch office -> 2 days
               daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 1 : 2;
           } else {
+              // Outside Kerala: Head/Sub office -> 5 days, Branch office -> 7 days
               daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 5 : 7;
           }
 
-          const deliveryDate = moment().add(daysToAdd, 'days').format("YYYY-MM-DD");
+          const deliveryDate = moment().add(daysToAdd, 'days');
+
+          // Constructing the delivery message
+          let deliveryMessage;
+          if (daysToAdd === 1) {
+              deliveryMessage = "Delivered by tomorrow";
+          } else if (daysToAdd === 2) {
+              deliveryMessage = "Delivered within 2 days";
+          } else {
+              deliveryMessage = `Delivered by ${deliveryDate.format("dddd")}, ${deliveryDate.format("MMMM D")}`;
+          }
 
           return res.status(200).json({
               success: true,
               message: "Expected delivery date calculated successfully",
-              deliveryDate
+              deliveryDate: deliveryDate.format("YYYY-MM-DD"),
+              deliveryMessage,
+              pincode
           });
       }
+
       return res.status(400).json({
           success: false,
           message: "Invalid Pincode",

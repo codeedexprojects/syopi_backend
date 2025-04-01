@@ -25,6 +25,14 @@ const VendorOrderSchema = new mongoose.Schema(
       }, 
       default: "Pending" 
     },
+    deliveryDetails:{
+      deliveryDate:{
+        type:String
+      },
+      deliveryMessage:{
+        type:String
+      }
+    },
     deliveredAt: { type: Date }, 
     returnStatus: { 
       type: String, 

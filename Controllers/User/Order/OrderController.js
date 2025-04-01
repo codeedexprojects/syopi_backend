@@ -3,10 +3,13 @@ const Order = require('../../../Models/User/OrderModel')
 const Checkout = require('../../../Models/User/CheckoutModel');
 const Product = require('../../../Models/Admin/productModel')
 const Cart = require("../../../Models/User/cartModel");
+const Address = require('../../../Models/User/AddressModel')
 const VendorOrder = require('../../../Models/Vendor/VendorOrderModel')
 const CoinSettings = require("../../../Models/Admin/CoinModel");
 const User = require('../../../Models/User/UserModel')
 const moment = require("moment");
+const axios = require("axios");
+
 
 // place order
 exports.placeOrder = async (req, res) => {
@@ -80,6 +83,21 @@ exports.placeOrder = async (req, res) => {
 
             // Save updated product
             await product.save();
+
+                // Fetch the address using the addressId
+            const address = await Address.findById(addressId);
+            if (!address) {
+                return res.status(404).json({ success: false, message: "Address not found" });
+            }
+
+            const deliveryDetails = await fetchDeliveryDetails(address.pincode)
+            if (!deliveryDetails) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Failed to calculate delivery date",
+                });
+            }
+
             const vendorOrder = new VendorOrder({
                 vendorId: product.owner.toString(),
                 userId,
@@ -94,6 +112,7 @@ exports.placeOrder = async (req, res) => {
                 color: item.color,
                 colorName:item.colorName,
                 size: item.size, 
+                deliveryDetails,
                 status: "Confirmed",
             });
             
@@ -168,6 +187,48 @@ exports.placeOrder = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+const fetchDeliveryDetails = async (pincode) => {
+    try {
+        // Fetch pincode details
+        const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+        const data = response.data;
+
+        if (data[0].Status === "Success" && data[0].PostOffice.length > 0) {
+            const state = data[0].PostOffice[0].State.toLowerCase();
+            const officeType = data[0].PostOffice[0].BranchType.toLowerCase();
+
+            let daysToAdd;
+            if (state === "kerala") {
+                // Inside Kerala: Head/Sub office -> 1 day, Branch office -> 2 days
+                daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 1 : 2;
+            } else {
+                // Outside Kerala: Head/Sub office -> 5 days, Branch office -> 7 days
+                daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 5 : 7;
+            }
+
+             const deliveryDate = moment().add(daysToAdd, 'days');
+
+            // Constructing the delivery message
+            let deliveryMessage;
+            if (daysToAdd === 1) {
+                deliveryMessage = "Delivered by tomorrow";
+            } else if (daysToAdd === 2) {
+                deliveryMessage = "Delivered within 2 days";
+            } else {
+                deliveryMessage = `Delivered by ${moment(deliveryDate).format("dddd")}, ${moment(deliveryDate).format("MMMM D")}`;
+            }
+
+            return { deliveryDate: deliveryDate.format("YYYY-MM-DD"), deliveryMessage };
+        } else {
+            throw new Error("Invalid Pincode or No Post Office found");
+        }
+    } catch (error) {
+        console.error("Error fetching delivery details:", error.message);
+        return null;
+    }
+};
+
 
 // get userorders
 exports.getUserOrder = async (req, res) => {
@@ -319,11 +380,10 @@ exports.cancelOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
         }
 
-        if (order.cancelStatus === "Cancelled") {
+        if (order.status === "Cancelled") {
             return res.status(400).json({ success: false, message: "Order already canceled" });
         }
 
-        order.cancelStatus = "Cancelled";
         order.status = "Cancelled";
         order.cancellationOrReturnReason = reason; // Store the reason for cancellation
         order.cancellationOrReturnDescription = description || ""; // Store description if provided
