@@ -11,11 +11,20 @@ const brandSchema = new mongoose.Schema({
         type: String, 
         required: true,
     },
+    image: {
+        type: String, 
+        required: false,
+    },
     description: {
         type: String,
     },
+    discount: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Offer',
+        required: false,
+    }
 },
 { timestamps: true });
 
-const brand = mongoose.model('Brand', brandSchema);
-module.exports = brand
+const Brand = mongoose.model('Brand', brandSchema);
+module.exports = Brand;
