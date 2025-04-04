@@ -6,7 +6,11 @@ const path = require('path');
 exports.createBrand = async (req, res) => {
     const { name, description } = req.body;
 
-    if (!req.file) {
+    // Check if files exist and safely access them
+    const logoFile = req.files?.logo?.[0]?.filename;
+    const imageFile = req.files?.image?.[0]?.filename;
+
+    if (!logoFile) {
         return res.status(400).json({ message: 'Brand logo is required' });
     }
 
@@ -19,7 +23,8 @@ exports.createBrand = async (req, res) => {
 
         const newBrand = new Brand({
             name,
-            logo: req.file.filename,
+            logo: logoFile, // Assign logo filename
+            image: imageFile || null, // Assign image filename if available
             description
         });
 
@@ -30,10 +35,11 @@ exports.createBrand = async (req, res) => {
     }
 };
 
+
 // Get all brands
 exports.getBrands = async (req, res) => {
     try {
-        const brands = await Brand.find().sort({ createdAt: -1 }); // Sort by newest first
+        const brands = await Brand.find().populate('discount').sort({ createdAt: -1 }); // Sort by newest first
         res.status(200).json(brands);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching brands', error: err.message });
@@ -46,7 +52,7 @@ exports.getBrandById = async (req, res) => {
     id = id.trim();
     
     try {
-        const brand = await Brand.findById(id);
+        const brand = await Brand.findById(id).populate('discount');
         console.log(brand);
         
         if (!brand) {
@@ -61,7 +67,7 @@ exports.getBrandById = async (req, res) => {
 // Update a brand
 exports.updateBrand = async (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, discount } = req.body;
 
     try {
         const brand = await Brand.findById(id);
@@ -79,6 +85,7 @@ exports.updateBrand = async (req, res) => {
         }
 
         if (description) brand.description = description;
+        if (discount) brand.discount = discount;
 
         // Update logo if a new file is uploaded
         if (req.file) {
@@ -87,6 +94,7 @@ exports.updateBrand = async (req, res) => {
                 fs.unlinkSync(oldImagePath); // Remove old logo if exists
             }
             brand.logo = req.file.filename; // Update to new logo filename
+            brand.image = req.file.filename; // Update to new image filename
         }
 
         await brand.save(); // Save the updated brand
@@ -127,7 +135,7 @@ exports.searchBrand = async (req, res) => {
         if (name) {
             query.name = { $regex: name, $options: 'i' };
         }
-        const brands = await Brand.find(query);
+        const brands = await Brand.find(query).populate('discount');
         res.status(200).json(brands);
     } catch (err) {
         res.status(500).json({ message: 'Error searching brands', error: err.message });

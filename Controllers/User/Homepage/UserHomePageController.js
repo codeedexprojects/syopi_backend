@@ -67,7 +67,7 @@ exports.getHomePage = async (req, res) => {
         // "Your Top Picks in the Best Price" – combining best-selling and best-priced products
         const topPicksBestPrice = allProducts
             .filter(product => 
-                product.salesCount > 0 && 
+                product.totalSales > 0 && 
                 product.variants.some(variant => variant.offerPrice !== null && variant.offerPrice < variant.price)
             )
             .sort((a, b) => {

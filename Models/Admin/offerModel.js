@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-
 const offerSchema = new mongoose.Schema(
   {
     offerName: {
@@ -41,6 +40,11 @@ const offerSchema = new mongoose.Schema(
       ref: 'Product',
       default: [],
     }],
+    brands: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Brand',
+      default: [],
+    }],
     status: {
       type: String,
       default: 'active',
@@ -54,14 +58,13 @@ const offerSchema = new mongoose.Schema(
     ownerType: {
       type: String,
       enum: ['admin', 'vendor'], // Explicitly distinguish admin vs. vendor
-    },ownerId: { 
+    },
+    ownerId: { 
        type: mongoose.Schema.Types.ObjectId,
        refPath: "ownerType",
-       },
+    },
   },
   { timestamps: true } 
 );
-
-
 
 module.exports = mongoose.model('Offer', offerSchema);
