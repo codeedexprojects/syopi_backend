@@ -7,6 +7,9 @@ const passport = require('passport');
 const NodeCache = require('node-cache');
 const otpGenerator = require('otp-generator');
 const axios = require('axios');
+const { OAuth2Client } = require('google-auth-library');
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const cache = new NodeCache({ stdTTL: 300 });
 const api_key = process.env.FACTOR_API_KEY
