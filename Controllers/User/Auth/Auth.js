@@ -324,6 +324,49 @@ exports.googleLoginCallback = (req, res, next) => {
   })(req, res, next);
 };
 
+
+
+exports.androidLoginCallback = async (req, res) => {
+  const { idToken } = req.body;
+
+  try {
+      // Verify the ID token
+      const ticket = await client.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      const { sub, email, name } = payload;
+
+      // Check if a user with this email exists
+      let user = await User.findOne({ email });
+      if (!user) {
+          user = await User.create({
+              name,
+              email,
+              googleId: sub,
+          });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+      res.status(200).json({
+          message: 'Google login successful',
+          token,
+          user: {
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              userId: user._id,
+          },
+      });
+  } catch (error) {
+      console.log(error);
+      res.status(401).json({ message: 'Invalid Google ID token', error: error.message });
+  }
+};
+
 //apple login callback
 exports.appleLoginCallback = (req, res, next) => {
   passport.authenticate("apple", { session: false }, async (err, user, info) => {

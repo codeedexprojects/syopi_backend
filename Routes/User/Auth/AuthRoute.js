@@ -29,6 +29,10 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 // google callback
 router.get('/google/callback', userController.googleLoginCallback);
 
+// Google login for Android (ID token)
+router.post('/google/android', userController.androidLoginCallback);
+
+
 // Apple Login
 router.get("/apple", passport.authenticate("apple", { scope: ["name", "email"] }));
 
