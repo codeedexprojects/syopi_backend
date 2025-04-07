@@ -27,7 +27,8 @@ exports.registerUser = async (req, res) => {
 
       cache.set(phone, { name,phone,email,referredBy,password,otp });
 
-      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`)
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`)
+      // console.log('2Factor Response:', response.data);
       if(response.data.Status !== 'Success'){
         return res.status(500).json({ message: 'Failed to send OTP. Try again later.' });
       }
@@ -35,8 +36,9 @@ exports.registerUser = async (req, res) => {
       return res.status(200).json({ message: 'OTP sent successfully' });
   
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
-      console.log(error)
+    
+      res.status(500).json({ message: 'Server error', error: error.response.data });
+      // console.log(error)
     }
   };
   
