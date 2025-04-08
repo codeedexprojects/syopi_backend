@@ -9,14 +9,16 @@ const Brand = require('../../../Models/Admin/BrandModel');
 
 // const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
 // get all products
+const mongoose = require('mongoose');
+
 exports.getallProducts = async (req, res) => {
   try {
     const { 
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
-      category, subcategory, page = 1, limit = 20, topSales // ✅ Add topSales to the query
+      category, subcategory, page = 1, limit = 20, topSales 
     } = req.query;
-
+    
     let userId = req.user?.id;
     const allProducts = await getProduct(userId);
 
@@ -113,14 +115,26 @@ exports.getallProducts = async (req, res) => {
         }
       }
 
-      // ✅ Category filtering
-      if (category && product.category !== category) {
-        isMatching = false;
+      // ✅ Category filtering (Handle ObjectId comparison)
+      if (category) {
+        if (!mongoose.Types.ObjectId.isValid(category)) {
+          isMatching = false;
+        }
+        const categoryId = new mongoose.Types.ObjectId(category);
+        if (!product.category?.equals(categoryId)) {
+          isMatching = false;
+        }
       }
 
-      // ✅ Subcategory filtering
-      if (subcategory && product.subcategory !== subcategory) {
-        isMatching = false;
+      // ✅ Subcategory filtering (Handle ObjectId comparison)
+      if (subcategory) {
+        if (!mongoose.Types.ObjectId.isValid(subcategory)) {
+          isMatching = false;
+        }
+        const subcategoryId = new mongoose.Types.ObjectId(subcategory);
+        if (!product.subcategory?.equals(subcategoryId)) {
+          isMatching = false;
+        }
       }
 
       // ✅ Search filtering
@@ -142,7 +156,7 @@ exports.getallProducts = async (req, res) => {
     // ✅ Filter for Top Sold in Category
     if (topSales === "true" && category) {
       // Only filter products within the specified category
-      filteredProducts = filteredProducts.filter((product) => product.category === category);
+      filteredProducts = filteredProducts.filter((product) => product.category.equals(new mongoose.Types.ObjectId(category)));
 
       // Sort products by salesCount (or another metric) in descending order to get the top sold products
       filteredProducts.sort((a, b) => {
@@ -189,6 +203,7 @@ exports.getallProducts = async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
 
 
 

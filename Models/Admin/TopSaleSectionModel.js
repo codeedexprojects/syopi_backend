@@ -12,6 +12,16 @@ const TopSaleSectionSchema = new mongoose.Schema({
     title: {
         type: String,
         required: true,
+    },
+    category: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',  // Referencing the Category model
+        required: true
+    },
+    subcategory: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subcategory',  // Referencing the Subcategory model
+        required: true
     }
 }, { timestamps: true });
 
