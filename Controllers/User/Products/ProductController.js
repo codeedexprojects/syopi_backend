@@ -14,7 +14,7 @@ exports.getallProducts = async (req, res) => {
     const { 
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
-      page = 1, limit = 20  // ✅ Set default limit to 20 products per page
+      category, subcategory, page = 1, limit = 20, topSales // ✅ Add topSales to the query
     } = req.query;
 
     let userId = req.user?.id;
@@ -49,7 +49,7 @@ exports.getallProducts = async (req, res) => {
     const searchQuery = search ? search.trim().toLowerCase() : null;
 
     // Filtering products
-    const filteredProducts = allProducts.filter((product) => {
+    let filteredProducts = allProducts.filter((product) => {
       let isMatching = true;
 
       // ✅ Brand filtering
@@ -113,6 +113,16 @@ exports.getallProducts = async (req, res) => {
         }
       }
 
+      // ✅ Category filtering
+      if (category && product.category !== category) {
+        isMatching = false;
+      }
+
+      // ✅ Subcategory filtering
+      if (subcategory && product.subcategory !== subcategory) {
+        isMatching = false;
+      }
+
       // ✅ Search filtering
       if (searchQuery) {
         const searchWords = searchQuery.split(" ");
@@ -129,7 +139,23 @@ exports.getallProducts = async (req, res) => {
       return res.status(200).json({ message: "No products found matching the criteria", total: 0, products: [] });
     }
 
-    // ✅ Sorting
+    // ✅ Filter for Top Sold in Category
+    if (topSales === "true" && category) {
+      // Only filter products within the specified category
+      filteredProducts = filteredProducts.filter((product) => product.category === category);
+
+      // Sort products by salesCount (or another metric) in descending order to get the top sold products
+      filteredProducts.sort((a, b) => {
+        const salesCountA = a.salesCount || 0;
+        const salesCountB = b.salesCount || 0;
+        return salesCountB - salesCountA; // Sort descending by sales count
+      });
+
+      // Limit the number of top sold products (e.g., top 5)
+      filteredProducts = filteredProducts.slice(0, 5);
+    }
+
+    // ✅ Sorting (optional, after top sales filter)
     if (sort) {
       if (!["asc", "desc"].includes(sort)) {
         return res.status(400).json({ message: 'Invalid sort parameter. Use "asc" or "desc"' });
@@ -163,6 +189,8 @@ exports.getallProducts = async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
+
 
 
 

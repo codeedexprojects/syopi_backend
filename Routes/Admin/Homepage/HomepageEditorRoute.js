@@ -15,4 +15,10 @@ router.post('/lowest-price/create', verifyToken(['admin']), multerConfig.single(
 router.patch('/lowest-price/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateLowestPriceProduct);
 router.delete('/lowest-price/delete/:id', verifyToken(['admin']), HomepageController.deleteLowestPriceProduct);
 
+// Top Picks Routes
+router.post('/top-pick/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createTopPickProduct);
+router.patch('/top-pick/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateTopPickProduct);
+router.delete('/top-pick/delete/:id', verifyToken(['admin']), HomepageController.deleteTopPickProduct);
+router.get('/top-pick/view', verifyToken(['admin']), HomepageController.getAllTopPickProducts);
+
 module.exports = router;

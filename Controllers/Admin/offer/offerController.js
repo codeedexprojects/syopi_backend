@@ -131,6 +131,13 @@ exports.createOffer = async (req, res) => {
     await newOffer.save();
     await applyOfferToProducts(newOffer);
 
+    if (brand && brand.length > 0) {
+      await Brand.updateMany(
+        { _id: { $in: brand.map((id) => new mongoose.Types.ObjectId(id)) } },
+        { $set: { discount: newOffer._id } }
+      );
+    }
+
     res.status(201).json({ message: "Offer created and applied successfully", offer: newOffer });
   } catch (error) {
     res.status(500).json({ message: "Error creating offer", error: error.message });
