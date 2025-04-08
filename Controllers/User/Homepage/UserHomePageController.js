@@ -7,7 +7,7 @@ const OfferModel = require('../../../Models/Admin/offerModel');
 const Brand = require('../../../Models/Admin/BrandModel');
 const TopPicksModel = require('../../../Models/Admin/TopPicksModel')
 const TopSaleSectionModel = require('../../../Models/Admin/TopSaleSectionModel')
-const ReferralSectionModel = require('../../../Models/Admin/ReferralSectionModel')
+const OfferSectionModel = require('../../../Models/Admin/OfferSectionModel')
 
 exports.getHomePage = async (req, res) => {
     try {
@@ -23,16 +23,7 @@ exports.getHomePage = async (req, res) => {
             return res.status(404).json({ message: "No products found" });
         }
 
-        // // Sort products based on salesCount (highest to lowest)
-        // const sortedProducts = allProducts
-        //     .filter(product => product.totalSales && product.totalSales > 0)
-        //     .sort((a, b) => b.totalSales - a.totalSales);
-
-        // // Limit results (default to top 10)
-        // const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-        // const topSales = sortedProducts.slice(0, limit);
-
-        const topSales = await TopSaleSectionModel.find()
+        const topSales = await TopSaleSectionModel.find();
 
         // ** New Arrivals with Filtering (All, Men, Women, Kids, Sale) **
         let filteredNewArrivals = allProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -63,31 +54,29 @@ exports.getHomePage = async (req, res) => {
         // Section: Products sorted from lowest price to highest
         const lowToHighProducts = await LowestProductModel.find();
 
-        const brands = await Brand.find().populate('discount'); 
-        
-        const referralSection = await ReferralSectionModel.find()
-        const topPicksBestPrice = await TopPicksModel.find()
+        const brands = await Brand.find().populate('discount');
+        const OfferSection = await OfferSectionModel.find();
+        const topPicksBestPrice = await TopPicksModel.find();
+
         // Fetch active sliders and banners
         const activeSliders = await Slider.find({ isActive: true });
         const activeBanners = await Banner.find({ isActive: true });
 
         const featuringBrandsNow = [];
 
-        // For each brand, find the top 2 sold products
+        // For each brand, find the top 1 sold product (instead of top 2)
         for (const brand of brands) {
             // Find all products of the current brand
             const brandProducts = allProducts.filter(product => product.brand.toString() === brand._id.toString());
             
-            // Sort the products by salesCount (descending) and get the top 2
-            const top2Products = brandProducts
+            // Sort the products by salesCount (descending) and get the top 1
+            const topProduct = brandProducts
                 .sort((a, b) => b.salesCount - a.salesCount) // Sorting based on salesCount
-                .slice(0, 2); // Get the top 2 sold products
+                .slice(0, 1); // Get the top 1 sold product
 
-            if (top2Products.length > 0) {
-                featuringBrandsNow.push({
-                    brand: brand.name,
-                    products: top2Products
-                });
+            // Check if there's a top product and add it to the array
+            if (topProduct.length > 0) {
+                featuringBrandsNow.push(topProduct[0]);  // Add the top product
             }
         }
 
@@ -99,13 +88,14 @@ exports.getHomePage = async (req, res) => {
             affordableProducts, // Products under ₹1000
             lowToHighProducts, // Products sorted from low to high price
             topPicksBestPrice, // Your Top Picks in the Best Price section
-            referralSection,
+            OfferSection,
             activeSliders,
             activeBanners,
-            featuringBrandsNow
+            featuringBrandsNow // Top 1 product per brand
         });
 
     } catch (error) {
         res.status(500).json({ message: "Error fetching homepage products", error: error.message });
     }
 };
+
