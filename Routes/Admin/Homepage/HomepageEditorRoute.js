@@ -26,9 +26,9 @@ router.patch('/top-sale/update/:id', verifyToken(['admin']), multerConfig.single
 router.get('/top-sale/view', verifyToken(['admin']), HomepageController.getAllTopSaleSectionProducts);
 
 // Referral Section Routes
-router.post('/referral/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createReferralSection);
-router.patch('/referral/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateReferralSectionImages);
-router.delete('/referral/delete/:id', verifyToken(['admin']), HomepageController.deleteReferralSectionImages);
-router.get('/referral/view', verifyToken(['admin']), HomepageController.getAllReferralSection);
+router.post('/offer/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createOfferSection);
+router.patch('/offer/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateOfferSectionImages);
+router.delete('/offer/delete/:id', verifyToken(['admin']), HomepageController.deleteOfferSectionImages);
+router.get('/offer/view', verifyToken(['admin']), HomepageController.getAllOfferSection);
 
 module.exports = router;

@@ -2,10 +2,11 @@ const AffordableProducts = require("../../../Models/Admin/AffordableProductModel
 const LowestPriceProducts = require("../../../Models/Admin/LowestProductModel");
 const TopPicks = require("../../../Models//Admin/TopPicksModel")
 const TopSaleSection = require("../../../Models/Admin/TopSaleSectionModel");
-const ReferralSection = require("../../../Models/Admin/ReferralSectionModel");
+const OfferSection = require("../../../Models/Admin/OfferSectionModel");
 const Category = require('../../../Models/Admin/CategoryModel');  
 const Subcategory = require('../../../Models/Admin/SubCategoryModel');  
 const fs = require("fs");
+const CoinSettings = require('../../../Models/Admin/CoinModel')
 
 // Create Affordable Product
 exports.createAffordableProduct = async (req, res) => {
@@ -427,9 +428,9 @@ exports.getAllTopSaleSectionProducts = async (req, res) => {
     }
 };
 
-// Create Referral Section Product
-exports.createReferralSection = async (req, res) => {
-    const { description, title } = req.body;
+// Create Offer Section 
+exports.createOfferSection = async (req, res) => {
+    const { description, title, coin } = req.body;
 
     if (!req.file) {
         return res.status(400).json({ message: "Please upload an image" });
@@ -440,81 +441,98 @@ exports.createReferralSection = async (req, res) => {
     }
 
     try {
-        const newProduct = new ReferralSection({
-            image: req.file.filename,
-            description,
-            title
-        });
-
-        await newProduct.save();
-        res.status(201).json({ message: "Referral Section product created successfully", newProduct });
-    } catch (err) {
-        res.status(500).json({ message: "Error creating Referral Section product", error: err.message });
-    }
-};
-
-// Get All Referral Section Products
-exports.getAllReferralSection = async (req, res) => {
-    try {
-        const referralSection = await ReferralSection.find().sort({ createdAt: -1 });
-        res.status(200).json({ referralSection });
-    } catch (err) {
-        res.status(500).json({ message: "Error fetching Referral Section ", error: err.message });
-    }
-};
-
-// Update Referral Section Product
-exports.updateReferralSectionImages = async (req, res) => {
-    const { id } = req.params;
-    const { description, title } = req.body;
-
-    try {
-        const Images = await ReferralSection.findById(id);
-        if (!Images) {
-            return res.status(404).json({ message: "Images not found" });
+        // Validate the coin reference
+        const coinSettings = await CoinSettings.findById(coin);
+        if (!coinSettings) {
+            return res.status(400).json({ message: "Invalid coin settings reference" });
         }
 
-        if (description) Images.description = description;
+        const newOfferSection = new OfferSection({
+            image: req.file.filename,
+            description,
+            title,
+            coin: coinSettings._id, // Reference to the CoinSettings model
+        });
+        console.log(newOfferSection);
+        
+        await newOfferSection.save();
+        res.status(201).json({ message: "Offer Section created successfully", newOfferSection });
+    } catch (err) {
+        res.status(500).json({ message: "Error creating Offer Section", error: err.message });
+    }
+};
+
+// Get All Offer Section Products
+exports.getAllOfferSection = async (req, res) => {
+    try {
+        const offerSections = await OfferSection.find().populate('coin').sort({ createdAt: -1 });
+        res.status(200).json({ offerSections });
+    } catch (err) {
+        res.status(500).json({ message: "Error fetching Offer Section", error: err.message });
+    }
+};
+
+// Update Offer Section Product
+exports.updateOfferSectionImages = async (req, res) => {
+    const { id } = req.params;
+    const { description, title, coin } = req.body;
+
+    try {
+        const offerSection = await OfferSection.findById(id).populate('coin');
+        if (!offerSection) {
+            return res.status(404).json({ message: "Offer Section not found" });
+        }
+
+        if (description) offerSection.description = description;
         if (title !== undefined) {
             if (title.trim() === "") {
                 return res.status(400).json({ message: "Title is required" });
             }
-            Images.title = title;
+            offerSection.title = title;
+        }
+
+        if (coin) {
+            // Validate the coin reference
+            const coinSettings = await CoinSettings.findById(coin);
+            if (!coinSettings) {
+                return res.status(400).json({ message: "Invalid coin settings reference" });
+            }
+            offerSection.coin = coinSettings._id; // Update the coin reference
         }
 
         if (req.file) {
-            const oldImagePath = `./uploads/referral_section/${Images.image}`;
+            const oldImagePath = `./uploads/offer_section/${offerSection.image}`;
             if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
             }
-            Images.image = req.file.filename;
+            offerSection.image = req.file.filename;
         }
 
-        await Images.save();
-        res.status(200).json({ message: "Referral Section Images updated successfully", Images });
+        await offerSection.save();
+        res.status(200).json({ message: "Offer Section updated successfully", offerSection });
     } catch (err) {
-        res.status(500).json({ message: "Error updating Referral Section product", error: err.message });
+        res.status(500).json({ message: "Error updating Offer Section", error: err.message });
     }
 };
 
-// Delete Referral Section Product
-exports.deleteReferralSectionImages = async (req, res) => {
+// Delete Offer Section Product
+exports.deleteOfferSectionImages = async (req, res) => {
     const { id } = req.params;
 
     try {
-        const Images = await ReferralSection.findById(id);
-        if (!Images) {
-            return res.status(404).json({ message: "Images not found" });
+        const offerSection = await OfferSection.findById(id);
+        if (!offerSection) {
+            return res.status(404).json({ message: "Offer Section not found" });
         }
 
-        const imagePath = `./uploads/referral_section/${Images.image}`;
+        const imagePath = `./uploads/offer_section/${offerSection.image}`;
         if (fs.existsSync(imagePath)) {
             fs.unlinkSync(imagePath);
         }
 
-        await Images.deleteOne();
-        res.status(200).json({ message: "Referral Section Images deleted successfully" });
+        await offerSection.deleteOne();
+        res.status(200).json({ message: "Offer Section deleted successfully" });
     } catch (err) {
-        res.status(500).json({ message: "Error deleting Referral Section Images", error: err.message });
+        res.status(500).json({ message: "Error deleting Offer Section", error: err.message });
     }
 };
