@@ -8,7 +8,7 @@ const getProduct = async (userId) => {
             const userWishlist = await Wishlist.find({ userId: userId });
             productWishlists = userWishlist ? userWishlist.map((item) => item.productId.toString()) : [];
         }
-
+// console.log(productWishlists)
         // Fetch products
         const products = await Product.find().populate({ path: "offers", select: "offerType amount" });
 

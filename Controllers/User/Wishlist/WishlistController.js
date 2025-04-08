@@ -7,20 +7,26 @@ exports.addToWishList = async (req, res) => {
   try {
     const newWishlist = await Wishlist({ userId, productId });
     await newWishlist.save();
-    res
-      .status(200)
-      .json({ message: "Product added to wishlist", wishlist: newWishlist });
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      message: "Product added to wishlist",
+      wishlist: newWishlist,
+    });
   } catch (error) {
     if (error.code === 11000) {
-      // Duplicate entry error
-      return res.status(400).json({ message: "Product already in wishlist" });
-    }
-    res
-      .status(500)
-      .json({
-        message: "Error adding product to wishlist",
-        error: error.message,
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Product already in wishlist",
       });
+    }
+    return res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error adding product to wishlist",
+      error: error.message,
+    });
   }
 };
 
@@ -60,16 +66,24 @@ exports.removeFromWishlist = async (req, res) => {
   try {
     const result = await Wishlist.findOneAndDelete({ userId, productId });
     if (!result) {
-      return res.status(404).json({ message: "Product not in wishlist" });
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        message: "Product not in wishlist",
+      });
     }
 
-    res.status(200).json({ message: "Product removed from wishlist" });
+    res.status(200).json({
+      success: true,
+      status: 200,
+      message: "Product removed from wishlist",
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "Error removing product from wishlist",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      status: 500,
+      message: "Error removing product from wishlist",
+      error: error.message,
+    });
   }
 };
