@@ -71,6 +71,26 @@ exports.getHomePage = async (req, res) => {
         const activeSliders = await Slider.find({ isActive: true });
         const activeBanners = await Banner.find({ isActive: true });
 
+        const featuringBrandsNow = [];
+
+        // For each brand, find the top 2 sold products
+        for (const brand of brands) {
+            // Find all products of the current brand
+            const brandProducts = allProducts.filter(product => product.brand.toString() === brand._id.toString());
+            
+            // Sort the products by salesCount (descending) and get the top 2
+            const top2Products = brandProducts
+                .sort((a, b) => b.salesCount - a.salesCount) // Sorting based on salesCount
+                .slice(0, 2); // Get the top 2 sold products
+
+            if (top2Products.length > 0) {
+                featuringBrandsNow.push({
+                    brand: brand.name,
+                    products: top2Products
+                });
+            }
+        }
+
         // Return the response with all the sections
         res.status(200).json({
             topSales,
@@ -81,7 +101,8 @@ exports.getHomePage = async (req, res) => {
             topPicksBestPrice, // Your Top Picks in the Best Price section
             referralSection,
             activeSliders,
-            activeBanners
+            activeBanners,
+            featuringBrandsNow
         });
 
     } catch (error) {
