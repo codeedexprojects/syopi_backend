@@ -75,67 +75,67 @@ app.use('/token',tokenRefresh)
 app.use(passport.initialize())
 
 // admin routes
-app.use('/admin/auth', adminAuth)
-app.use('/admin/coupon', adminCoupon)
-app.use('/admin/category', CategoryRoutes);
-app.use('/admin/subcategory',SubcategoryRoutes);
-app.use('/admin/slider',SliderRoutes);
-app.use('/admin/notification',NotificationRoute);
-app.use('/admin/vendor', vendorRoute);
-app.use('/admin/user', userRoute);
-app.use('/admin/offer', offerRoutes)
-app.use('/admin/product', adminProductRoute) 
-app.use('/admin/wishlist', adminWishlistRoute)
-app.use('/admin/profile', adminProfileRoute)
-app.use('/admin/orders', adminOrderRoute)
-app.use('/admin/brand', adminBrandRoute)
-app.use('/admin/purchase', AdminPurchaseRoute)
-app.use('/admin/homepageedit', HomepageEditorRoute)
+app.use('/api/admin/auth', adminAuth)
+app.use('/api/admin/coupon', adminCoupon)
+app.use('/api/admin/category', CategoryRoutes);
+app.use('/api/admin/subcategory',SubcategoryRoutes);
+app.use('/api/admin/slider',SliderRoutes);
+app.use('/api/admin/notification',NotificationRoute);
+app.use('/api/admin/vendor', vendorRoute);
+app.use('/api/admin/user', userRoute);
+app.use('/api/admin/offer', offerRoutes)
+app.use('/api/admin/product', adminProductRoute) 
+app.use('/api/admin/wishlist', adminWishlistRoute)
+app.use('/api/admin/profile', adminProfileRoute)
+app.use('/api/admin/orders', adminOrderRoute)
+app.use('/api/admin/brand', adminBrandRoute)
+app.use('/api/admin/purchase', AdminPurchaseRoute)
+app.use('/api/admin/homepageedit', HomepageEditorRoute)
 
-app.use('/admin/coin',adminCoinRoute)
-app.use('/admin/deliverycharge',adminDeliveryChargeRoute)
-app.use('/admin/dashboard',Dashboard)
-app.use('/admin/banner', adminBannerRoute)
-app.use('/admin/commission', AdminCommission)
-app.use('/admin/vendorpayout', VendorPayout)
+app.use('/api/admin/coin',adminCoinRoute)
+app.use('/api/admin/deliverycharge',adminDeliveryChargeRoute)
+app.use('/api/admin/dashboard',Dashboard)
+app.use('/api/admin/banner', adminBannerRoute)
+app.use('/api/admin/commission', AdminCommission)
+app.use('/api/admin/vendorpayout', VendorPayout)
 
 
 
 
 // vendor
-app.use('/vendor/auth', vendorAuth);
-app.use('/vendor/category', vendorCategoryRoute);
-app.use('/vendor/subcategory', vendorSubcategoryRoute);
-app.use('/vendor/notification', vendorNotificationRoute);
-app.use('/vendor/slider', vendorSliderRoute);
-app.use('/vendor/product', vendorProductRoute)
-app.use('/vendor/offer', vendorOfferRoute)
-app.use('/vendor/coupon', vendorCouponRoute)
-app.use('/vendor/wishlist', vendorWishlistRoute)
-app.use('/vendor/profile', vendorProfileRoute)
-app.use('/vendor/orders', vendorOrderRoute)
-app.use('/vendor/dashboard',VendorDashboard)
-app.use('/vendor/purchase',VendorPurchaseRoute)
+app.use('/api/vendor/auth', vendorAuth);
+app.use('/api/vendor/category', vendorCategoryRoute);
+app.use('/api/vendor/subcategory', vendorSubcategoryRoute);
+app.use('/api/vendor/notification', vendorNotificationRoute);
+app.use('/api/vendor/slider', vendorSliderRoute);
+app.use('/api/vendor/product', vendorProductRoute)
+app.use('/api/vendor/offer', vendorOfferRoute)
+app.use('/api/vendor/coupon', vendorCouponRoute)
+app.use('/api/vendor/wishlist', vendorWishlistRoute)
+app.use('/api/vendor/profile', vendorProfileRoute)
+app.use('/api/vendor/orders', vendorOrderRoute)
+app.use('/api/vendor/dashboard',VendorDashboard)
+app.use('/api/vendor/purchase',VendorPurchaseRoute)
 
 
 
 
 
 // user routes
-app.use('/user/auth',userAuth)
-app.use('/user/categories',UserCategories)
-app.use('/user/Subcategories',UserSubCategories)
-app.use('/user/Products',userProducts)
-app.use('/user/cart',userCart)
-app.use('/user/wishlist',userWishlistRoute)
-app.use('/user/address',userAddressRoute)
-app.use('/user/profile',userProfileRoute)
-app.use('/user/checkout',Checkout)
-app.use('/user/order',userOrderRoute)
-app.use('/user/slider',userSliderRoute)
-app.use('/user/home', homeRoute)
-app.use('/user/review', Review)
-app.use('/user/brand', userBrands)
+app.use('/api/user/auth',userAuth)
+app.use('/api/user/categories',UserCategories)
+app.use('/api/user/Subcategories',UserSubCategories)
+app.use('/api/user/Products',userProducts)
+app.use('/api/user/cart',userCart)
+app.use('/api/user/wishlist',userWishlistRoute)
+app.use('/api/user/address',userAddressRoute)
+app.use('/api/user/profile',userProfileRoute)
+app.use('/api/user/checkout',Checkout)
+app.use('/api/user/order',userOrderRoute)
+app.use('/api/user/slider',userSliderRoute)
+app.use('/api/user/home', homeRoute)
+app.use('/api/user/review', Review)
+app.use('/api/user/brand', userBrands)
 
 //Landing page
 app.use('/home', homeRoute)
