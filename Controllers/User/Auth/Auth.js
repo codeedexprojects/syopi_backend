@@ -8,6 +8,7 @@ const NodeCache = require('node-cache');
 const otpGenerator = require('otp-generator');
 const axios = require('axios');
 const { OAuth2Client } = require('google-auth-library');
+const admin = require('../../../Configs/firebaseConfig');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -336,21 +337,22 @@ exports.androidLoginCallback = async (req, res) => {
 
   try {
       // Verify the ID token
-      const ticket = await client.verifyIdToken({
-          idToken,
-          audience: process.env.GOOGLE_CLIENT_ID,
-      });
+      // const ticket = await client.verifyIdToken({
+      //     idToken,
+      //     audience: process.env.GOOGLE_CLIENT_ID,
+      // });
 
-      const payload = ticket.getPayload();
-      const { sub, email, name } = payload;
-
+      // const payload = ticket.getPayload();
+      // const { sub, email, name } = payload;
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const { uid, email, name } = decodedToken;
       // Check if a user with this email exists
       let user = await User.findOne({ email });
       if (!user) {
           user = await User.create({
-              name,
+              name:name || "user",
               email,
-              googleId: sub,
+              googleId: uid,
           });
       }
 

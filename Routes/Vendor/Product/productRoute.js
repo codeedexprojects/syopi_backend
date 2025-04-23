@@ -4,7 +4,8 @@ const vendorProductController = require("../../../Controllers/Vendor/product/ven
 const verifyToken = require("../../../Middlewares/jwtConfig");
 const multerConfig = require("../../../Middlewares/MulterConfig");
  
-const upload = multerConfig.array("images", 5);
+// const upload = multerConfig.array("images", 5);
+const upload = multerConfig.any();
 
 // Create a new product
 router.post("/create", verifyToken(["vendor"]), upload, vendorProductController.createProduct);

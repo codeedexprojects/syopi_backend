@@ -4,7 +4,8 @@ const productController = require("../../../Controllers/Admin/Product/productCon
 const verifyToken = require("../../../Middlewares/jwtConfig");
 const multerConfig = require("../../../Middlewares/MulterConfig");
 
-const upload = multerConfig.array("images", 5);
+// const upload = multerConfig.array("images", 5);
+const upload = multerConfig.any();
 
 router.post("/create",verifyToken(["admin"]), upload, productController.createProduct);
 router.get("/get",verifyToken(["admin"]),productController.getProducts);

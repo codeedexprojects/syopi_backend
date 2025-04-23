@@ -1,5 +1,7 @@
 const Notification = require('../../../Models/Admin/NotificationModel');
 const fs = require('fs');
+const axios = require('axios');
+
 
 //create new notification
 exports.createNotification = async (req,res) => {
@@ -119,3 +121,30 @@ exports.searchNotifications = async (req,res) => {
         res.status(500).json({ message: 'Error searching Notification', error: err.message });
     }
 }
+
+exports.notifyUser = async (req, res) => {
+    const { userId, title, message } = req.body;
+  
+    // const user = await User.findById(userId);
+    // if (!user || !user.playerId) return res.status(404).json({ message: 'User or Player ID not found' });
+  
+    await sendNotification(user.playerId, title, message);
+    res.status(200).json({ message: 'Notification sent' });
+  };
+
+
+const sendNotification = async (playerId, title, message) => {
+  const payload = {
+    app_id: process.env.ONESIGNAL_APP_ID,
+    include_player_ids: [playerId],
+    headings: { en: title },
+    contents: { en: message },
+  };
+
+  await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+    headers: {
+      Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};

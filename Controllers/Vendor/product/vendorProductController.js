@@ -42,6 +42,24 @@ exports.createProduct = async (req, res) => {
     } catch (error) {
       return res.status(400).json({ message: "Invalid JSON format for features", error: error.message });
     }
+
+      // Group images by variant index
+      const variantImageMap = {};
+      req.files.forEach(file => {
+        const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
+        if (match) {
+          const index = match[1];
+          if (!variantImageMap[index]) variantImageMap[index] = [];
+          variantImageMap[index].push(file.filename);
+        }
+      });
+
+      // Attach images to each corresponding variant
+      parsedVariants = parsedVariants.map((variant, index) => ({
+        ...variant,
+        images: variantImageMap[index] || []
+      }));
+
       // Determine ownerType based on the owner ID
       let ownerType = null;
       const admin = await Admin.findById(req.body.owner);

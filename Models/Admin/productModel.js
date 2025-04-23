@@ -19,6 +19,7 @@ const productSchema = new mongoose.Schema({
       wholesalePrice: { type: Number, required: true }, // Example: 500
       offerPrice: { type: Number, default: null }, 
       salesCount: { type: Number, default: 0 }, // Track sales per variant
+      images: { type: [String], default: [] },
       sizes: [
         {
           size: { type: String, required: true }, // Example: "L", "M"
