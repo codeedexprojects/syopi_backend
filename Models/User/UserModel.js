@@ -78,6 +78,7 @@ const userSchema = new mongoose.Schema(
     },
     role: { type: String, default: 'customer' },
     appleId: { type:String, default: "user"},
+    playerId: { type: String, default: null },
   },
   { timestamps: true }
 );

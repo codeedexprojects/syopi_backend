@@ -1,5 +1,8 @@
 const Notification = require('../../../Models/Admin/NotificationModel');
 const fs = require('fs');
+const axios = require('axios');
+const UserModel = require('../../../Models/User/UserModel');
+
 
 //create new notification
 exports.createNotification = async (req,res) => {
@@ -119,3 +122,59 @@ exports.searchNotifications = async (req,res) => {
         res.status(500).json({ message: 'Error searching Notification', error: err.message });
     }
 }
+
+// ✅ Send notification to a specific user
+exports.notifyUser = async (req, res) => {
+    try {
+      const { userId, title, message } = req.body;
+  
+      const user = await UserModel.findById(userId);
+      if (!user || !user.playerId) {
+        return res.status(404).json({ message: 'User or Player ID not found' });
+      }
+  
+      await sendNotification(user.playerId, title, message);
+  
+      res.status(200).json({ message: 'Notification sent to user' });
+    } catch (error) {
+      console.error('Error sending notification:', error.message);
+      res.status(500).json({ message: 'Failed to send notification', error: error.message });
+    }
+  };
+  
+  // ✅ Send notification to all users
+  exports.notifyAllUsers = async (req, res) => {
+    try {
+      const { title, message } = req.body;
+  
+      const users = await UserModel.find({ playerId: { $exists: true, $ne: null } });
+      const playerIds = users.map((user) => user.playerId);
+  
+      if (playerIds.length === 0) {
+        return res.status(404).json({ message: 'No users with player IDs found' });
+      }
+  
+      await sendNotification(playerIds, title, message);
+  
+      res.status(200).json({ message: 'Notification sent to all users' });
+    } catch (error) {
+      console.error('Error sending bulk notification:', error.message);
+      res.status(500).json({ message: 'Failed to send bulk notification', error: error.message });
+    }
+  };
+
+  const sendNotification = async (playerIds, title, message) => {
+    const payload = {
+      app_id: process.env.ONESIGNAL_APP_ID,
+      include_player_ids: Array.isArray(playerIds) ? playerIds : [playerIds],
+      headings: { en: title },
+      contents: { en: message },
+    };
+  
+    await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+      headers: {
+        Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  };

@@ -68,6 +68,7 @@ const VendorPurchaseRoute = require('./Routes/Vendor/PurchaseManagement/VendorPu
 const HomepageEditorRoute = require('./Routes/Admin/Homepage/HomepageEditorRoute')
 
 const homeRoute = require('./Routes/User/Home/HomeRoute')
+const notificationRoute=require('./Routes/User/Notification/notificationRoute.js')
 
 
 
@@ -136,6 +137,7 @@ app.use('/user/slider',userSliderRoute)
 app.use('/user/home', homeRoute)
 app.use('/user/review', Review)
 app.use('/user/brand', userBrands)
+app.use('/user/notification',notificationRoute)
 
 //Landing page
 app.use('/home', homeRoute)
