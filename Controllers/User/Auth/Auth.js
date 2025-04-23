@@ -37,7 +37,7 @@ exports.registerUser = async (req, res) => {
       return res.status(200).json({ message: 'OTP sent successfully' });
   
     } catch (error) {
-    
+      console.error('2Factor Error:', error?.response?.data || error.message);
       res.status(500).json({ message: 'Server error', error: error.response.data });
       // console.log(error)
     }

@@ -24,6 +24,7 @@ router.delete('/delete/:id',verifyToken(['admin']),notificationController.delete
 router.get('/search',verifyToken(['admin']),notificationController.searchNotifications);
 
 //notify user
-router.post('notify-user',verifyToken(['admin']),notificationController.notifyUser)
+router.post('/notify-user',verifyToken(['admin']),notificationController.notifyUser)
+router.post('/notify-all-users',verifyToken(['admin']),notificationController.notifyAllUsers)
 
 module.exports = router;
