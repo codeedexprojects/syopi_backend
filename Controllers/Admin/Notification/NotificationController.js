@@ -127,7 +127,7 @@ exports.searchNotifications = async (req,res) => {
 // ✅ Send notification to a specific user
 exports.notifyUser = async (req, res) => {
     try {
-      const { userId, title, message } = req.body;
+      const { userId, title, message,orderId } = req.body;
   
       const user = await UserModel.findById(userId);
     //   console.log(user.playerId)
@@ -135,9 +135,14 @@ exports.notifyUser = async (req, res) => {
         return res.status(404).json({ message: 'User or Player ID not found' });
       }
   
-      await sendNotification(user.playerId, title, message);
+      await sendNotification(user.playerId, title, message,{ orderId });
        // Store in DB
-    await NotificationModel.create({ userId, title, message });
+       await NotificationModel.create({
+        userId,
+        title,
+        message,
+        orderId: orderId || null,
+      });
   
       res.status(200).json({ message: 'Notification sent to user' });
     } catch (error) {
@@ -149,7 +154,7 @@ exports.notifyUser = async (req, res) => {
   // ✅ Send notification to all users
   exports.notifyAllUsers = async (req, res) => {
     try {
-      const { title, message } = req.body;
+      const { title, message,productId, categoryId } = req.body;
   
       const users = await UserModel.find({ playerId: { $exists: true, $ne: null } });
       const playerIds = users.map((user) => user.playerId);
@@ -157,14 +162,20 @@ exports.notifyUser = async (req, res) => {
       if (playerIds.length === 0) {
         return res.status(404).json({ message: 'No users with player IDs found' });
       }
+
+      const customData = {};
+      if (productId) customData.productId = productId;
+      if (categoryId) customData.categoryId = categoryId;
   
-      await sendNotification(playerIds, title, message);
+      await sendNotification(playerIds, title, message,customData);
 
        // Store for each user
-    const notifications = users.map(user => ({
+       const notifications = users.map(user => ({
         userId: user._id,
         title,
         message,
+        productId: productId || null,
+        categoryId: categoryId || null,
       }));
       await NotificationModel.insertMany(notifications);
   
@@ -175,12 +186,13 @@ exports.notifyUser = async (req, res) => {
     }
   };
 
-  const sendNotification = async (playerIds, title, message) => {
+  const sendNotification = async (playerIds, title, message,data = {}) => {
     const payload = {
       app_id: process.env.ONESIGNAL_APP_ID,
       include_player_ids: Array.isArray(playerIds) ? playerIds : [playerIds],
       headings: { en: title },
       contents: { en: message },
+      data
     };
   
     await axios.post('https://onesignal.com/api/v1/notifications', payload, {

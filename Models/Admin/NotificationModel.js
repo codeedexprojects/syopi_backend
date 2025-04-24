@@ -34,6 +34,9 @@ const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   title: { type: String, required: true },
   message: { type: String, required: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", default: null },
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
+  orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null },
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
