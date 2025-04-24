@@ -2,6 +2,7 @@ const Notification = require('../../../Models/Admin/NotificationModel');
 const fs = require('fs');
 const axios = require('axios');
 const UserModel = require('../../../Models/User/UserModel');
+const NotificationModel = require('../../../Models/Admin/NotificationModel');
 
 
 //create new notification
@@ -129,11 +130,14 @@ exports.notifyUser = async (req, res) => {
       const { userId, title, message } = req.body;
   
       const user = await UserModel.findById(userId);
+    //   console.log(user.playerId)
       if (!user || !user.playerId) {
         return res.status(404).json({ message: 'User or Player ID not found' });
       }
   
       await sendNotification(user.playerId, title, message);
+       // Store in DB
+    await NotificationModel.create({ userId, title, message });
   
       res.status(200).json({ message: 'Notification sent to user' });
     } catch (error) {
@@ -155,6 +159,14 @@ exports.notifyUser = async (req, res) => {
       }
   
       await sendNotification(playerIds, title, message);
+
+       // Store for each user
+    const notifications = users.map(user => ({
+        userId: user._id,
+        title,
+        message,
+      }));
+      await NotificationModel.insertMany(notifications);
   
       res.status(200).json({ message: 'Notification sent to all users' });
     } catch (error) {
