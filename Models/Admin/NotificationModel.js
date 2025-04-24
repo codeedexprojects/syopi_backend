@@ -34,7 +34,13 @@ const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   title: { type: String, required: true },
   message: { type: String, required: true },
+  notificationType: {
+    type: String,
+    enum: ['order', 'offerOnProduct', 'offerOnCategory', 'updation'],
+    // required: true
+  },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", default: null },
+  subCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: "subCategoryId", default: null },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
   orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null },
   isRead: { type: Boolean, default: false },
