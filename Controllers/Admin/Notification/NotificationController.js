@@ -127,7 +127,7 @@ exports.searchNotifications = async (req,res) => {
 // ✅ Send notification to a specific user
 exports.notifyUser = async (req, res) => {
     try {
-      const { userId, title, message,orderId } = req.body;
+      const { userId, title, message,orderId,notificationType } = req.body;
   
       const user = await UserModel.findById(userId);
     //   console.log(user.playerId)
@@ -142,6 +142,7 @@ exports.notifyUser = async (req, res) => {
         title,
         message,
         orderId: orderId || null,
+        notificationType
       });
   
       res.status(200).json({ message: 'Notification sent to user' });
@@ -154,7 +155,7 @@ exports.notifyUser = async (req, res) => {
   // ✅ Send notification to all users
   exports.notifyAllUsers = async (req, res) => {
     try {
-      const { title, message,productId, categoryId } = req.body;
+      const { title, message,productId, categoryId,subCategoryId,notificationType } = req.body;
   
       const users = await UserModel.find({ playerId: { $exists: true, $ne: null } });
       const playerIds = users.map((user) => user.playerId);
@@ -166,6 +167,7 @@ exports.notifyUser = async (req, res) => {
       const customData = {};
       if (productId) customData.productId = productId;
       if (categoryId) customData.categoryId = categoryId;
+      if (subCategoryId) customData.subCategoryId = subCategoryId;
   
       await sendNotification(playerIds, title, message,customData);
 
@@ -176,6 +178,8 @@ exports.notifyUser = async (req, res) => {
         message,
         productId: productId || null,
         categoryId: categoryId || null,
+        subCategoryId: subCategoryId || null,
+        notificationType
       }));
       await NotificationModel.insertMany(notifications);
   
