@@ -60,7 +60,7 @@ exports.getHomePage = async (req, res) => {
 
         // Fetch active sliders and banners
         const activeSliders = await Slider.find({ isActive: true });
-        const activeBanners = await Banner.find({ isActive: true });
+        // const activeBanners = await Banner.find({ isActive: true });
 
         const featuringBrandsNow = [];
 
@@ -90,7 +90,7 @@ exports.getHomePage = async (req, res) => {
             topPicksBestPrice, // Your Top Picks in the Best Price section
             OfferSection,
             activeSliders,
-            activeBanners,
+            // activeBanners,
             featuringBrandsNow // Top 1 product per brand
         });
 

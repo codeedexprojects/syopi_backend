@@ -12,31 +12,24 @@ const sliderSchema = new mongoose.Schema({
     ownerId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'role'
     },
     image: {
         type: String,
         required: true,
     },
-    link: {
-        type: String,
-        required: true,
-        validate: {
-            validator: function (v) {
-                return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w.-]*)*\/?$/.test(v);
-            }
-        }
-    },
-    category: {
+    offerIds: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Category",
+        ref: 'Offer',
+    }],
+    offerType: {
+        type: String,
+        enum: ['productOffer', 'subcategoryOffer', 'brandOffer'],
+        required: false,
     },
     isActive: {
         type: Boolean,
         default: true,
     }
-},{ timestamps: true });
+}, { timestamps: true });
 
-const Slider = mongoose.model('Slider',sliderSchema);
-
-module.exports = Slider;
+module.exports = mongoose.model('Slider', sliderSchema);
