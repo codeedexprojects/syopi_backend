@@ -3,7 +3,7 @@ const Slider = require('../../../Models/Admin/SliderModel');
 // get all sliders
 exports.getAllSlider = async(req,res) => {
     try {
-        const sliders = await Slider.find().populate('category');
+        const sliders = await Slider.find()
         res.status(200).json(sliders);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching sliders', error: err.message });
