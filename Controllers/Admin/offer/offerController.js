@@ -148,19 +148,19 @@ exports.createOffer = async (req, res) => {
 // Get All Offers with Filtering
 exports.getOffers = async (req, res) => {
   try {
-    const { ownerId, category, subcategory, brand, status } = req.query;
+    const { ownerId, category, subcategory, brands, status } = req.query;
     let filter = {};
 
     if (ownerId) filter.ownerId = ownerId;
     if (category) filter.category = { $in: category.split(",") };
     if (subcategory) filter.subcategory = { $in: subcategory.split(",") };
-    if (brand) filter.brand = { $in: brand.split(",") };
+    if (brands) filter.brand = { $in: brand.split(",") };
     if (status) filter.status = status;
 
     const offers = await Offer.find(filter)
       .populate("category", "name")
       .populate("subcategory", "name")
-      .populate("brand", "name")
+      .populate("brands", "name")
       .populate("products", "name")
       .populate("createdBy", "role")
       .sort({ startDate: 1 });

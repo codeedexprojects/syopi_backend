@@ -5,10 +5,10 @@ const verifyToken = require('../../../Middlewares/jwtConfig');
 const multerConfig = require('../../../Middlewares/MulterConfig');
 
 //create new slider
-router.post('/create',verifyToken(['admin']),multerConfig.single('image'),sliderController.createslider);
+router.post('/create',verifyToken(['admin']),multerConfig.single('image'),sliderController.createSlider);
 
 // get all slider
-router.get('/get',verifyToken(['admin']),sliderController.getAllSlider);
+router.get('/get',verifyToken(['admin']),sliderController.getAllSliders);
 
 //get a slider
 router.get('/get/:id',verifyToken(['admin']),sliderController.getSliderById);
