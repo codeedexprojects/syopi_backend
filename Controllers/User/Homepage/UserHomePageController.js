@@ -1,5 +1,7 @@
 const getProduct = require('../../../utils/getProducts');
 const Slider = require('../../../Models/Admin/SliderModel');
+const BrandSlider = require('../../../Models/Admin/BrandSlider')
+const CategorySlider = require('../../../Models/Admin/CategorySlider')
 const Banner = require('../../../Models/Admin/BannerModel');
 const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
 const LowestProductModel = require('../../../Models/Admin/LowestProductModel')
@@ -58,9 +60,12 @@ exports.getHomePage = async (req, res) => {
         const OfferSection = await OfferSectionModel.find();
         const topPicksBestPrice = await TopPicksModel.find();
 
-        // Fetch active sliders and banners
-        const activeSliders = await Slider.find({ isActive: true });
-        // const activeBanners = await Banner.find({ isActive: true });
+        // Fetch sliders
+        const ProductSliders = await Slider.find({ isActive: true });
+        const CategorySliders = await CategorySlider.find({ isActive: true });
+        const BrandSliders = await BrandSlider.find({ isActive: true });
+
+       
 
         const featuringBrandsNow = [];
 
@@ -89,8 +94,9 @@ exports.getHomePage = async (req, res) => {
             lowToHighProducts, // Products sorted from low to high price
             topPicksBestPrice, // Your Top Picks in the Best Price section
             OfferSection,
-            activeSliders,
-            // activeBanners,
+            ProductSliders,
+            CategorySliders,
+            BrandSliders,
             featuringBrandsNow // Top 1 product per brand
         });
 

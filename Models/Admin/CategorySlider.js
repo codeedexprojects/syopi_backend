@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const sliderSchema = new mongoose.Schema({
+const categorySliderSchema = new mongoose.Schema({
     title: {
         type: String,
         required: true,
@@ -12,14 +12,20 @@ const sliderSchema = new mongoose.Schema({
     ownerId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
+        ref: 'User', 
     },
     image: {
         type: String,
         required: true,
     },
-    productId: {
+    categoryId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',    // new product reference
+        ref: 'Category',
+        required: true,
+    },
+    subCategoryId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SubCategory',
         required: true,
     },
     isActive: {
@@ -28,4 +34,4 @@ const sliderSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Slider', sliderSchema);
+module.exports = mongoose.model('CategorySlider', categorySliderSchema);
