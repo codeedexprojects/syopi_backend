@@ -148,11 +148,12 @@ exports.sendForgotPasswordOTPNumber = async (req, res) => {
       if (!user) {
           return res.status(404).json({ message: 'User with this phone number does not exist' });
       }
-
+      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, specialChars: false });
       
-      const response = await axios.get(
-          `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
-      );
+      // const response = await axios.get(
+      //     `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
+      // );
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`)
 
       if (response.data.Status !== 'Success') {
           return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
