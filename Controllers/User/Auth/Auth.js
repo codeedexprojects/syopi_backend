@@ -150,9 +150,10 @@ exports.sendForgotPasswordOTPNumber = async (req, res) => {
       }
 
       
-      const response = await axios.get(
-          `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
-      );
+      // const response = await axios.get(
+      //     `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
+      // );
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`)
 
       if (response.data.Status !== 'Success') {
           return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
