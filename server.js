@@ -29,6 +29,7 @@ const vendorCategoryRoute = require('./Routes/Vendor/Category/CategoryRoute');
 const vendorSubcategoryRoute = require('./Routes/Vendor/SubCategory/SubcategoryRoute');
 const vendorNotificationRoute = require('./Routes/Vendor/Notification/NotificationRoute');
 const vendorSliderRoute = require('./Routes/Vendor/Slider/SliderRoute');
+const vendorBrandRoute = require('./Routes/Vendor/Brand/BrandRoute.js')
 const UserCategories=require('./Routes/User/Category/CategoryRoute')
 const UserSubCategories=require('./Routes/User/SubCategory/SubCategoryRoute')
 const userProducts=require('./Routes/User/Products/Products')
@@ -117,6 +118,7 @@ app.use('/vendor/profile', vendorProfileRoute)
 app.use('/vendor/orders', vendorOrderRoute)
 app.use('/vendor/dashboard',VendorDashboard)
 app.use('/vendor/purchase',VendorPurchaseRoute)
+app.use('/vendor/brand', vendorBrandRoute)
 
 
 
