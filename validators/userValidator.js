@@ -1,4 +1,4 @@
-const { body } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const User = require('../Models/User/UserModel');
 
 const registerUserValidator = [
@@ -63,5 +63,7 @@ const loginUserValidator = [
     .notEmpty()
     .withMessage('Password is required'),
 ];
+
+
 
 module.exports = { registerUserValidator, loginUserValidator };
