@@ -131,7 +131,8 @@ exports.verifyOTP = async(req,res) => {
 
     //generate JWT token
     const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
+      // { userId: newUser._id, role: newUser.role },
+      { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
