@@ -24,7 +24,7 @@ exports.registerUser = async (req, res) => {
       if (existingUser) {
         return res.status(400).json({ msg: 'Phone number already exists' });
       }
-      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, specialChars: false });
+      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, lowerCaseAlphabets: false, specialChars: false });
 
       cache.set(phone, { name,phone,email,referredBy,password,otp });
 
@@ -42,7 +42,49 @@ exports.registerUser = async (req, res) => {
       // console.log(error)
     }
   };
+
+
+  //resent otp
+  exports.resendOTP = async (req, res) => {
+    const { phone } = req.body;
   
+    try {
+      const existingUser = await User.findOne({ phone });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Phone number already registered' });
+      }
+  
+      const cachedData = cache.get(phone);
+      if (!cachedData) {
+        return res.status(400).json({ message: 'No registration attempt found for this phone number' });
+      }
+  
+      // Generate new OTP and update cache
+      const otp = otpGenerator.generate(6, {
+        digits: true,
+        upperCaseAlphabets: false,
+        lowerCaseAlphabets: false,
+        specialChars: false,
+      });
+  
+      // Update cache with new OTP
+      cache.set(phone, { ...cachedData, otp });
+  
+      // Send OTP via 2Factor
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`);
+  
+      if (response.data.Status !== 'Success') {
+        return res.status(500).json({ message: 'Failed to resend OTP. Try again later.' });
+      }
+  
+      return res.status(200).json({ message: 'OTP resent successfully' });
+  
+    } catch (error) {
+      console.error('Resend OTP Error:', error?.response?.data || error.message);
+      return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
+
   
 // verify otp and register user
 exports.verifyOTP = async(req,res) => {
@@ -148,7 +190,7 @@ exports.sendForgotPasswordOTPNumber = async (req, res) => {
       if (!user) {
           return res.status(404).json({ message: 'User with this phone number does not exist' });
       }
-      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, specialChars: false });
+      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false,  lowerCaseAlphabets: false,specialChars: false });
       
       // const response = await axios.get(
       //     `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
