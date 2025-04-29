@@ -8,6 +8,9 @@ const validationHandler = require('../../../Middlewares/validationHandler');
 // Register User
 router.post('/register', registerUserValidator, validationHandler, userController.registerUser);
 
+//Resent OTP
+router.post('/register/resend-otp',userController.resendOTP);
+
 // otp verficiation for saving to db
 router.post('/register/verify-otp',userController.verifyOTP);
 
