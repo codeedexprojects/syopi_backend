@@ -1,4 +1,5 @@
 const User = require('../../../Models/User/UserModel');
+const path = require('path');
 
 //get user profile
 exports.getUserProfile = async(req,res) => {
@@ -24,6 +25,8 @@ exports.updateUserData = async(req,res) => {
           const updatedData = { ...req.body };
           if (req.file && req.file.filename) {
             updatedData.image = req.file.filename;
+          }else if (req.body.image) {
+            updatedData.image = path.basename(req.body.image); 
           }
         const userId = req.user.id;
         const updatedUser = await User.findByIdAndUpdate(userId,updatedData,{ new: true, runValidators: true}).select("-password");
