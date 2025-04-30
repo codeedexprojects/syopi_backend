@@ -191,11 +191,19 @@ exports.getallProducts = async (req, res) => {
     
     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-    const productsWithDefaults = paginatedProducts.map(product => ({
-      ...product,
-      defaultOfferPrice: product.variants?.[0]?.offerPrice || null,
-      defaultPrice: product.variants?.[0]?.price || null
-    }));
+    const productsWithDefaults = paginatedProducts.map(product => {
+      const variant = product.variants?.[0];
+      const price = variant?.price || null;
+      const offerPrice = variant?.offerPrice;
+    
+      const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+    
+      return {
+        ...product,
+        defaultPrice: price,
+        defaultOfferPrice: hasValidOffer ? offerPrice : null
+      };
+    });
 
     // ✅ Response with pagination info
     res.status(200).json({
@@ -277,10 +285,15 @@ exports.getProductById = async (req, res) => {
           }));
 
              // Get default variant values
-              const defaultVariant = product.variants[0];
-              const defaultOfferPrice = defaultVariant?.offerPrice || null;
-              const defaultPrice = defaultVariant?.price || null;
+              const defaultVariant = product.variants?.[0];
+              const price = defaultVariant?.price || null;
+              const offerPrice = defaultVariant?.offerPrice;
 
+              // Determine if a valid offer exists
+              const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+
+              const defaultOfferPrice = hasValidOffer ? offerPrice : null;
+              const defaultPrice = price;
               // Include both prices in the product response
               res.status(200).json({
                 product: {
