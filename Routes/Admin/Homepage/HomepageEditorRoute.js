@@ -14,6 +14,8 @@ router.delete('/affordable/delete/:id', verifyToken(['admin']), HomepageControll
 router.post('/lowest-price/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createLowestPriceProduct);
 router.patch('/lowest-price/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateLowestPriceProduct);
 router.delete('/lowest-price/delete/:id', verifyToken(['admin']), HomepageController.deleteLowestPriceProduct);
+router.get('/lowest-price/view', verifyToken(['admin']), HomepageController.getLowestPriceProducts);
+
 
 // Top Picks Routes
 router.post('/top-pick/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createTopPickProduct);
