@@ -191,12 +191,18 @@ exports.getallProducts = async (req, res) => {
     
     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
+    const productsWithDefaults = paginatedProducts.map(product => ({
+      ...product,
+      defaultOfferPrice: product.variants?.[0]?.offerPrice || null,
+      defaultPrice: product.variants?.[0]?.price || null
+    }));
+
     // ✅ Response with pagination info
     res.status(200).json({
       total: filteredProducts.length,
       currentPage: pageNumber,
       totalPages: Math.ceil(filteredProducts.length / pageSize),
-      products: paginatedProducts
+      products: productsWithDefaults
     });
 
   } catch (error) {
@@ -270,7 +276,22 @@ exports.getProductById = async (req, res) => {
               updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
           }));
 
-        res.status(200).json({ product, reviews:formattedReview });
+             // Get default variant values
+              const defaultVariant = product.variants[0];
+              const defaultOfferPrice = defaultVariant?.offerPrice || null;
+              const defaultPrice = defaultVariant?.price || null;
+
+              // Include both prices in the product response
+              res.status(200).json({
+                product: {
+                  ...product,
+                  defaultOfferPrice,
+                  defaultPrice
+                },
+                reviews: formattedReview
+              });
+
+        // res.status(200).json({ product, reviews:formattedReview });
   
       // res.status(200).json(product);
     } catch (err) {
