@@ -38,8 +38,7 @@ exports.createAffordableProduct = async (req, res) => {
 exports.getAllProducts = async (req, res) => {
     try {
         const affordableProducts = await AffordableProducts.find().sort({ createdAt: -1 });
-        const lowestPriceProducts = await LowestPriceProducts.find().sort({ createdAt: -1 });
-        res.status(200).json({ affordableProducts, lowestPriceProducts });
+        res.status(200).json({ affordableProducts });
     } catch (err) {
         res.status(500).json({ message: "Error fetching products", error: err.message });
     }
@@ -105,6 +104,16 @@ exports.deleteAffordableProduct = async (req, res) => {
     }
 };
 
+// Get Lowest Price Product
+
+exports.getLowestPriceProducts = async (req, res) => {
+    try {
+        const lowestPriceProducts = await LowestPriceProducts.find().sort({ createdAt: -1 });
+        res.status(200).json({ lowestPriceProducts });
+    } catch (err) {
+        res.status(500).json({ message: "Error fetching products", error: err.message });
+    }
+};
 // Create Lowest Price Product
 exports.createLowestPriceProduct = async (req, res) => {
     const { description, startingPrice } = req.body;

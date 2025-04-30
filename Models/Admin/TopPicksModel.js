@@ -20,7 +20,7 @@ const TopPicksSchema = new mongoose.Schema({
     },
     subcategory: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Subcategory',  // Referencing the Subcategory model
+        ref: 'SubCategory',  // Referencing the Subcategory model
         required: true
     }
 }, { timestamps: true });
