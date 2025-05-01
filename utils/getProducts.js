@@ -25,11 +25,25 @@ const getProduct = async (userId) => {
         const products = await Product.find().populate({ path: "offers", select: "offerType amount" });
 
         // Add `isWishlisted` flag if wishlist data is available
-        const updatedProducts = products.map((product) => ({
-            ...product.toObject(),
-            isWishlisted: productWishlists.includes(product._id.toString()), // Check against wishlist
-            isCarted: productCartItems.includes(product._id.toString())
-        }));
+        // const updatedProducts = products.map((product) => ({
+        //     ...product.toObject(),
+        //     isWishlisted: productWishlists.includes(product._id.toString()), // Check against wishlist
+        //     isCarted: productCartItems.includes(product._id.toString())
+        // }));
+        const updatedProducts = products.map((product) => {
+            const variant = product.variants?.[0]; // default variant
+            const price = variant?.price || null;
+            const offerPrice = variant?.offerPrice;
+            const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+
+            return {
+                ...product.toObject(),
+                isWishlisted: productWishlists.includes(product._id.toString()),
+                isCarted: productCartItems.includes(product._id.toString()),
+                defaultPrice: price,
+                defaultOfferPrice: hasValidOffer ? offerPrice : null,
+            };
+        });
 
         return updatedProducts;
     } catch (err) {

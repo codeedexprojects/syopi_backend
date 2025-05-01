@@ -191,26 +191,26 @@ exports.getallProducts = async (req, res) => {
     
     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-    const productsWithDefaults = paginatedProducts.map(product => {
-      const variant = product.variants?.[0];
-      const price = variant?.price || null;
-      const offerPrice = variant?.offerPrice;
+    // const productsWithDefaults = paginatedProducts.map(product => {
+    //   const variant = product.variants?.[0];
+    //   const price = variant?.price || null;
+    //   const offerPrice = variant?.offerPrice;
     
-      const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+    //   const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
     
-      return {
-        ...product,
-        defaultPrice: price,
-        defaultOfferPrice: hasValidOffer ? offerPrice : null
-      };
-    });
+    //   return {
+    //     ...product,
+    //     defaultPrice: price,
+    //     defaultOfferPrice: hasValidOffer ? offerPrice : null
+    //   };
+    // });
 
     // ✅ Response with pagination info
     res.status(200).json({
       total: filteredProducts.length,
       currentPage: pageNumber,
       totalPages: Math.ceil(filteredProducts.length / pageSize),
-      products: productsWithDefaults
+      products: paginatedProducts
     });
 
   } catch (error) {
@@ -284,27 +284,27 @@ exports.getProductById = async (req, res) => {
               updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
           }));
 
-             // Get default variant values
-              const defaultVariant = product.variants?.[0];
-              const price = defaultVariant?.price || null;
-              const offerPrice = defaultVariant?.offerPrice;
+            //  // Get default variant values
+            //   const defaultVariant = product.variants?.[0];
+            //   const price = defaultVariant?.price || null;
+            //   const offerPrice = defaultVariant?.offerPrice;
 
-              // Determine if a valid offer exists
-              const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+            //   // Determine if a valid offer exists
+            //   const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
 
-              const defaultOfferPrice = hasValidOffer ? offerPrice : null;
-              const defaultPrice = price;
-              // Include both prices in the product response
-              res.status(200).json({
-                product: {
-                  ...product,
-                  defaultOfferPrice,
-                  defaultPrice
-                },
-                reviews: formattedReview
-              });
+            //   const defaultOfferPrice = hasValidOffer ? offerPrice : null;
+            //   const defaultPrice = price;
+            //   // Include both prices in the product response
+            //   res.status(200).json({
+            //     product: {
+            //       ...product,
+            //       defaultOfferPrice,
+            //       defaultPrice
+            //     },
+            //     reviews: formattedReview
+            //   });
 
-        // res.status(200).json({ product, reviews:formattedReview });
+        res.status(200).json({ product, reviews:formattedReview });
   
       // res.status(200).json(product);
     } catch (err) {
