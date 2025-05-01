@@ -119,39 +119,7 @@ exports.placeOrder = async (req, res) => {
             await vendorOrder.save();
         }
 
-        //     // Group products by vendor
-        //     const vendorId = product.owner.toString();
-        //     if (!vendorOrders[vendorId]) {
-        //         vendorOrders[vendorId] = {
-        //             vendorId,
-        //             userId,
-        //             orderId: newOrder._id,
-        //             items: [],
-        //             subtotal: 0,
-        //         };
-        //     }
-        //     vendorOrders[vendorId].items.push({
-        //         productId: product._id,
-        //         quantity: item.quantity,
-        //         price: item.price,
-        //         itemTotal: item.price * item.quantity,
-        //     });
-        //     vendorOrders[vendorId].subtotal += item.price * item.quantity;
-        // }
-
-        //  // Save Vendor Orders
-        //  for (const vendorId in vendorOrders) {
-        //     const vendorOrder = new VendorOrder(vendorOrders[vendorId]);
-        //     await vendorOrder.save();
-        // }
-
-         // Mark checkout as processed
-        //  checkout.isProcessed = true;
-        //  await checkout.save();
-        
-        
-        // await session.commitTransaction();
-        // session.endSession();
+       
         
         // Fetch coin settings
         const settings = await CoinSettings.findOne();
@@ -181,9 +149,6 @@ exports.placeOrder = async (req, res) => {
     } catch (error) {
         console.error("Order placement error:", error);
 
-        // await session.abortTransaction();
-        // session.endSession();
-        // Ensure only one response is sent
         return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };

@@ -19,6 +19,8 @@ router.post('/apply/coupon',verifyToken(['customer']),CheckoutController.applyCo
 //get available coupons
 router.get('/get/:checkoutId/coupons',verifyToken(['customer']),CheckoutController.getAvailableCoupons);
 
+router.post('/buy-now',verifyToken(['customer']),CheckoutController.createBuyNowCheckout);
+
 // apply syopi coins
 router.post('/apply/coin',verifyToken(['customer']),CheckoutController.applyCoins)
 

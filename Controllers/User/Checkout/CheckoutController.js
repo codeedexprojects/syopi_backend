@@ -1,3 +1,4 @@
+const Product = require('../../../Models/Admin/productModel');
 const Checkout = require('../../../Models/User/CheckoutModel')
 const Cart = require('../../../Models/User/cartModel')
 const Coupon = require('../../../Models/Admin/couponModel')
@@ -56,6 +57,65 @@ exports.createCheckout = async (req, res) => {
         });
     }
 };
+
+
+exports.createBuyNowCheckout = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const {
+      productId, quantity, color, size, colorName,
+      price
+    } = req.body;
+
+    const product = await Product.findById(productId)
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+
+    const itemTotal = price * quantity;
+        // Fetch delivery settings from admin
+        const deliverySetting = await DeliverySetting.findOne();
+        if (!deliverySetting) {
+            return res.status(500).json({ message: "Delivery settings not found" });
+        }
+        // Calculate subtotal
+        const subtotal =itemTotal
+
+        // Determine delivery charge based on minAmountForFreeDelivery
+        const deliveryCharge = subtotal >= deliverySetting.minAmountForFreeDelivery ? 0 : deliverySetting.deliveryCharge;
+
+        // Final total = Subtotal + Delivery Charge
+        const finalTotal = subtotal + deliveryCharge;
+    // Create a dummy cart document to make your pre-save hook logic work
+    const dummyCart = await new Cart({
+      userId,
+      items: [{
+        productId: product._id,
+        quantity,
+        color,
+        size,
+        colorName
+      }]
+    }).save();
+
+    const checkout = new Checkout({
+      userId,
+      cartId: dummyCart._id,
+      subtotal,
+      deliveryCharge: 0, // Optional or calculate if needed
+      items: [], // Will be filled by pre-save logic
+      finalTotal // Will be recalculated in pre-save
+    });
+
+    await checkout.save(); // Triggers your pre-save logic
+
+    res.status(201).json({ checkout: checkout });
+
+  } catch (err) {
+    console.error('Buy Now Checkout Error:', err);
+    res.status(500).json({ message: 'Failed to create Buy Now checkout' });
+  }
+};
+
 
 //get Checkout
 exports.getCheckout = async (req, res) => {
