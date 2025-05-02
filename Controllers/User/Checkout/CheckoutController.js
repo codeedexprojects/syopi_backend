@@ -112,7 +112,11 @@ exports.createBuyNowCheckout = async (req, res) => {
 
   } catch (err) {
     console.error('Buy Now Checkout Error:', err);
-    res.status(500).json({ message: 'Failed to create Buy Now checkout' });
+    // res.status(500).json({ message: 'Failed to create Buy Now checkout' });
+    res.status(500).json({
+        updatedMessage: 'Failed to create Buy Now checkout',
+        error: err.message,
+      });
   }
 };
 
