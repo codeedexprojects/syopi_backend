@@ -294,16 +294,15 @@ exports.getAvailableCoupons = async(req,res) => {
 
 // apply coins
 exports.applyCoins = async (req, res) => {
-    const { checkoutId, coins } = req.body;
+    // const { checkoutId, coins } = req.body;
+    const { checkoutId } = req.body;
     const userId = req.user.id;
 
     try {
         // Validate required fields
-        if (!userId || !checkoutId || !coins) {
-            return res.status(400).json({ message: 'User ID, Checkout ID, and Coins are required.' });
+        if (!userId || !checkoutId ) {
+            return res.status(400).json({ message: 'User ID, Checkout ID are required.' });
         }
-
-       
 
         // Fetch the user
         const user = await User.findById(userId);
@@ -311,30 +310,38 @@ exports.applyCoins = async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Ensure the user has enough coins
-        if (user.coins < coins) {
-            return res.status(400).json({ message: 'Insufficient coins.' });
-        }
-
         // Fetch the checkout document
         const checkout = await Checkout.findById(checkoutId);
         if (!checkout) {
             return res.status(404).json({ message: 'Checkout not found.' });
         }
-         //fetch the coin details
-         const coin=await CoinSettings.findOne()
-         if(checkout.subtotal<coin.minAmount){
-            return res.status(400).json({ message: `Coins can only be applied for orders above ₹${coin.minAmount}.` });
-
-         }
-
+        
         // Check if the checkout belongs to the user
         if (String(checkout.userId) !== userId) {
             return res.status(403).json({ message: 'Unauthorized: Checkout does not belong to the user.' });
         }
 
+         //fetch the coin details
+         const coin=await CoinSettings.findOne()
+         if (!coin) {
+            return res.status(500).json({ message: 'Coin settings not found.' });
+        }
+
+        // Check if subtotal meets the minimum amount to apply coins
+         if(checkout.subtotal<coin.minAmount){
+            return res.status(400).json({ message: `Coins can only be applied for orders above ₹${coin.minAmount}.` });
+
+         }
+
+         // Determine maximum coins that can be applied
+        const maxCoinsApplicable = Math.min(user.coins, checkout.finalTotal);
+
+        if (maxCoinsApplicable <= 0) {
+            return res.status(400).json({ message: 'No coins can be applied.' });
+        }
+
         // Apply coins to checkout
-        checkout.coinsApplied = coins;
+        checkout.coinsApplied = maxCoinsApplicable;
 
         // Save checkout and deduct coins in a **transaction**
         const session = await mongoose.startSession();
@@ -343,7 +350,7 @@ exports.applyCoins = async (req, res) => {
             await checkout.save({ session });
 
             // Deduct coins from user
-            user.coins -= coins;
+            user.coins -= maxCoinsApplicable;
             await user.save({ session });
 
             // Commit transaction
@@ -351,7 +358,7 @@ exports.applyCoins = async (req, res) => {
             session.endSession();
 
             res.status(200).json({
-                message: 'Coins applied successfully.',
+                message: `₹${maxCoinsApplicable} worth of coins applied successfully.`,
                 checkout,
                 remainingCoins: user.coins,
             });
