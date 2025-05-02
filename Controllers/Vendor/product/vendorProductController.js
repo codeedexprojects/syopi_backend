@@ -111,40 +111,45 @@ exports.createProduct = async (req, res) => {
 // Get all products with variants
 exports.getProducts = async (req, res) => {
   try {
-    const { productType,brand,minPrice,maxPrice,size } = req.query;
+    const { productType, brand, minPrice, maxPrice, size } = req.query;
 
-    const query = [];
-    const matchStage = { owner: new mongoose.Types.ObjectId(req.user.id) };
+    const matchStage = { owner: req.user.id };
 
     if (productType) matchStage.productType = productType;
     if (brand) matchStage.brand = brand;
-     
 
+    let products = await Product.find(matchStage)
+      .populate("brand", "name")
+      .populate("category", "name")
+      .populate("subcategory", "name");
+
+    // Filter by offerPrice (first variant only)
     if (minPrice || maxPrice) {
-      // Here we filter based on the first variant's offerPrice
-      matchStage["variants.0.offerPrice"] = {
-        $gte: minPrice ? Number(minPrice) : 0,
-        $lte: maxPrice ? Number(maxPrice) : Number.MAX_VALUE,
-      };
+      const min = minPrice ? Number(minPrice) : 0;
+      const max = maxPrice ? Number(maxPrice) : Number.MAX_VALUE;
+      products = products.filter(
+        (product) =>
+          product.variants?.[0]?.offerPrice >= min &&
+          product.variants?.[0]?.offerPrice <= max
+      );
     }
 
+    // Filter by size
     if (size) {
-      const sizes = size.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      const sizes = size.split(',').map((s) => s.trim()).filter(Boolean);
       if (sizes.length > 0) {
-        matchStage["variants.sizes.size"] = { $in: sizes };
+        products = products.filter(product =>
+          product.variants?.some(variant =>
+            variant.sizes?.some(s => sizes.includes(s.size))
+          )
+        );
       } else {
         return res.status(400).json({ message: "Invalid size provided" });
       }
     }
 
-    if (Object.keys(matchStage).length > 0) {
-      query.push({ $match: matchStage });
-    }
-
-    const products = await Product.aggregate(query);
-  
-    if(!products || products.length === 0){
-      return res.status(404).json({ message: "No products found" })
+    if (!products || products.length === 0) {
+      return res.status(404).json({ message: "No products found" });
     }
 
     res.status(200).json({
@@ -156,6 +161,7 @@ exports.getProducts = async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: err.message });
   }
 };
+
   
 
 // // Get all products with variants
@@ -197,8 +203,9 @@ exports.getProductById = async (req, res) => {
 
   try {
     const product = await Product.findById(id)
-      .populate("category")
-      .populate("subcategory");
+    .populate("brand", "name")
+    .populate("category", "name")
+    .populate("subcategory", "name");
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
