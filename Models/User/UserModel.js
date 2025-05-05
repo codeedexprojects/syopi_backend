@@ -34,11 +34,10 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: false, // Default to false
+      required: false,
       minlength: [6, 'Password must be at least 6 characters long'],
       validate: {
         validator: function (value) {
-          // Ensure password is present if googleId is missing
           if (!this.googleId && (!value || value.length < 6)) {
             return false;
           }
@@ -47,12 +46,10 @@ const userSchema = new mongoose.Schema(
         message: 'Password is required and must be at least 6 characters long unless Google login is used.',
       },
     },
-    image: {
-      type:String,
-    },
+    image: { type: String },
     gender: {
-      type:String,
-      enum: ['male','female']
+      type: String,
+      enum: ['male', 'female']
     },
     referralCode: {
       type: String,
@@ -65,7 +62,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       validate: {
         validator: async function (v) {
-          if (!v) return true; // Allow null or empty referredBy
+          if (!v) return true;
           const user = await mongoose.model('User').findOne({ referralCode: v });
           return !!user;
         },
@@ -77,8 +74,14 @@ const userSchema = new mongoose.Schema(
       default: 0
     },
     role: { type: String, default: 'customer' },
-    appleId: { type:String, default: "user"},
+    appleId: { type: String, default: "user" },
     playerId: { type: String, default: null },
+
+    // ✅ New field
+    isActive: {
+      type: Boolean,
+      default: true,
+    }
   },
   { timestamps: true }
 );
