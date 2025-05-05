@@ -31,20 +31,10 @@ const CartSchema = new mongoose.Schema({
       type:String,
       required: [true, "colorName is required"]
     },
-    // itemTotal:{
-    //   type: Number,
-    //   required: [true, "product total price is required"]
-    // }
+  
 
   }],
- /*  coupon: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Coupon',
-  },
-  syopi_Coins:{
-    type:Number,
-    default:0
-  }, */
+ 
   subtotal:{type: Number, default: 0},
   discount: { type: Number, default: 0 },
   totalPrice: { type: Number, default: 0 },
