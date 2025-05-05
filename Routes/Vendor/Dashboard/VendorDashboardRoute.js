@@ -4,7 +4,8 @@ const VendorDashboard = require('../../../Controllers/Vendor/Dashboard/Dashboard
 const verifyToken = require('../../../Middlewares/jwtConfig')
 
 
-router.get('/',verifyToken(['admin']),VendorDashboard.getVendorDashboard)
+router.get('/products',verifyToken(['vendor']),VendorDashboard.getVendorProductStats)
+router.get('/orders',verifyToken(['vendor']),VendorDashboard.getVendorOrderStats)
 // router.put('/update',verifyToken(['admin']),DeliveryCharge.updateDeliverySettings)
 
 
