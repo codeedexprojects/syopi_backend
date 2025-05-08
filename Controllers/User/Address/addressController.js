@@ -16,6 +16,12 @@ exports.addAddress = async (req, res) => {
       defaultAddress,
     } = req.body;
 
+     // Validate pincode (Indian 6-digit numeric code)
+     const pincodePattern = /^[1-9][0-9]{5}$/;
+     if (!pincodePattern.test(pincode)) {
+       return res.status(400).json({ message: "Invalid pincode. It must be a 6-digit number starting from 1-9." });
+     }
+
     if (defaultAddress) {
       await Address.updateMany({ userId }, { defaultAddress: false });
     }
