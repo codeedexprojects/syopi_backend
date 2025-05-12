@@ -17,9 +17,11 @@ exports.addAddress = async (req, res) => {
     } = req.body;
 
      // Validate pincode (Indian 6-digit numeric code)
-     const pincodePattern = /^[1-9][0-9]{5}$/;
-     if (!pincodePattern.test(pincode)) {
-       return res.status(400).json({ message: "Invalid pincode. It must be a 6-digit number starting from 1-9." });
+     const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+     const data = response.data;
+ 
+     if (data[0].Status !== "Success" || data[0].PostOffice.length === 0) {
+       return res.status(400).json({ message: "Invalid Pincode or No Post Office found" });
      }
 
     if (defaultAddress) {
