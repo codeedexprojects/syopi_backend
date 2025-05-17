@@ -1,4 +1,5 @@
 const Vendor = require('../../../Models/Admin/VendorModel');
+const Product = require('../../../Models/Admin/productModel')
 const path = require('path');
 const fs = require('fs');
 
@@ -81,7 +82,13 @@ exports.getVendorById = async(req,res) => {
         if(!vendor){
             return res.status(404).json({ message: "vendor not found" });
         }
-        res.status(200).json(vendor);
+
+        const products = await Product.find({owner:id, ownerType:"vendor"})
+
+        res.status(200).json({
+            vendor,
+            products
+        });
     } catch (error) {
         res.status(500).json({message: 'Error fetching vendor',error: error.message});
     }
