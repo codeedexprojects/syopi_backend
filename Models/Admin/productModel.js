@@ -39,6 +39,7 @@ const productSchema = new mongoose.Schema({
     length: { type: String },
     occasion: { type: String },
   },
+  cost: { type: Number }, // Only for admin products
   owner: { type: mongoose.Schema.Types.ObjectId, refPath: "ownerType", required: true },
   ownerType: { type: String, required: true },
   supplierName: { type: String },

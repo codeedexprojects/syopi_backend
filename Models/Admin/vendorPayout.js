@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const VendorPayoutSchema = new mongoose.Schema({
-    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
     totalSales: { type: Number, default: 0 }, // Total amount before deductions
     totalCouponDiscounts: { type: Number, default: 0 }, // Coupon discounts (proportional)
     adminCommission: { type: Number, default: 0 }, // Commission deducted by admin

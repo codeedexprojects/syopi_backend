@@ -1,7 +1,7 @@
 const VendorOrder = require('../../../Models/Vendor/VendorOrderModel');
 const UserOrder = require('../../../Models/User/OrderModel')
 
-// Get all orders with optional status filtering
+// Get all orders with optional status filtering and product details
 exports.getAllOrders = async (req, res) => {
     try {
         const { status } = req.query;
@@ -9,17 +9,26 @@ exports.getAllOrders = async (req, res) => {
         // Build filter object
         let filter = {};
         if (status) {
-            filter.status = status; // Filter by status if provided
+            filter.status = status;
         }
 
-        const orders = await VendorOrder.find(filter);
-        
+        const orders = await VendorOrder.find(filter)
+            .populate({
+                path: 'productId',
+                select: 'title price images' 
+            })
+            .populate({
+                path: 'vendorId',
+                select: 'name email' 
+            });
+
         return res.status(200).json({ success: true, orders });
     } catch (error) {
         console.error("Error fetching orders:", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
 
 // Update order status
 exports.updateOrderStatus = async (req, res) => {
@@ -28,7 +37,7 @@ exports.updateOrderStatus = async (req, res) => {
         console.log("Updating order status:", status, "Order ID:", orderId);
 
         // Check if the status is valid
-        const validStatuses = ["Pending", "Processing", "In-Transit", "Delivered", "Cancelled", "Returned"];
+        const validStatuses = ["Pending", "Processing", 'Shipping', "In-Transit", "Delivered", "Cancelled", "Returned"];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid order status" });
         }

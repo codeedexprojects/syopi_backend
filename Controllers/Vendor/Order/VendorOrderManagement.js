@@ -16,7 +16,10 @@ exports.getOrderByVendorId = async (req, res) => {
             filter.status = status;  // Add status filter if provided
         }
 
-        const orders = await vendorOrder.find(filter);
+        const orders = await vendorOrder.find(filter).populate({
+                path: 'productId',
+                select: 'title price images' 
+            });
 
         return res.status(200).json({ success: true, orders });
     } catch (error) {
@@ -31,7 +34,7 @@ exports.updateOrderStatus = async (req, res) => {
         console.log("Updating order status:", status, "Order ID:", orderId);
 
         // Check if the status is valid
-        const validStatuses = ["Pending", "Processing", "In-Transit", "Delivered", "Cancelled", "Returned"];
+        const validStatuses = ["Pending", "Processing", 'Shipping', "In-Transit", "Delivered", "Cancelled", "Returned"];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid order status" });
         }

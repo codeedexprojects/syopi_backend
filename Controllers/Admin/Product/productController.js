@@ -8,107 +8,109 @@ const path = require("path");
 
 // Create a new product with variants
 exports.createProduct = async (req, res) => {
-    try {
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ message: "At least one product image is required" });
-      }
-  
-      const imagePaths = req.files.map((file) => file.filename);
-  
-      const {
-        name,
-        productType,
-        description,
-        brand,
-        type,
-        isReturnable,
-        returnWithinDays,
-        CODAvailable,
-        features, // Additional features like material/soleMaterial
-        variants, // Nested variants as JSON
-      } = req.body;
-  
-      // Parse variants as JSON
-      let parsedVariants = [];
-      try {
-        parsedVariants = Array.isArray(JSON.parse(variants)) ? JSON.parse(variants) : [];
-      } catch (error) {
-        return res.status(400).json({ message: "Invalid JSON format for variants", error: error.message });
-      }
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "At least one product image is required" });
+    }
 
-      let parsedFeatures = {};
+    const imagePaths = req.files.map((file) => file.filename);
+
+    const {
+      name,
+      productType,
+      description,
+      brand,
+      type,
+      isReturnable,
+      returnWithinDays,
+      CODAvailable,
+      features,
+      variants,
+      cost 
+    } = req.body;
+
+    // Parse variants
+    let parsedVariants = [];
+    try {
+      parsedVariants = Array.isArray(JSON.parse(variants)) ? JSON.parse(variants) : [];
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid JSON format for variants", error: error.message });
+    }
+
+    // Parse features
+    let parsedFeatures = {};
     try {
       parsedFeatures = features ? JSON.parse(features) : {};
     } catch (error) {
       return res.status(400).json({ message: "Invalid JSON format for features", error: error.message });
     }
 
-     // Group images by variant index
-     const variantImageMap = {};
-     req.files.forEach(file => {
-       const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
-       if (match) {
-         const index = match[1];
-         if (!variantImageMap[index]) variantImageMap[index] = [];
-         variantImageMap[index].push(file.filename);
-       }
-     });
- 
-     // Attach images to each corresponding variant
-     parsedVariants = parsedVariants.map((variant, index) => ({
-       ...variant,
-       images: variantImageMap[index] || []
-     }));
+    // Attach images to variants
+    const variantImageMap = {};
+    req.files.forEach(file => {
+      const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
+      if (match) {
+        const index = match[1];
+        if (!variantImageMap[index]) variantImageMap[index] = [];
+        variantImageMap[index].push(file.filename);
+      }
+    });
 
-      // Determine ownerType based on the owner ID
-      let ownerType = null;
-      const admin = await Admin.findById(req.body.owner);
-      if (admin) {
-        ownerType = admin.role;
+    parsedVariants = parsedVariants.map((variant, index) => ({
+      ...variant,
+      images: variantImageMap[index] || []
+    }));
+
+    // Determine ownerType
+    let ownerType = null;
+    const admin = await Admin.findById(req.body.owner);
+    if (admin) {
+      ownerType = admin.role;
+    } else {
+      const vendor = await Vendor.findById(req.body.owner);
+      if (vendor) {
+        ownerType = vendor.role || "vendor";
       } else {
-        const vendor = await Vendor.findById(req.body.owner);
-        if (vendor) {
-          ownerType = vendor.role || "vendor";
-        } else {
-          return res.status(400).json({ message: "Invalid owner ID" });
-        }
+        return res.status(400).json({ message: "Invalid owner ID" });
       }
-  
-      // Validate category and subcategory
-      if (req.body.category && !(await Category.findById(req.body.category))) {
-        return res.status(400).json({ message: "Invalid category ID" });
-      }
-      if (req.body.subcategory && !(await SubCategory.findById(req.body.subcategory))) {
-        return res.status(400).json({ message: "Invalid subcategory ID" });
-      }
-  
-      // Create product
-    const newProduct = new Product({
-        name,
-        productType,
-        images: imagePaths,
-        category: req.body.category,
-        subcategory: req.body.subcategory,
-        description,
-        brand,
-        type,
-        isReturnable,
-        returnWithinDays,
-        CODAvailable,
-        variants: parsedVariants, // Add parsed variants here
-        features: parsedFeatures, // Add parsed features here
-        owner: req.body.owner,
-        ownerType,
-        
-      });
-  
-      await newProduct.save();
-  
-      res.status(201).json({ message: "Product created successfully", product: newProduct });
-    } catch (err) {
-      res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
-  };
+
+    // Validate category & subcategory
+    if (req.body.category && !(await Category.findById(req.body.category))) {
+      return res.status(400).json({ message: "Invalid category ID" });
+    }
+    if (req.body.subcategory && !(await SubCategory.findById(req.body.subcategory))) {
+      return res.status(400).json({ message: "Invalid subcategory ID" });
+    }
+
+    // ✅ Create product with cost
+    const newProduct = new Product({
+      name,
+      productType,
+      images: imagePaths,
+      category: req.body.category,
+      subcategory: req.body.subcategory,
+      description,
+      brand,
+      type,
+      isReturnable,
+      returnWithinDays,
+      CODAvailable,
+      cost,
+      variants: parsedVariants,
+      features: parsedFeatures,
+      owner: req.body.owner,
+      ownerType,
+    });
+
+    await newProduct.save();
+
+    res.status(201).json({ message: "Product created successfully", product: newProduct });
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};
+
      
 // Get all products with variants
 exports.getProducts = async (req, res) => {
