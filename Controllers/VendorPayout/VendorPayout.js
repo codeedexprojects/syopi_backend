@@ -77,7 +77,11 @@ const  Order= require('../../Models/User/OrderModel');
 
 exports.getAllVendorPayouts = async (req, res) => {
     try {
-        const payouts = await VendorPayout.find().populate('vendorId', 'name email'); // Fetch all payouts with vendor details
+        const payouts = await VendorPayout.find()
+            .populate({
+                path: 'vendorId',
+                select: 'ownername email' 
+            });
 
         res.status(200).json({ success: true, payouts });
     } catch (error) {
@@ -89,7 +93,10 @@ exports.getVendorPayoutsByVendorId = async (req, res) => {
     try {
         const { vendorId } = req.params; // Extract vendorId from URL
 
-        const payouts = await VendorPayout.find({ vendorId });
+        const payouts = await VendorPayout.find({ vendorId }).populate({
+                path: 'vendorId',
+                select: 'ownername email' 
+            });
 
         if (!payouts.length) {
             return res.status(404).json({ success: false, message: 'No payouts found for this vendor' });
