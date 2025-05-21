@@ -15,7 +15,7 @@ exports.getAllOrders = async (req, res) => {
         const orders = await VendorOrder.find(filter)
             .populate({
                 path: 'productId',
-                select: 'title price images' 
+                select: 'name images' 
             })
             .populate({
                 path: 'vendorId',
