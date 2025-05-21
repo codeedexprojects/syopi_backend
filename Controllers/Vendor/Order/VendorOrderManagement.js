@@ -18,7 +18,7 @@ exports.getOrderByVendorId = async (req, res) => {
 
         const orders = await vendorOrder.find(filter).populate({
                 path: 'productId',
-                select: 'title price images' 
+                select: 'name images' 
             });
 
         return res.status(200).json({ success: true, orders });
@@ -46,7 +46,7 @@ exports.updateOrderStatus = async (req, res) => {
         }
 
         // Update VendorOrder
-        const updatedVendorOrder = await VendorOrder.findOneAndUpdate(
+        const updatedVendorOrder = await vendorOrder.findOneAndUpdate(
             { _id: orderId },  
             updateFields,         
             { new: true }       
@@ -67,7 +67,6 @@ exports.updateOrderStatus = async (req, res) => {
             console.warn("Warning: User order not found for Vendor order", orderId);
         }
 
-        console.log("Updated Vendor Order:", updatedVendorOrder);
 
         return res.status(200).json({ success: true, message: "Order status updated", order: updatedVendorOrder });
     } catch (error) {
