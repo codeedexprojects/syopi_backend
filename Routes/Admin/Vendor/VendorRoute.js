@@ -7,7 +7,8 @@ const multerConfig = require('../../../Middlewares/MulterConfig');
 const uploadFields = multerConfig.fields([
     { name: "images", maxCount: 5 },
     { name: "storelogo", maxCount: 1 },
-    { name: "license", maxCount: 1 }
+    { name: "license", maxCount: 1 },
+    { name: "passbookImage", maxCount: 2}
 ])
 
 //create new vendor

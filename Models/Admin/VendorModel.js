@@ -4,11 +4,11 @@ const bcrypt = require('bcrypt');
 const vendorSchema = new mongoose.Schema({
     ownername: {
         type: String,
-        required:[true, "ownername is required"],
+        required: [true, "ownername is required"],
     },
     email: {
         type: String,
-        required:[true, "Email is required"],
+        required: [true, "Email is required"],
         unique: true,
         match: [
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -17,15 +17,15 @@ const vendorSchema = new mongoose.Schema({
     },
     businessname: {
         type: String,
-        required:[true, "business name is required"],
+        required: [true, "business name is required"],
     },
     businesslocation: {
         type: String,
-        required:[true, "business location is required"],
+        required: [true, "business location is required"],
     },
     businesslandmark: {
         type: String,
-        required:[true, "business landmark is required"],
+        required: [true, "business landmark is required"],
     },
     number: {
         type: String,
@@ -37,19 +37,19 @@ const vendorSchema = new mongoose.Schema({
     },
     address: {
         type: String,
-        required:[true, "address is required"],
+        required: [true, "address is required"],
     },
     city: {
         type: String,
-        required:[true, "city is required"],
+        required: [true, "city is required"],
     },
     state: {
         type: String,
-        required:[true, "state is required"],
+        required: [true, "state is required"],
     },
     pincode: {
         type: Number,
-        required:[true, "pincode is required"],
+        required: [true, "pincode is required"],
     },
     storelogo: {
         type: String,
@@ -73,18 +73,18 @@ const vendorSchema = new mongoose.Schema({
     },
     images: {
         type: [String],
-        required:[true, "At least one display image is required"],
+        required: [true, "At least one display image is required"],
     },
     description: {
         type: String,
-        required:[true, "description is required"],
+        required: [true, "description is required"],
     },
     storetype: {
-        type:String,
+        type: String,
     },
     password: {
         type: String, 
-        required:[true, "password is required"],
+        required: [true, "password is required"],
         minlength: [6, 'Password must be at least 6 characters long'],
     },
     ratingsAverage: { 
@@ -97,7 +97,6 @@ const vendorSchema = new mongoose.Schema({
         type: String,
         default: "vendor"
     },
-    // New field for bank details
     bankDetails: {
         bankName: {
             type: String,
@@ -107,7 +106,7 @@ const vendorSchema = new mongoose.Schema({
             type: String,
             required: [true, "Account number is required"],
             match: [
-                /^\d{9,18}$/, // Ensure account number is a valid format (adjust length as needed)
+                /^\d{9,18}$/,
                 "Please enter a valid account number"
             ]
         },
@@ -119,19 +118,37 @@ const vendorSchema = new mongoose.Schema({
             type: String,
             required: [true, "IFSC code is required"],
             match: [
-                /^[A-Za-z]{4}\d{7}$/, // Ensure IFSC code follows the proper format
+                /^[A-Za-z]{4}\d{7}$/,
                 "Please enter a valid IFSC code"
             ]
         }
+    },
+    gstNumber: {
+        type: String,
+        required: [true, "GST number is required"],
+        match: [
+            /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+            "Please enter a valid 15-character GST number"
+        ],
+    },
+    passbookImage: {
+        type: String,
+        required: [true, "Passbook image is required"],
+        validate: {
+            validator: function (value) {
+                return /\.(png|jpg|jpeg)$/i.test(value);
+            },
+            message: "Passbook image must be a PNG, JPG, or JPEG file",
+        },
     }
 }, { timestamps: true });
 
-vendorSchema.pre('save',async function(next){
-    if(this.isModified('password')){
-        this.password = await bcrypt.hash(this.password,10);
+vendorSchema.pre('save', async function (next) {
+    if (this.isModified('password')) {
+        this.password = await bcrypt.hash(this.password, 10);
     }
     next();
-})
+});
 
-const vendor = mongoose.model('Vendor',vendorSchema);
-module.exports = vendor;
+const Vendor = mongoose.model('Vendor', vendorSchema);
+module.exports = Vendor;
