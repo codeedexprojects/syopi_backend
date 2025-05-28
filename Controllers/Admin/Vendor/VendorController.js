@@ -5,61 +5,52 @@ const fs = require('fs');
 
 //create new vendor
 exports.createVendor = async (req, res) => {
-    try {
-        const { files, body } = req;
-
-        // Parse bankDetails if it's a string
-        if (typeof body.bankDetails === "string") {
+  try {
+    const { files, body } = req;
+    if (typeof body.bankDetails === "string") {
             try {
                 body.bankDetails = JSON.parse(body.bankDetails);
             } catch (error) {
                 return res.status(400).json({ message: "Invalid bankDetails format" });
             }
-        }
-
-        // Extract images
-        const images = files.images;
-        const storeLogo = files.storelogo ? files.storelogo[0] : null;
-        const license = files.license ? files.license[0] : null;
-
-        // Validations
-        if (!storeLogo) {
-            return res.status(400).json({ message: "Store logo is required" });
-        }
-        if (!license) {
-            return res.status(400).json({ message: "License is required" });
-        }
-        if (!images) {
-            return res.status(400).json({ message: "At least one vendor image is required" });
-        }
-        if (!body.bankDetails.bankName || !body.bankDetails.accountNumber || 
-            !body.bankDetails.accountHolderName || !body.bankDetails.ifscCode) {
-            return res.status(400).json({ message: "All bank details (bankName, accountNumber, accountHolderName, ifscCode) are required" });
-        }
-
-        // Process image filenames
-        const imagePaths = images.map((file) => file.filename);
-
-        // Create new vendor
-        const newVendor = new Vendor({
-            ...body,
-            storelogo: storeLogo.filename,
-            license: license.filename,
-            images: imagePaths,
-            bankDetails: {
-                bankName: body.bankDetails.bankName,
-                accountNumber: body.bankDetails.accountNumber,
-                accountHolderName: body.bankDetails.accountHolderName,
-                ifscCode: body.bankDetails.ifscCode
-            }
-        });
-
-        await newVendor.save();
-        res.status(201).json({ message: "Vendor created successfully", vendor: newVendor });
-
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
+
+    const storeLogo = files.storelogo?.[0];
+    const license = files.license?.[0];
+    const passbookImage = files.passbookImage?.[0];
+    const images = files.images || [];
+
+    if (!storeLogo || !license || !passbookImage) {
+      return res.status(400).json({ message: "Store logo, license, and passbook image are required" });
+    }
+
+    if (!body.gstNumber) {
+      return res.status(400).json({ message: "GST number is required" });
+    }
+
+    const imagePaths = images.map((file) => file.filename);
+
+    const newVendor = new Vendor({
+      ...body,
+      storelogo: storeLogo.filename,
+      license: license.filename,
+      passbookImage: passbookImage.filename,
+      gstNumber: body.gstNumber,
+      images: imagePaths,
+      bankDetails: {
+        bankName: body.bankDetails?.bankName,
+        accountNumber: body.bankDetails?.accountNumber,
+        accountHolderName: body.bankDetails?.accountHolderName,
+        ifscCode: body.bankDetails?.ifscCode
+      }
+    });
+
+    await newVendor.save();
+    res.status(201).json({ message: "Vendor created successfully", vendor: newVendor });
+  } catch (error) {
+    console.error("Create vendor error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 
@@ -94,113 +85,88 @@ exports.getVendorById = async(req,res) => {
     }
 }
 
-// update vendor
 exports.updateVendor = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const vendor = await Vendor.findById(id);
-        if (!vendor) {
-            return res.status(404).json({ message: "Vendor not found" });
-        }
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-        // Parse bankDetails if it's sent as a JSON string
-        if (req.body.bankDetails && typeof req.body.bankDetails === "string") {
-            try {
-                req.body.bankDetails = JSON.parse(req.body.bankDetails);
-            } catch (error) {
-                return res.status(400).json({ message: "Invalid bankDetails format" });
-            }
-        }
+    const newImages = req.files?.images?.map(file => file.filename) || [];
+    const existingImages = Array.isArray(req.body.existingImages)
+      ? req.body.existingImages
+      : req.body.existingImages
+        ? [req.body.existingImages]
+        : [];
 
-        // Handle images
-        const images = req.files?.images || [];
-        const existingImages = vendor.images || [];
-        const newImages = images.map((file) => file.filename);
+    const oldImages = vendor.images.filter(img => !existingImages.includes(img));
+    oldImages.forEach(img => {
+      const imagePath = path.join(__dirname, "../uploads/admin/vendor", img);
+      if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+    });
 
-        // Ensure no more than 5 images in total
-        if (existingImages.length + newImages.length > 5) {
-            return res.status(400).json({ message: "Cannot have more than 5 images for a vendor" });
-        }
-
-        // Delete old store logo if a new one is uploaded
-        if (req.files?.storelogo?.[0]) {
-            const oldStoreLogoPath = path.join(__dirname, "../uploads/admin/vendor", vendor.storelogo);
-            if (fs.existsSync(oldStoreLogoPath)) {
-                fs.unlinkSync(oldStoreLogoPath);
-            }
-            vendor.storelogo = req.files.storelogo[0].filename;
-        }
-
-        // Delete old license if a new one is uploaded
-        if (req.files?.license?.[0]) {
-            const oldLicensePath = path.join(__dirname, "../uploads/admin/vendor", vendor.license);
-            if (fs.existsSync(oldLicensePath)) {
-                fs.unlinkSync(oldLicensePath);
-            }
-            vendor.license = req.files.license[0].filename;
-        }
-
-        // Merge and validate bank details
-        const updatedBankDetails = {
-            bankName: req.body.bankDetails?.bankName || vendor.bankDetails?.bankName,
-            accountNumber: req.body.bankDetails?.accountNumber || vendor.bankDetails?.accountNumber,
-            accountHolderName: req.body.bankDetails?.accountHolderName || vendor.bankDetails?.accountHolderName,
-            ifscCode: req.body.bankDetails?.ifscCode || vendor.bankDetails?.ifscCode,
-        };
-
-        // Validate bank details only if provided
-        if (req.body.bankDetails) {
-            if (!updatedBankDetails.bankName || !updatedBankDetails.accountNumber ||
-                !updatedBankDetails.accountHolderName || !updatedBankDetails.ifscCode) {
-                return res.status(400).json({ message: "All bank details (bankName, accountNumber, accountHolderName, ifscCode) must be provided" });
-            }
-        }
-
-        // Prepare updated vendor data
-        const updatedVendorData = {
-            ...req.body,
-            images: [...existingImages, ...newImages],
-            storelogo: vendor.storelogo,
-            license: vendor.license,
-            bankDetails: updatedBankDetails,
-        };
-
-        // Update vendor
-        const updatedVendor = await Vendor.findByIdAndUpdate(id, updatedVendorData, { new: true, runValidators: true });
-
-        res.status(200).json({
-            message: "Vendor updated successfully",
-            updatedVendor,
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: "Error updating vendor", error: error.message });
+    // Handle updated files
+    if (req.files?.storelogo?.[0]) {
+      const logoPath = path.join(__dirname, "../uploads/admin/vendor", vendor.storelogo);
+      if (fs.existsSync(logoPath)) fs.unlinkSync(logoPath);
+      vendor.storelogo = req.files.storelogo[0].filename;
     }
+
+    if (req.files?.license?.[0]) {
+      const licensePath = path.join(__dirname, "../uploads/admin/vendor", vendor.license);
+      if (fs.existsSync(licensePath)) fs.unlinkSync(licensePath);
+      vendor.license = req.files.license[0].filename;
+    }
+
+    if (req.files?.passbookImage?.[0]) {
+      const passbookPath = path.join(__dirname, "../uploads/admin/vendor", vendor.passbookImage);
+      if (fs.existsSync(passbookPath)) fs.unlinkSync(passbookPath);
+      vendor.passbookImage = req.files.passbookImage[0].filename;
+    }
+
+    const updatedBankDetails = {
+      bankName: req.body.bankDetails?.bankName || vendor.bankDetails.bankName,
+      accountNumber: req.body.bankDetails?.accountNumber || vendor.bankDetails.accountNumber,
+      accountHolderName: req.body.bankDetails?.accountHolderName || vendor.bankDetails.accountHolderName,
+      ifscCode: req.body.bankDetails?.ifscCode || vendor.bankDetails.ifscCode
+    };
+
+    const updatedVendorData = {
+      ...req.body,
+      images: [...existingImages, ...newImages],
+      storelogo: vendor.storelogo,
+      license: vendor.license,
+      passbookImage: vendor.passbookImage,
+      gstNumber: req.body.gstNumber || vendor.gstNumber,
+      bankDetails: updatedBankDetails,
+    };
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(req.params.id, updatedVendorData, { new: true });
+    res.status(200).json({ message: "Vendor updated successfully", vendor: updatedVendor });
+
+  } catch (error) {
+    console.error("Update vendor error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-//delete Vendor
-exports.deleteVendor = async(req,res) => {
-    const { id } = req.params;
-    try {
-        const vendor = await Vendor.findById(id);
-        if(!vendor){
-            return res.status(404).json({ message: 'vendor not found' })
-        }
-        // Delete associated images
-        const basePath = path.join('./uploads/admin/product');
-        const imagePaths = vendor.images.map((image) => path.join(basePath, image));
+exports.deleteVendor = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-        imagePaths.forEach((imagePath) => {
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath); // Delete each image file
-            }  
-        });
-        await Vendor.findByIdAndDelete(id);
-        res.status(200).json({ message: 'vendor deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting vendor', error: error.message });
-    }
-}
+    const basePath = path.join(__dirname, "../uploads/admin/vendor");
+
+    [vendor.storelogo, vendor.license, vendor.passbookImage, ...vendor.images].forEach((file) => {
+      const filePath = path.join(basePath, file);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    });
+
+    await vendor.deleteOne();
+    res.status(200).json({ message: "Vendor deleted successfully" });
+  } catch (error) {
+    console.error("Delete vendor error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 // delete a specific image by name
 exports.deleteVendorImage = async (req,res) =>{
