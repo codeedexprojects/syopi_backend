@@ -113,11 +113,11 @@ exports.updateVendorPayoutStatus = async (req, res) => {
         const { payoutId } = req.params; // Payout ID from URL
         const { status } = req.body; // New status from request body
 
-        if (!['pending', 'paid'].includes(status)) {
+        if (!['Pending', 'Paid'].includes(status)) {
             return res.status(400).json({ success: false, message: 'Invalid status' });
         }
 
-        const payout = await Payout.findByIdAndUpdate(
+        const payout = await VendorPayout.findByIdAndUpdate(
             payoutId,
             { status },
             { new: true }
