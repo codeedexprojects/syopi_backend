@@ -102,6 +102,9 @@ exports.getUserById = async (req, res) => {
         
         const activity = await Review.find({userId})
 
+        const referredUsers = await User.find({ referredBy: user.referralCode }).select("-password");
+
+
         // Response
         res.status(200).json({
             user,
@@ -109,7 +112,8 @@ exports.getUserById = async (req, res) => {
             cart,
             orders,
             totalOrders,
-            activity
+            activity,
+            referredUsers
         });
 
     } catch (error) {
