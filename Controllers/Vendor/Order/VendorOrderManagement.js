@@ -19,7 +19,9 @@ exports.getOrderByVendorId = async (req, res) => {
         const orders = await vendorOrder.find(filter).populate({
                 path: 'productId',
                 select: 'name images' 
-            });
+            })
+            .populate('addressId');
+
 
         return res.status(200).json({ success: true, orders });
     } catch (error) {
