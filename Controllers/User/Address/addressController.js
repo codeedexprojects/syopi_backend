@@ -45,7 +45,7 @@ exports.addAddress = async (req, res) => {
     await newAddress.save();
     res.status(200).json({ message: "Address added successfully",address: newAddress });
   } catch (error) {
-    res.status(500).json({ message: "Error adding product to wishlist",error: error.message });
+    res.status(500).json({message: "Server error while adding address",error: error.message,});  }
   }
 };
 
