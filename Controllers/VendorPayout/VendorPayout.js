@@ -110,7 +110,7 @@ exports.getVendorPayoutsByVendorId = async (req, res) => {
 
 exports.updateVendorPayoutStatus = async (req, res) => {
     try {
-        const { payoutId } = req.params; // Payout ID from URL
+        const { payoutId } = req.body; 
         const { status } = req.body; // New status from request body
 
         if (!['Pending', 'Paid'].includes(status)) {
