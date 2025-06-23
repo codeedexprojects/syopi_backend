@@ -274,6 +274,13 @@ exports.getProductById = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
+
+      let brandName = null;
+    if (product.brand && mongoose.Types.ObjectId.isValid(product.brand)) {
+      const brandDoc = await Brand.findById(product.brand, "name");
+      brandName = brandDoc?.name || null;
+    }
+
         // Fetch reviews for the product
         const reviews = await Review.find({ productId: id })
             .populate("userId", "name")
@@ -304,7 +311,7 @@ exports.getProductById = async (req, res) => {
             //     reviews: formattedReview
             //   });
 
-        res.status(200).json({ product, reviews:formattedReview });
+        res.status(200).json({ product, brandName, reviews:formattedReview });
   
       // res.status(200).json(product);
     } catch (err) {
