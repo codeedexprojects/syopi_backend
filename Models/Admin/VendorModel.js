@@ -140,7 +140,12 @@ const vendorSchema = new mongoose.Schema({
             },
             message: "Passbook image must be a PNG, JPG, or JPEG file",
         },
-    }
+    },
+    status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+    },
 }, { timestamps: true });
 
 vendorSchema.pre('save', async function (next) {
