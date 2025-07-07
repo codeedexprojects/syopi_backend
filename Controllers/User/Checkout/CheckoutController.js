@@ -292,75 +292,74 @@ exports.getAvailableCoupons = async(req,res) => {
     }
 }
 
-// apply coins
 exports.applyCoins = async (req, res) => {
-    // const { checkoutId, coins } = req.body;
     const { checkoutId } = req.body;
     const userId = req.user.id;
 
     try {
-        // Validate required fields
-        if (!userId || !checkoutId ) {
-            return res.status(400).json({ message: 'User ID, Checkout ID are required.' });
+        if (!userId || !checkoutId) {
+            return res.status(400).json({ message: 'User ID and Checkout ID are required.' });
         }
 
-        // Fetch the user
         const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found.' });
-        }
+        if (!user) return res.status(404).json({ message: 'User not found.' });
 
-        // Fetch the checkout document
         const checkout = await Checkout.findById(checkoutId);
-        if (!checkout) {
-            return res.status(404).json({ message: 'Checkout not found.' });
-        }
-        
-        // Check if the checkout belongs to the user
+        if (!checkout) return res.status(404).json({ message: 'Checkout not found.' });
+
         if (String(checkout.userId) !== userId) {
             return res.status(403).json({ message: 'Unauthorized: Checkout does not belong to the user.' });
         }
 
-         //fetch the coin details
-         const coin=await CoinSettings.findOne()
-         if (!coin) {
+        const coinSettings = await CoinSettings.findOne();
+        if (!coinSettings) {
             return res.status(500).json({ message: 'Coin settings not found.' });
         }
 
-        // Check if subtotal meets the minimum amount to apply coins
-         if(checkout.subtotal<coin.minAmount){
-            return res.status(400).json({ message: `Coins can only be applied for orders above ₹${coin.minAmount}.` });
+        const { coinValue, minAmount, maxOrderDiscountPercent } = coinSettings;
 
-         }
+        if (checkout.subtotal < minAmount) {
+            return res.status(400).json({ message: `Coins can only be applied for orders above ₹${minAmount}.` });
+        }
 
-         // Determine maximum coins that can be applied
-        const maxCoinsApplicable = Math.min(user.coins, checkout.finalTotal);
+        // Max discount allowed in ₹
+        const maxDiscount = (checkout.subtotal * maxOrderDiscountPercent) / 100;
+        
 
-        if (maxCoinsApplicable <= 0) {
+        // Convert ₹ to coins, floor to avoid exceeding the limit
+        const maxCoinsByOrderLimit = Math.floor(maxDiscount / coinValue);
+        
+
+        // Final coins that can be applied (limited by user balance)
+        const coinsToApply = Math.min(user.coins, maxCoinsByOrderLimit);
+        
+        if (coinsToApply <= 0) {
             return res.status(400).json({ message: 'No coins can be applied.' });
         }
 
-        // Apply coins to checkout
-        checkout.coinsApplied = maxCoinsApplicable;
+        const discountValue = coinsToApply * coinValue;
+        checkout.coinsApplied = coinsToApply;
+        checkout.discountFromCoins = discountValue;
 
-        // Save checkout and deduct coins in a **transaction**
+
+
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
             await checkout.save({ session });
 
-            // Deduct coins from user
-            user.coins -= maxCoinsApplicable;
+            user.coins -= coinsToApply;
             await user.save({ session });
 
-            // Commit transaction
             await session.commitTransaction();
             session.endSession();
 
             res.status(200).json({
-                message: `₹${maxCoinsApplicable} worth of coins applied successfully.`,
-                checkout,
+                message: `₹${discountValue.toFixed(2)} worth of coins applied successfully.`,
+                coinsApplied: coinsToApply,
+                discount: discountValue,
                 remainingCoins: user.coins,
+                checkout,
             });
         } catch (error) {
             await session.abortTransaction();
@@ -375,3 +374,6 @@ exports.applyCoins = async (req, res) => {
         });
     }
 };
+
+
+

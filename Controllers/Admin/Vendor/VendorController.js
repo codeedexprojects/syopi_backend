@@ -42,7 +42,8 @@ exports.createVendor = async (req, res) => {
         accountNumber: body.bankDetails?.accountNumber,
         accountHolderName: body.bankDetails?.accountHolderName,
         ifscCode: body.bankDetails?.ifscCode
-      }
+      },
+      status:"approved"
     });
 
     await newVendor.save();
@@ -233,3 +234,34 @@ exports.filterVendor = async(req,res) => {
         res.status(500).json({ message: 'Error filter vendors', error: err.message });
     }
 }
+
+exports.updateVendorStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+
+    // Validate status value
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be 'approved' or 'rejected'" });
+    }
+
+    const vendor = await Vendor.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.status(200).json({
+      message: `Vendor ${status} successfully`,
+      vendor,
+    });
+  } catch (error) {
+    console.error("Update vendor status error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

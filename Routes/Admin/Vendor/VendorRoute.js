@@ -35,4 +35,6 @@ router.get('/search',verifyToken(['admin']),vendorController.searchVendors);
 //filter based on city & storetype
 router.get('/filter',verifyToken(['admin']),vendorController.filterVendor);
 
+router.patch('/:id/status', verifyToken(['admin']), vendorController.updateVendorStatus)
+
 module.exports = router;
