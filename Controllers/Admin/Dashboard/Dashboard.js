@@ -46,6 +46,7 @@
 const Product = require('../../../Models/Admin/productModel');
 const Order = require('../../../Models/Vendor/VendorOrderModel');
 const User = require('../../../Models/User/UserModel');
+const VendorPayout = require('../../../Models/Admin/vendorPayout')
 
 // 🔸 Product Stats with filters
 const getProductStats = async (req, res) => {
@@ -138,8 +139,158 @@ const getUserStats = async (req, res) => {
   }
 };
 
+const getAdminRevenueStats = async (req, res) => {
+  try {
+    const { type } = req.query;
+    const matchStage = { status: "Delivered" }; // ✅ only delivered
+
+    // ✅ Date filter
+    const now = new Date();
+    if (type === "monthly") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      matchStage.createdAt = { $gte: startOfMonth, $lte: endOfMonth };
+    } else if (type === "weekly") {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      matchStage.createdAt = { $gte: startOfWeek, $lte: endOfWeek };
+    }
+    
+    const revenueData = await Order.aggregate([
+      { $match: matchStage },
+
+      // 🔁 Join with Product collection
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      { $unwind: "$productDetails" },
+
+      // ✅ Filter admin-owned products only (adjust as per your admin identification)
+      {
+        $match: {
+          "productDetails.ownerType": 'admin' // or: mongoose.Types.ObjectId('ADMIN_USER_ID')
+        }
+      },
+
+      // 🧮 Compute cost = cost * quantity
+      {
+        $addFields: {
+          cost: { $multiply: ["$productDetails.cost", "$quantity"] }
+        }
+      },
+
+      // 📊 Group stats
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: "$itemTotal" },
+          totalCost: { $sum: "$cost" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalOrders: 1,
+          totalRevenue: 1,
+          totalCost: 1,
+          netRevenue: { $subtract: ["$totalRevenue", "$totalCost"] }
+        }
+      }
+    ]);
+
+    const result = revenueData[0] || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalCost: 0,
+      netRevenue: 0
+    };
+
+    return res.status(200).json({
+      message: `Admin revenue stats ${type ? `for ${type}` : ""}`,
+      ...result
+    });
+  } catch (error) {
+    console.error("Admin Revenue Error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+const getAdminCommissionRevenue = async (req, res) => {
+  try {
+    const { type } = req.query;
+    const matchStage = {}; // dynamic date filtering
+
+    // 📅 Date filter
+    const now = new Date();
+    if (type === 'monthly') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      matchStage.payoutDate = { $gte: startOfMonth, $lte: endOfMonth };
+    } else if (type === 'weekly') {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      matchStage.payoutDate = { $gte: startOfWeek, $lte: endOfWeek };
+    }
+
+    const result = await VendorPayout.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalPayouts: { $sum: 1 },
+          totalAdminCommission: { $sum: "$adminCommission" },
+          totalSales: { $sum: "$totalSales" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalPayouts: 1,
+          totalSales: 1,
+          totalAdminCommission: 1
+        }
+      }
+    ]);
+
+    const stats = result[0] || {
+      totalPayouts: 0,
+      totalSales: 0,
+      totalAdminCommission: 0
+    };
+
+    return res.status(200).json({
+      message: `Admin commission stats ${type ? `for ${type}` : "for all time"}`,
+      ...stats
+    });
+  } catch (error) {
+    console.error("Commission Stats Error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+
 module.exports = {
   getProductStats,
   getOrderStats,
-  getUserStats
+  getUserStats,
+  getAdminRevenueStats,
+  getAdminCommissionRevenue
 };
