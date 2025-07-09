@@ -201,70 +201,79 @@ exports.getProductById = async (req, res) => {
 
 // update product
 exports.updateProduct = async (req, res) => {
-    const { id } = req.params;
-  
-    try {
-      const product = await Product.findById(id);
-  
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+  try {
+    const productId = req.params.id;
+
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const {
+      name,
+      productType,
+      description,
+      brand,
+      type,
+      isReturnable,
+      returnWithinDays,
+      CODAvailable,
+      features,
+      variants,
+      cost,
+      category,
+      subcategory,
+    } = req.body;
+
+    // ✅ Update primitive fields if present
+    if (name) product.name = name;
+    if (productType) product.productType = productType;
+    if (description) product.description = description;
+    if (brand) product.brand = brand;
+    if (type) product.type = type;
+    if (cost !== undefined) product.cost = cost;
+    if (isReturnable !== undefined) product.isReturnable = isReturnable;
+    if (returnWithinDays !== undefined) product.returnWithinDays = returnWithinDays;
+    if (CODAvailable !== undefined) product.CODAvailable = CODAvailable;
+    if (category) product.category = category;
+    if (subcategory) product.subcategory = subcategory;
+    if (features) {
+      try {
+        product.features = typeof features === "string" ? JSON.parse(features) : features;
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid features JSON" });
       }
-  
-      // Handle new images
-      const existingImages = product.images || [];
-      const newImages = req.files ? req.files.map((file) => file.filename) : [];
-      const updatedImages = [...existingImages, ...newImages];
-  
-      // Parse variants if provided
-      let parsedVariants = [];
-      if (req.body.variants) {
-        try {
-          parsedVariants = JSON.parse(req.body.variants);
-        } catch (error) {
-          return res.status(400).json({ message: "Invalid JSON format for variants", error: error.message });
-        }
-      }
-  
-      // Parse features if provided
-      let parsedFeatures = {};
-      if (req.body.features) {
-        try {
-          parsedFeatures = JSON.parse(req.body.features);
-        } catch (error) {
-          return res.status(400).json({ message: "Invalid JSON format for features", error: error.message });
-        }
-      }
-  
-      // Update product fields
-      const updates = {
-        name: req.body.name || product.name,
-        productType: req.body.productType || product.productType,
-        description: req.body.description || product.description,
-        brand: req.body.brand || product.brand,
-        images: updatedImages,
-        category: req.body.category || product.category,
-        subcategory: req.body.subcategory || product.subcategory,
-        isReturnable:req.body.isReturnable || product.isReturnable,
-        returnWithinDays:req.body.returnWithinDays || product.returnWithinDays,
-        CODAvailable:req.body.CODAvailable || product.CODAvailable,
-        features: Object.keys(parsedFeatures).length > 0 ? parsedFeatures : product.features,
-        variants: parsedVariants.length > 0 ? parsedVariants : product.variants,
-      };
-  
-      // Calculate new total stock if variants are updated
-      if (parsedVariants.length > 0) {
-        updates.totalStock = parsedVariants.reduce((total, variant) => {
-          return total + variant.sizes.reduce((sum, size) => sum + size.stock, 0);
-        }, 0);
-      }
-  
-      const updatedProduct = await Product.findByIdAndUpdate(id, { $set: updates }, { new: true });
-  
-      res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
-    } catch (err) {
-      res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
-  };
+
+    // ✅ Parse variantImages[0], variantImages[1], ...
+    const variantImageMap = {};
+    req.files?.forEach((file) => {
+      const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
+      if (match) {
+        const index = Number(match[1]);
+        if (!variantImageMap[index]) variantImageMap[index] = [];
+        variantImageMap[index].push(file.filename);
+      }
+    });
+
+    // ✅ Append images to existing variants (safe way)
+    product.variants = product.variants.map((variant, index) => {
+      const newImages = variantImageMap[index] || [];
+      return {
+        ...variant.toObject(), // ensure full raw variant object with required fields
+        images: [...(variant.images || []), ...newImages],
+      };
+    });
+
+    product.markModified("variants"); // 💡 Ensure Mongoose tracks the nested changes
+    const updated = await product.save();
+
+    return res.status(200).json({ message: "Product updated successfully", product: updated });
+  } catch (err) {
+    console.error("Product Update Failed:", err);
+    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};
+
+
   
 
 // Delete a product
