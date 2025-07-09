@@ -204,9 +204,6 @@ exports.updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
 
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
     const {
       name,
       productType,
@@ -217,61 +214,93 @@ exports.updateProduct = async (req, res) => {
       returnWithinDays,
       CODAvailable,
       features,
-      variants,
-      cost,
       category,
       subcategory,
+      cost,
+      newVariants,
     } = req.body;
 
-    // ✅ Update primitive fields if present
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // ✅ Parse features
+    const parsedFeatures =
+      typeof features === "string" ? JSON.parse(features) : features;
+
+    // ✅ Parse newVariants (optional)
+    let parsedNewVariants = [];
+    if (newVariants) {
+      try {
+        parsedNewVariants = Array.isArray(JSON.parse(newVariants))
+          ? JSON.parse(newVariants)
+          : [];
+      } catch (error) {
+        return res.status(400).json({
+          message: "Invalid JSON format for newVariants",
+          error: error.message,
+        });
+      }
+    }
+
+    // ✅ Attach images to new variants using colorName as identifier
+    const variantImageMapByColorName = {};
+    const variantImageMapById = {};
+
+    req.files?.forEach((file) => {
+      const matchColor = file.fieldname.match(/^variantImages\[(.+)]$/);
+      if (matchColor) {
+        const key = matchColor[1];
+        // if it's an ObjectId → attach to existing variant
+        if (/^[0-9a-fA-F]{24}$/.test(key)) {
+          if (!variantImageMapById[key]) variantImageMapById[key] = [];
+          variantImageMapById[key].push(file.filename);
+        } else {
+          if (!variantImageMapByColorName[key]) variantImageMapByColorName[key] = [];
+          variantImageMapByColorName[key].push(file.filename);
+        }
+      }
+    });
+
+    // ✅ Update existing variants with images
+    product.variants.forEach((variant) => {
+      const images = variantImageMapById[variant._id.toString()];
+      if (images && images.length > 0) {
+        variant.images = [...(variant.images || []), ...images];
+      }
+    });
+
+    // ✅ Append new variants with their images
+    if (parsedNewVariants.length > 0) {
+      parsedNewVariants = parsedNewVariants.map((variant) => ({
+        ...variant,
+        images: variantImageMapByColorName[variant.colorName] || [],
+      }));
+      product.variants.push(...parsedNewVariants);
+    }
+
+    // ✅ Update basic product fields
     if (name) product.name = name;
     if (productType) product.productType = productType;
     if (description) product.description = description;
     if (brand) product.brand = brand;
     if (type) product.type = type;
-    if (cost !== undefined) product.cost = cost;
-    if (isReturnable !== undefined) product.isReturnable = isReturnable;
-    if (returnWithinDays !== undefined) product.returnWithinDays = returnWithinDays;
-    if (CODAvailable !== undefined) product.CODAvailable = CODAvailable;
+    if (typeof cost !== "undefined") product.cost = cost;
+    if (typeof isReturnable !== "undefined") product.isReturnable = isReturnable;
+    if (typeof CODAvailable !== "undefined") product.CODAvailable = CODAvailable;
+    if (typeof returnWithinDays !== "undefined") product.returnWithinDays = returnWithinDays;
+    if (features) product.features = parsedFeatures;
     if (category) product.category = category;
     if (subcategory) product.subcategory = subcategory;
-    if (features) {
-      try {
-        product.features = typeof features === "string" ? JSON.parse(features) : features;
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid features JSON" });
-      }
-    }
 
-    // ✅ Parse variantImages[0], variantImages[1], ...
-    const variantImageMap = {};
-    req.files?.forEach((file) => {
-      const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
-      if (match) {
-        const index = Number(match[1]);
-        if (!variantImageMap[index]) variantImageMap[index] = [];
-        variantImageMap[index].push(file.filename);
-      }
-    });
+    await product.save();
 
-    // ✅ Append images to existing variants (safe way)
-    product.variants = product.variants.map((variant, index) => {
-      const newImages = variantImageMap[index] || [];
-      return {
-        ...variant.toObject(), // ensure full raw variant object with required fields
-        images: [...(variant.images || []), ...newImages],
-      };
-    });
-
-    product.markModified("variants"); // 💡 Ensure Mongoose tracks the nested changes
-    const updated = await product.save();
-
-    return res.status(200).json({ message: "Product updated successfully", product: updated });
+    res.status(200).json({ message: "Product updated successfully", product });
   } catch (err) {
-    console.error("Product Update Failed:", err);
-    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+    console.error("Product Update Error:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+
 
 
   
