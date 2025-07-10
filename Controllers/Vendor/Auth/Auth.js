@@ -3,44 +3,68 @@ const { generateAccessToken, generateRefreshToken } = require('../../../utils/to
 const bcrypt = require('bcrypt');
 
 //login vendor
-exports.login = async(req,res) => {
-    const { email,password } = req.body;
-    try {
-        const existingVendor = await Vendor.findOne({email});
-        
-        if(!existingVendor){
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-        console.log(password);
-        console.log("bijith")
-        console.log(existingVendor.password);
-        const isPasswordValid = await bcrypt.compare(password,existingVendor.password);
-        console.log(isPasswordValid);
-        if(!isPasswordValid){
-            return res.status(401).json({ message: "Invalid email or password" })
-        }
+exports.login = async (req, res) => {
+  const { email, password } = req.body;
 
-        const payload = { id: existingVendor._id, role: existingVendor.role };
-        const accessToken = generateAccessToken(payload);
-        const refreshToken = generateRefreshToken(payload);
+  try {
+    const existingVendor = await Vendor.findOne({ email });
 
-        return res.status(200).json({
-            message: "Vendor Logined successfully.",
-            vendorId: existingVendor._id,
-            role:existingVendor.role,
-            accessToken,
-            refreshToken
-        });
-
-    } catch (error) {
-        return res.status(500).json({ error: error.message })
+    if (!existingVendor) {
+      return res.status(401).json({ message: "Invalid email or password" });
     }
-}
+
+    const isPasswordValid = await bcrypt.compare(password, existingVendor.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // ✅ Check vendor status before issuing token
+    if (existingVendor.status === "pending") {
+      return res.status(403).json({
+        message: "Your account is under review. You'll be notified once it's approved.",
+      });
+    }
+
+    if (existingVendor.status === "rejected") {
+      return res.status(403).json({
+        message: "Your vendor registration was rejected. Please contact support.",
+      });
+    }
+
+    const payload = { id: existingVendor._id, role: existingVendor.role };
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    return res.status(200).json({
+      message: "Vendor logged in successfully.",
+      vendorId: existingVendor._id,
+      role: existingVendor.role,
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 
 
 exports.registerVendor = async (req, res) => {
   try {
     const { files, body } = req;
+
+    const existingVendor = await Vendor.findOne({
+      $or: [
+        { email: body.email },
+        { number: body.number },
+      ],
+    });
+    if (existingVendor) {
+      return res.status(409).json({
+        message: "Vendor with this email or phone number already exists",
+      });
+    }
 
     // Parse bankDetails if it's sent as a JSON string
     if (typeof body.bankDetails === "string") {

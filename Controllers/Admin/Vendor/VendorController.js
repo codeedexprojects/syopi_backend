@@ -7,6 +7,18 @@ const fs = require('fs');
 exports.createVendor = async (req, res) => {
   try {
     const { files, body } = req;
+
+    const existingVendor = await Vendor.findOne({
+      $or: [
+        { email: body.email },
+        { number: body.number },
+      ],
+    });
+    if (existingVendor) {
+      return res.status(409).json({
+        message: "Vendor with this email or phone number already exists",
+      });
+    }
     if (typeof body.bankDetails === "string") {
             try {
                 body.bankDetails = JSON.parse(body.bankDetails);
