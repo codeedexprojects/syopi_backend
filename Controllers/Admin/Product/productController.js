@@ -218,6 +218,7 @@ exports.updateProduct = async (req, res) => {
       subcategory,
       cost,
       newVariants,
+      updatedVariants,
     } = req.body;
 
     const product = await Product.findById(productId);
@@ -227,7 +228,7 @@ exports.updateProduct = async (req, res) => {
     const parsedFeatures =
       typeof features === "string" ? JSON.parse(features) : features;
 
-    // ✅ Parse newVariants (optional)
+    // ✅ Parse newVariants
     let parsedNewVariants = [];
     if (newVariants) {
       try {
@@ -242,7 +243,22 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
-    // ✅ Attach images to new variants using colorName as identifier
+    // ✅ Parse updatedVariants
+    let parsedUpdatedVariants = [];
+    if (updatedVariants) {
+      try {
+        parsedUpdatedVariants = Array.isArray(JSON.parse(updatedVariants))
+          ? JSON.parse(updatedVariants)
+          : [];
+      } catch (error) {
+        return res.status(400).json({
+          message: "Invalid JSON format for updatedVariants",
+          error: error.message,
+        });
+      }
+    }
+
+    // ✅ Map images
     const variantImageMapByColorName = {};
     const variantImageMapById = {};
 
@@ -250,7 +266,6 @@ exports.updateProduct = async (req, res) => {
       const matchColor = file.fieldname.match(/^variantImages\[(.+)]$/);
       if (matchColor) {
         const key = matchColor[1];
-        // if it's an ObjectId → attach to existing variant
         if (/^[0-9a-fA-F]{24}$/.test(key)) {
           if (!variantImageMapById[key]) variantImageMapById[key] = [];
           variantImageMapById[key].push(file.filename);
@@ -261,24 +276,41 @@ exports.updateProduct = async (req, res) => {
       }
     });
 
-    // ✅ Update existing variants with images
+    // ✅ Update existing variants with new images
     product.variants.forEach((variant) => {
       const images = variantImageMapById[variant._id.toString()];
-      if (images && images.length > 0) {
+      if (images?.length) {
         variant.images = [...(variant.images || []), ...images];
       }
     });
 
-    // ✅ Append new variants with their images
+    // ✅ Update existing variant fields
+    parsedUpdatedVariants.forEach((variantUpdate) => {
+      const existingVariant = product.variants.id(variantUpdate._id);
+      if (existingVariant) {
+        Object.keys(variantUpdate).forEach((key) => {
+          if (key !== "_id") {
+            existingVariant[key] = variantUpdate[key];
+          }
+        });
+
+        const newImgs = variantImageMapById[variantUpdate._id];
+        if (newImgs?.length) {
+          existingVariant.images = [...(existingVariant.images || []), ...newImgs];
+        }
+      }
+    });
+
+    // ✅ Add new variants
     if (parsedNewVariants.length > 0) {
-      parsedNewVariants = parsedNewVariants.map((variant) => ({
+      const mappedNewVariants = parsedNewVariants.map((variant) => ({
         ...variant,
         images: variantImageMapByColorName[variant.colorName] || [],
       }));
-      product.variants.push(...parsedNewVariants);
+      product.variants.push(...mappedNewVariants);
     }
 
-    // ✅ Update basic product fields
+    // ✅ Update product fields
     if (name) product.name = name;
     if (productType) product.productType = productType;
     if (description) product.description = description;
@@ -300,6 +332,7 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+
 
 
 
