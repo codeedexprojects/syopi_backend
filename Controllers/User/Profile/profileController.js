@@ -1,20 +1,33 @@
 const User = require('../../../Models/User/UserModel');
 const path = require('path');
+const Vendor = require('../../../Models/Admin/VendorModel')
+
 
 //get user profile
-exports.getUserProfile = async(req,res) => {
-    try {
-        const userId = req.user.id;
-        const user = await User.findById(userId).select("-password");
-        if(!user || user.length === 0){
-            return res.status(404).json({ message: "User not found" });
-        }
+exports.getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-        res.status(200).json({ user });
-    } catch (error) {
-        res.status(500).json({ message: "Internal server error." })
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
-}
+
+    // Check if the user has registered as a vendor
+    const vendor = await Vendor.findOne({ userId }).select("status");
+
+    const userProfile = {
+      ...user.toObject(),
+      vendorStatus: vendor ? vendor.status : null, // 'pending', 'approved', 'rejected' or null if not registered
+    };
+
+    res.status(200).json({ user: userProfile });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 
 // update userData
 exports.updateUserData = async(req,res) => {
@@ -53,4 +66,87 @@ exports.deleteUserAccount = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error deleting account", error: error.message });
     }
+};
+
+// Register vendor
+exports.registerVendor = async (req, res) => {
+  try {
+    const { files, body, user } = req;
+
+    // Ensure user is logged in
+    if (!user || !user.id) {
+      return res.status(401).json({ message: "User authentication required" });
+    }
+    
+    // Check for existing vendor by email or number
+    const existingVendor = await Vendor.findOne({
+      $or: [{ email: body.email }, { number: body.number }],
+    });
+    if (existingVendor) {
+      return res.status(409).json({
+        message: "Vendor with this email or phone number already exists",
+      });
+    }
+
+    // Parse bankDetails if it's a string
+    if (typeof body.bankDetails === "string") {
+      try {
+        body.bankDetails = JSON.parse(body.bankDetails);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid bankDetails format" });
+      }
+    }
+
+    // File extraction
+    const storeLogo = files.storelogo?.[0];
+    const license = files.license?.[0];
+    const passbookImage = files.passbookImage?.[0];
+    const displayImages = files.images || [];
+
+    // Validate essential files
+    if (!storeLogo || !license || !passbookImage) {
+      return res.status(400).json({
+        message: "Store logo, license, and passbook image are required",
+      });
+    }
+
+    // Validate GST number
+    if (!body.gstNumber) {
+      return res.status(400).json({ message: "GST number is required" });
+    }
+
+    const imagePaths = displayImages.map((img) => img.filename);
+
+    // Create new vendor document
+    const newVendor = new Vendor({
+      ...body,
+      storelogo: storeLogo.filename,
+      license: license.filename,
+      passbookImage: passbookImage.filename,
+      images: imagePaths,
+      gstNumber: body.gstNumber,
+      userId: user.id, 
+      bankDetails: {
+        bankName: body.bankDetails?.bankName,
+        accountNumber: body.bankDetails?.accountNumber,
+        accountHolderName: body.bankDetails?.accountHolderName,
+        ifscCode: body.bankDetails?.ifscCode,
+      },
+    });
+
+    await newVendor.save();
+
+    return res.status(201).json({
+      message: "Vendor registration submitted successfully",
+      vendor: {
+        id: newVendor._id,
+        email: newVendor.email,
+        businessname: newVendor.businessname,
+        status: newVendor.status,
+      },
+    });
+  } catch (error) {
+    console.error("Vendor registration error:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
 };
