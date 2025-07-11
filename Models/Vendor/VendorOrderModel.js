@@ -42,7 +42,21 @@ const VendorOrderSchema = new mongoose.Schema(
     cancellationOrReturnReason: { type: String, default: "" }, 
     cancellationOrReturnDescription: { type: String, default: "" },  
     refundDate: { type: Date },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    coinsEarned: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    coinsAwarded: {
+      type: Boolean,
+      default: false,
+    },
+    coinsReversed: {
+      type: Boolean,
+      default: false,
+    },
+
   },
   { timestamps: true }  // This ensures 'createdAt' and 'updatedAt' fields are automatically managed
 );

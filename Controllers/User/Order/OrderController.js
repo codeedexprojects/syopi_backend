@@ -98,6 +98,13 @@ exports.placeOrder = async (req, res) => {
                 });
             }
 
+            const settings = await CoinSettings.findOne();
+            let coinsEarned = 0;
+
+            if (settings && checkout.subtotal >= settings.minAmount) {
+            coinsEarned = Math.floor((settings.percentage / 100) * item.price * item.quantity);
+            }
+
             const vendorOrder = new VendorOrder({
                 vendorId: product.owner.toString(),
                 userId,
@@ -113,29 +120,15 @@ exports.placeOrder = async (req, res) => {
                 colorName:item.colorName,
                 size: item.size, 
                 deliveryDetails,
-                status: "Confirmed",
+                status: "Pending",
+                coinsEarned
             });
             
             await vendorOrder.save();
         }
 
-       
         
-        // Fetch coin settings
-        const settings = await CoinSettings.findOne();
-        if (!settings) {
-            return res.status(400).json({ message: "Coin settings not found" });
-        }
-        
-        let coinsEarned = 0;
-        if (checkout.subtotal >= settings.minAmount) {
-            coinsEarned = Math.floor((settings.percentage / 100) * checkout.subtotal);
-        }
-        
-        // Update user's coin balance if applicable
-        if (coinsEarned > 0) {
-            await User.findByIdAndUpdate(userId, { $inc: { coins: coinsEarned } });
-        }
+
 
         // Delete checkout document and cart 
         await Checkout.findByIdAndDelete(checkoutId);
@@ -144,7 +137,6 @@ exports.placeOrder = async (req, res) => {
          return res.status(201).json({
              message: "Order placed successfully",
              order: newOrder,
-             coinsEarned
          });
     } catch (error) {
         console.error("Order placement error:", error);
@@ -341,45 +333,55 @@ exports.requestOrderReturn = async (req, res) => {
 
 
 exports.cancelOrder = async (req, res) => {
-    try {
-        const { orderId } = req.params;
-        const { reason, description } = req.body; // Extract reason and description
-        console.log(reason, description);
+  try {
+    const { orderId } = req.params;
+    const { reason, description } = req.body;
+    const userId = req.user.id;
 
-        const userId = req.user.id;
+    const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
 
-        const order = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
-
-        if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
-        }
-
-        if (order.status === "Delivered") {
-            return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
-        }
-
-        if (order.status === "Cancelled") {
-            return res.status(400).json({ success: false, message: "Order already canceled" });
-        }
-
-        order.status = "Cancelled";
-        order.cancellationOrReturnReason = reason; // Store the reason for cancellation
-        order.cancellationOrReturnDescription = description || ""; // Store description if provided
-
-        // Process refund only if the payment was made (assuming order has a 'paymentStatus' field)
-        if (order.paymentStatus === "Paid") {
-            order.refundDate = new Date();
-            order.refundDate.setDate(order.refundDate.getDate() + Math.floor(Math.random() * 3) + 5); // Refund in 5-7 days
-        }
-
-        await order.save();
-
-        res.status(200).json({ 
-            success: true, 
-            message: "Order canceled successfully. Refund will be processed in 5-7 days if applicable." 
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
+
+    if (order.status === "Delivered") {
+      return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
+    }
+
+    if (order.status === "Cancelled") {
+      return res.status(400).json({ success: false, message: "Order already canceled" });
+    }
+
+    // ✅ Set cancellation info
+    order.status = "Cancelled";
+    order.cancellationOrReturnReason = reason;
+    order.cancellationOrReturnDescription = description || "";
+
+    // ✅ Process refund if needed
+    if (order.paymentStatus === "Paid") {
+      order.refundDate = new Date();
+      order.refundDate.setDate(order.refundDate.getDate() + Math.floor(Math.random() * 3) + 5); // 5–7 days
+    }
+
+    // ✅ Coin reversal logic
+    if (order.coinsAwarded && !order.coinsReversed && order.coinsEarned > 0) {
+      await mongoose.model("User").findByIdAndUpdate(order.userId, {
+        $inc: { coins: -order.coinsEarned }
+      });
+      order.coinsReversed = true;
+    }
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Order canceled successfully. Refund will be processed in 5-7 days if applicable.",
+    });
+
+  } catch (error) {
+    console.error("Cancel Order Error:", error);
+    res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
+  }
 };
+
 

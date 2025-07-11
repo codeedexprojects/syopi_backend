@@ -4,6 +4,13 @@ const profileController = require('../../../Controllers/User/Profile/profileCont
 const verifyToken = require('../../../Middlewares/jwtConfig');
 const multerConfig = require('../../../Middlewares/MulterConfig');
 
+const uploadFields = multerConfig.fields([
+    { name: "images", maxCount: 5 },
+    { name: "storelogo", maxCount: 1 },
+    { name: "license", maxCount: 1 },
+    { name: "passbookImage", maxCount: 2}
+])
+
 // Get user profile
 router.get('/view', verifyToken(['customer']), profileController.getUserProfile);
 
@@ -12,5 +19,9 @@ router.patch('/update', verifyToken(['customer']), multerConfig.single('image'),
 
 // Delete user account
 router.delete('/delete', verifyToken(['customer']), profileController.deleteUserAccount);
+
+// Register vendor
+router.post('/register', verifyToken(['customer']), uploadFields,profileController.registerVendor);
+
 
 module.exports = router;
