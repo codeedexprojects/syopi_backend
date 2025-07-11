@@ -20,7 +20,10 @@ const VendorOrderSchema = new mongoose.Schema(
     status: { 
       type: String,  
       enum: {
-        values: ['Pending','Confirmed', 'Processing', 'Shipping', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
+        values:
+         [ 'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
+            'Delivered', 'Cancelled','Return_Requested', 'Return_Processing', 'Returned'
+          ],
         message: 'Invalid order status'
       }, 
       default: "Pending" 
@@ -34,11 +37,6 @@ const VendorOrderSchema = new mongoose.Schema(
       }
     },
     deliveredAt: { type: Date }, 
-    returnStatus: { 
-      type: String, 
-      enum: ["Not_requested", "Processing", "Returned"], 
-      default: "Not_requested" 
-    },
     cancellationOrReturnReason: { type: String, default: "" }, 
     cancellationOrReturnDescription: { type: String, default: "" },  
     refundDate: { type: Date },

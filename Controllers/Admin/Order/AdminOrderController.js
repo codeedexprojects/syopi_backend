@@ -38,13 +38,12 @@ exports.updateOrderStatus = async (req, res) => {
     const { status, orderId } = req.body;
     console.log("Updating order status:", status, "Order ID:", orderId);
 
-    // ✅ Validate status
-    const validStatuses = ["Pending", "Confirmed", "Processing", "Shipping", "In-Transit", "Delivered", "Cancelled", "Returned"];
+    const validStatuses = ['Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit', 'Delivered', 'Cancelled', 
+        'Return_Requested', 'Return_Processing', 'Returned'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid order status" });
     }
 
-    // ✅ Prepare update fields
     const updateFields = { status };
     if (status === "Delivered") {
       updateFields.deliveredAt = new Date();
@@ -61,18 +60,14 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor order not found" });
     }
 
-    // ✅ Also update UserOrder (if present)
-    const userOrder = await UserOrder.findOneAndUpdate(
-      { _id: orderId },
+    // ✅ Update corresponding main Order model (only top-level status)
+    await UserOrder.findByIdAndUpdate(
+      vendorOrder.orderId,
       updateFields,
       { new: true }
     );
 
-    if (!userOrder) {
-      console.warn("User order not found for Vendor order", orderId);
-    }
-
-    // ✅ COIN LOGIC
+    // ✅ Coins: Award on "Confirmed"
     if (status === "Confirmed" && !vendorOrder.coinsAwarded && vendorOrder.coinsEarned > 0) {
       await User.findByIdAndUpdate(vendorOrder.userId, {
         $inc: { coins: vendorOrder.coinsEarned }
@@ -81,7 +76,12 @@ exports.updateOrderStatus = async (req, res) => {
       await vendorOrder.save();
     }
 
-    if ((status === "Cancelled" || status === "Returned") && vendorOrder.coinsAwarded && !vendorOrder.coinsReversed) {
+    // ✅ Coins: Reversal on "Cancelled" or "Returned"
+    if (
+      (status === "Cancelled" || status === "Returned") &&
+      vendorOrder.coinsAwarded &&
+      !vendorOrder.coinsReversed
+    ) {
       await User.findByIdAndUpdate(vendorOrder.userId, {
         $inc: { coins: -vendorOrder.coinsEarned }
       });
@@ -89,13 +89,18 @@ exports.updateOrderStatus = async (req, res) => {
       await vendorOrder.save();
     }
 
-    return res.status(200).json({ success: true, message: "Order status updated", order: vendorOrder });
+    return res.status(200).json({
+      success: true,
+      message: "Order status updated",
+      order: vendorOrder
+    });
 
   } catch (error) {
     console.error("Error updating order status:", error);
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
 
 
 
