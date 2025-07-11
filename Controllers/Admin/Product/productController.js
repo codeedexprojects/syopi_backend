@@ -369,25 +369,56 @@ exports.deleteProduct = async (req, res) => {
 exports.deleteProductImage = async (req, res) => {
   try {
     const { id } = req.params; 
-    const { imageName } = req.body;   
+    const { imageName, variantId } = req.body; 
+
+    if (!imageName) {
+      return res.status(400).json({ message: "Image name is required" });
+    }
+
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    const updatedImages = product.images.filter((img) => {
-      const imgFileName = img.split("\\").pop().split("/").pop(); 
-      return imgFileName !== imageName;
-    });
-    if (updatedImages.length === product.images.length) {
-      return res.status(400).json({ message: "Image not found in product" });
+
+    let imageFound = false;
+
+
+    if (!variantId) {
+      const filteredImages = product.images.filter(img => path.basename(img) !== imageName);
+
+      if (filteredImages.length !== product.images.length) {
+        product.images = filteredImages;
+        imageFound = true;
+      }
     }
-    
-    const updatedProduct = await Product.findByIdAndUpdate(id,{ images: updatedImages },{ new: true });
-    if(!updatedProduct){
-      return res.status(404).json({ message: "Failed to delete image" })
+
+    if (variantId) {
+      const variant = product.variants.id(variantId);
+      if (!variant) {
+        return res.status(404).json({ message: "Variant not found" });
+      }
+
+      const originalLength = variant.images.length;
+      variant.images = variant.images.filter(img => path.basename(img) !== imageName);
+      if (variant.images.length !== originalLength) {
+        imageFound = true;
+      }
     }
-    res.status(200).json({ message: "Image deleted successfully", images: updatedProduct.images });
+
+    if (!imageFound) {
+      return res.status(400).json({ message: "Image not found in product or variant" });
+    }
+
+    await product.save();
+
+    const filePath = path.join(__dirname, "../../../uploads", imageName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);      
+    }
+
+    res.status(200).json({ message: "Image deleted successfully", images: product.images });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error deleting product image:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };

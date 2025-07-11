@@ -64,7 +64,8 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: 'Pending',
     enum: {
-      values: ['Pending', 'Processing', 'Shipping', 'In-Transit', 'Delivered', 'Cancelled', 'Returned'],
+      values: ['Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit', 'Delivered', 'Cancelled', 
+        'Return_Requested', 'Return_Processing', 'Returned'],
       message: 'Invalid order status'
     }
   },
@@ -81,8 +82,23 @@ const orderSchema = new mongoose.Schema({
   coupon: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Coupon',
-  }
-  
+  },
+  deliveryDetails:{
+      deliveryDate:{
+        type:String
+      },
+      deliveryMessage:{
+        type:String
+      }
+    },
+    deliveredAt: { type: Date },
+    cancellationOrReturnReason: { type: String, default: "" }, 
+    cancellationOrReturnDescription: { type: String, default: "" },
+    coinsEarned: {
+      type: Number,
+      default: 0,
+      min: 0,
+    } 
   
 }, {
   timestamps: true, // Replaces manual createdAt/updatedAt
