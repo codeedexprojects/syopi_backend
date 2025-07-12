@@ -22,7 +22,6 @@ exports.getOrderByVendorId = async (req, res) => {
                 path: 'productId',
                 select: 'name images' 
             })
-            .populate('addressId');
 
 
         return res.status(200).json({ success: true, orders });
