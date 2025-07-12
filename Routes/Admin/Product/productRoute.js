@@ -12,7 +12,7 @@ router.get("/get",verifyToken(["admin"]),productController.getProducts);
 router.get("/get/:id", productController.getProductById);
 router.patch("/update/:id", verifyToken(["admin"]), upload, productController.updateProduct);
 router.delete("/delete/:id", verifyToken(["admin"]), productController.deleteProduct);
-// Delete a specific image by name
 router.delete("/delete/:id/image", verifyToken(["admin"]), productController.deleteProductImage);
+router.delete("/delete/:productId/variant/:variantId", verifyToken(["admin"]), productController.deleteVariantFromProduct)
 
 module.exports = router;
