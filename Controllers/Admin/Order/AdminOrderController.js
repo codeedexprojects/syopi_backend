@@ -22,7 +22,7 @@ exports.getAllOrders = async (req, res) => {
                 path: 'vendorId',
                 select: 'name email' 
             })
-        .populate('addressId');
+    
 
         return res.status(200).json({ success: true, orders });
     } catch (error) {

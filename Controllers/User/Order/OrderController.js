@@ -202,7 +202,6 @@ exports.getUserOrder = async (req, res) => {
 
     const orders = await Order.find({ userId })
       .populate("products.productId", "name images")
-      .populate("addressId")
       .populate("coupon", "code discountType discountValue")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -244,7 +243,6 @@ exports.getSingleOrder = async (req, res) => {
 
     const order = await Order.findOne({ _id: orderId, userId })
       .populate("products.productId", "name images returnWithinDays description") // populate product info
-      .populate("addressId");
 
     if (!order) {
       return res.status(404).json({
