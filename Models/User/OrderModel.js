@@ -15,10 +15,16 @@ const orderSchema = new mongoose.Schema({
     type: String,
     select: false // Hide in general queries
   },
-  addressId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Address', 
-    required: true 
+  shippingAddress: {
+    name: { type: String, required: true },
+    number: { type: String, required: true },
+    alternatenumber: { type: Number },
+    address: { type: String, required: true },
+    landmark: { type: String },
+    pincode: { type: Number, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    addressType: { type: String, enum: ['home', 'work'], required: true },
   },
   products: [{
     productId: { 

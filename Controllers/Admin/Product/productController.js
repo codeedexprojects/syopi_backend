@@ -422,3 +422,39 @@ exports.deleteProductImage = async (req, res) => {
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
+// Delete a specific variant from a product
+exports.deleteVariantFromProduct = async (req, res) => {
+  try {
+    const { productId, variantId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const variant = product.variants.id(variantId);
+    if (!variant) {
+      return res.status(404).json({ message: "Variant not found" });
+    }
+
+    // Delete variant images from filesystem
+    const basePath = "../../../uploads/";
+    variant.images?.forEach((image) => {
+      const imagePath = path.join(basePath, image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    });
+
+    // Remove the variant
+    product.variants.pull({ _id: variantId });
+
+    await product.save();
+
+    res.status(200).json({ message: "Variant deleted successfully", product });
+  } catch (err) {
+    console.error("Error deleting variant:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};

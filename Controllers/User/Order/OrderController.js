@@ -37,6 +37,18 @@ exports.placeOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Address not found" });
     }
 
+    const shippingAddress = {
+    name: address.name,
+    number: address.number,
+    alternatenumber: address.alternatenumber,
+    address: address.address,
+    landmark: address.landmark,
+    pincode: address.pincode,
+    city: address.city,
+    state: address.state,
+    addressType: address.addressType,
+    };
+
     const deliveryDetails = await fetchDeliveryDetails(address.pincode);
     if (!deliveryDetails) {
       return res.status(400).json({
@@ -50,7 +62,7 @@ exports.placeOrder = async (req, res) => {
     // ✅ Create the parent Order ONCE
     const newOrder = new Order({
       userId,
-      addressId,
+      shippingAddress,
       checkoutId,
       deliveryCharge,
       paymentMethod,
@@ -99,7 +111,7 @@ exports.placeOrder = async (req, res) => {
         userId,
         orderId: newOrder._id,
         productId: product._id,
-        addressId,
+        shippingAddress,
         quantity: item.quantity,
         price: item.price,
         itemTotal: item.price * item.quantity,
