@@ -66,7 +66,8 @@ exports.placeOrder = async (req, res) => {
       checkoutId,
       deliveryCharge,
       paymentMethod,
-      coinsEarned: 0 // will be updated later if needed
+      coinsEarned: 0,
+      deliveryDetails
     });
     await newOrder.save();
 

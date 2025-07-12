@@ -10,7 +10,6 @@ const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel')
 // create checkout
 exports.createCheckout = async (req, res) => {
     const { cartId } = req.body;
-    // console.log(cartId)
     const userId=req.user.id
     try {
         if (!userId || !cartId) {
@@ -132,12 +131,10 @@ exports.getCheckout = async (req, res) => {
 
         // Find the checkout and ensure it belongs to the logged-in user
         const userCheckout = await Checkout.findById(checkoutId).populate('items.productId', 'name images category').populate('coupon')
-        console.log(userCheckout)
 
         if (!userCheckout) {
             return res.status(404).json({ message: 'Checkout not found' });
         }
-        console.log(req.user.id)
         // Validate that the checkout belongs to the logged-in user
         if (userCheckout.userId.toString() !== req.user.id) {
             return res.status(403).json({ message: 'You are not authorized to access this checkout' });
