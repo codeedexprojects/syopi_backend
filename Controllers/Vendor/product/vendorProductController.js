@@ -229,69 +229,137 @@ exports.getProductById = async (req, res) => {
 
 // update product
 exports.updateProduct = async (req, res) => {
-    const { id } = req.params;
-  
-    try {
-      const product = await Product.findById(id);
-  
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
+  try {
+    const productId = req.params.id;
+
+    const {
+      name,
+      productType,
+      description,
+      brand,
+      type,
+      isReturnable,
+      returnWithinDays,
+      CODAvailable,
+      features,
+      category,
+      subcategory,
+      cost,
+      newVariants,
+      updatedVariants,
+    } = req.body;
+
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // ✅ Parse features
+    const parsedFeatures =
+      typeof features === "string" ? JSON.parse(features) : features;
+
+    // ✅ Parse newVariants
+    let parsedNewVariants = [];
+    if (newVariants) {
+      try {
+        parsedNewVariants = Array.isArray(JSON.parse(newVariants))
+          ? JSON.parse(newVariants)
+          : [];
+      } catch (error) {
+        return res.status(400).json({
+          message: "Invalid JSON format for newVariants",
+          error: error.message,
+        });
       }
-  
-      // Handle new images
-      const existingImages = product.images || [];
-      const newImages = req.files ? req.files.map((file) => file.filename) : [];
-      const updatedImages = [...existingImages, ...newImages];
-  
-      // Parse variants if provided
-      let parsedVariants = [];
-      if (req.body.variants) {
-        try {
-          parsedVariants = JSON.parse(req.body.variants);
-        } catch (error) {
-          return res.status(400).json({ message: "Invalid JSON format for variants", error: error.message });
-        }
-      }
-  
-      // Parse features if provided
-      let parsedFeatures = {};
-      if (req.body.features) {
-        try {
-          parsedFeatures = JSON.parse(req.body.features);
-        } catch (error) {
-          return res.status(400).json({ message: "Invalid JSON format for features", error: error.message });
-        }
-      }
-  
-      // Update product fields
-      const updates = {
-        name: req.body.name || product.name,
-        productType: req.body.productType || product.productType,
-        description: req.body.description || product.description,
-        brand: req.body.brand || product.brand,
-        images: updatedImages,
-        category: req.body.category || product.category,
-        subcategory: req.body.subcategory || product.subcategory,
-        isReturnable:req.body.isReturnable || product.isReturnable,
-        returnWithinDays:req.body.returnWithinDays || product.returnWithinDays,
-        features: Object.keys(parsedFeatures).length > 0 ? parsedFeatures : product.features,
-        variants: parsedVariants.length > 0 ? parsedVariants : product.variants,
-      };
-  
-      // Calculate new total stock if variants are updated
-      if (parsedVariants.length > 0) {
-        updates.totalStock = parsedVariants.reduce((total, variant) => {
-          return total + variant.sizes.reduce((sum, size) => sum + size.stock, 0);
-        }, 0);
-      }
-  
-      const updatedProduct = await Product.findByIdAndUpdate(id, { $set: updates }, { new: true });
-  
-      res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
-    } catch (err) {
-      res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
-  };
+
+    // ✅ Parse updatedVariants
+    let parsedUpdatedVariants = [];
+    if (updatedVariants) {
+      try {
+        parsedUpdatedVariants = Array.isArray(JSON.parse(updatedVariants))
+          ? JSON.parse(updatedVariants)
+          : [];
+      } catch (error) {
+        return res.status(400).json({
+          message: "Invalid JSON format for updatedVariants",
+          error: error.message,
+        });
+      }
+    }
+
+    // ✅ Map images
+    const variantImageMapByColorName = {};
+    const variantImageMapById = {};
+
+    req.files?.forEach((file) => {
+      const matchColor = file.fieldname.match(/^variantImages\[(.+)]$/);
+      if (matchColor) {
+        const key = matchColor[1];
+        if (/^[0-9a-fA-F]{24}$/.test(key)) {
+          if (!variantImageMapById[key]) variantImageMapById[key] = [];
+          variantImageMapById[key].push(file.filename);
+        } else {
+          if (!variantImageMapByColorName[key]) variantImageMapByColorName[key] = [];
+          variantImageMapByColorName[key].push(file.filename);
+        }
+      }
+    });
+
+    // ✅ Update existing variants with new images
+    product.variants.forEach((variant) => {
+      const images = variantImageMapById[variant._id.toString()];
+      if (images?.length) {
+        variant.images = [...(variant.images || []), ...images];
+      }
+    });
+
+    // ✅ Update existing variant fields
+    parsedUpdatedVariants.forEach((variantUpdate) => {
+      const existingVariant = product.variants.id(variantUpdate._id);
+      if (existingVariant) {
+        Object.keys(variantUpdate).forEach((key) => {
+          if (key !== "_id") {
+            existingVariant[key] = variantUpdate[key];
+          }
+        });
+
+        const newImgs = variantImageMapById[variantUpdate._id];
+        if (newImgs?.length) {
+          existingVariant.images = [...(existingVariant.images || []), ...newImgs];
+        }
+      }
+    });
+
+    // ✅ Add new variants
+    if (parsedNewVariants.length > 0) {
+      const mappedNewVariants = parsedNewVariants.map((variant) => ({
+        ...variant,
+        images: variantImageMapByColorName[variant.colorName] || [],
+      }));
+      product.variants.push(...mappedNewVariants);
+    }
+
+    // ✅ Update product fields
+    if (name) product.name = name;
+    if (productType) product.productType = productType;
+    if (description) product.description = description;
+    if (brand) product.brand = brand;
+    if (type) product.type = type;
+    if (typeof cost !== "undefined") product.cost = cost;
+    if (typeof isReturnable !== "undefined") product.isReturnable = isReturnable;
+    if (typeof CODAvailable !== "undefined") product.CODAvailable = CODAvailable;
+    if (typeof returnWithinDays !== "undefined") product.returnWithinDays = returnWithinDays;
+    if (features) product.features = parsedFeatures;
+    if (category) product.category = category;
+    if (subcategory) product.subcategory = subcategory;
+
+    await product.save();
+
+    res.status(200).json({ message: "Product updated successfully", product });
+  } catch (err) {
+    console.error("Product Update Error:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};
   
 
 // Delete a product
@@ -325,25 +393,92 @@ exports.deleteProduct = async (req, res) => {
 exports.deleteProductImage = async (req, res) => {
   try {
     const { id } = req.params; 
-    const { imageName } = req.body;   
+    const { imageName, variantId } = req.body; 
+
+    if (!imageName) {
+      return res.status(400).json({ message: "Image name is required" });
+    }
+
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    const updatedImages = product.images.filter((img) => {
-      const imgFileName = img.split("\\").pop().split("/").pop(); 
-      return imgFileName !== imageName;
-    });
-    if (updatedImages.length === product.images.length) {
-      return res.status(400).json({ message: "Image not found in product" });
+
+    let imageFound = false;
+
+
+    if (!variantId) {
+      const filteredImages = product.images.filter(img => path.basename(img) !== imageName);
+
+      if (filteredImages.length !== product.images.length) {
+        product.images = filteredImages;
+        imageFound = true;
+      }
     }
-    
-    const updatedProduct = await Product.findByIdAndUpdate(id,{ images: updatedImages },{ new: true });
-    if(!updatedProduct){
-      return res.status(404).json({ message: "Failed to delete image" })
+
+    if (variantId) {
+      const variant = product.variants.id(variantId);
+      if (!variant) {
+        return res.status(404).json({ message: "Variant not found" });
+      }
+
+      const originalLength = variant.images.length;
+      variant.images = variant.images.filter(img => path.basename(img) !== imageName);
+      if (variant.images.length !== originalLength) {
+        imageFound = true;
+      }
     }
-    res.status(200).json({ message: "Image deleted successfully", images: updatedProduct.images });
+
+    if (!imageFound) {
+      return res.status(400).json({ message: "Image not found in product or variant" });
+    }
+
+    await product.save();
+
+    const filePath = path.join(__dirname, "../../../uploads", imageName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);      
+    }
+
+    res.status(200).json({ message: "Image deleted successfully", images: product.images });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error deleting product image:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Delete a specific variant from a product
+exports.deleteVariantFromProduct = async (req, res) => {
+  try {
+    const { productId, variantId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const variant = product.variants.id(variantId);
+    if (!variant) {
+      return res.status(404).json({ message: "Variant not found" });
+    }
+
+    // Delete variant images from filesystem
+    const basePath = "../../../uploads/";
+    variant.images?.forEach((image) => {
+      const imagePath = path.join(basePath, image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    });
+
+    // Remove the variant
+    product.variants.pull({ _id: variantId });
+
+    await product.save();
+
+    res.status(200).json({ message: "Variant deleted successfully", product });
+  } catch (err) {
+    console.error("Error deleting variant:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
