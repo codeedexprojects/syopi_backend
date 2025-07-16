@@ -38,8 +38,10 @@ exports.updateOrderStatus = async (req, res) => {
     const { status, orderId } = req.body;
     console.log("Updating order status:", status, "Order ID:", orderId);
 
-    const validStatuses = ['Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit', 'Delivered', 'Cancelled', 
-        'Return_Requested', 'Return_Processing', 'Returned'];
+    const validStatuses = [
+      'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
+      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Processing', 'Returned'
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid order status" });
     }
@@ -60,15 +62,15 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor order not found" });
     }
 
-    // ✅ Update corresponding main Order model (only top-level status)
+    // ✅ Update corresponding UserOrder
     await UserOrder.findByIdAndUpdate(
       vendorOrder.orderId,
       updateFields,
       { new: true }
     );
 
-    // ✅ Coins: Award on "Confirmed"
-    if (status === "Confirmed" && !vendorOrder.coinsAwarded && vendorOrder.coinsEarned > 0) {
+    // ✅ Coins: Award on "Delivered"
+    if (status === "Delivered" && !vendorOrder.coinsAwarded && vendorOrder.coinsEarned > 0) {
       await User.findByIdAndUpdate(vendorOrder.userId, {
         $inc: { coins: vendorOrder.coinsEarned }
       });
@@ -100,6 +102,7 @@ exports.updateOrderStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
 
 
 

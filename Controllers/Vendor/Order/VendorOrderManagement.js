@@ -61,9 +61,9 @@ exports.updateOrderStatus = async (req, res) => {
     // ✅ Update VendorOrder fields
     Object.assign(vendorOrder, updateFields);
 
-    // ✅ Coin award on Confirmed
+    // ✅ Coin award on Delivered
     if (
-      status === "Confirmed" &&
+      status === "Delivered" &&
       !vendorOrder.coinsAwarded &&
       vendorOrder.coinsEarned > 0
     ) {
