@@ -17,14 +17,11 @@ router.post('/register/verify-otp',userController.verifyOTP);
 // Login User
 router.post('/login', loginUserValidator, validationHandler, userController.loginUser);
 
-// otp for password reset (phone)
-router.post('/forgot-password/send-otp', userController.sendForgotPasswordOTPNumber);
+//Resend OTP
+router.post('/login/resend-otp',userController.resendLoginOTP);
 
-// otp verfication for password reset (phone)
-router.post('/forgot-password/verify-otp', userController.verifyForgotPasswordOTPNumber);
-
-// reset password after verification
-router.patch('/forgot-password/reset-password', userController.resetPassword);
+// Otp verficiation 
+router.post('/login/verify-otp',userController.verifyLoginOtp);
 
 // google login
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
