@@ -30,11 +30,6 @@ const registerUserValidator = [
       }
       return true;
     }),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
   body('referredBy')
     .optional()
     .custom(async (referralCode) => {
@@ -48,20 +43,16 @@ const registerUserValidator = [
 ];
 
 const loginUserValidator = [
-    body('emailOrPhone')
+    body('phone')
     .notEmpty()
-    .withMessage('Email or phone is required')
+    .withMessage('Phone is required')
     .custom((value) => {
-      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); // Email validation
       const isPhone = /^[0-9]{10,15}$/.test(value); // Phone validation
-      if (!isEmail && !isPhone) {
-        throw new Error('Invalid email or phone format');
+      if (!isPhone) {
+        throw new Error('Invalid phone format');
       }
       return true;
     }), 
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required'),
 ];
 
 
