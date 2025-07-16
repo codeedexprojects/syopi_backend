@@ -17,18 +17,17 @@ const api_key = process.env.FACTOR_API_KEY
 
 // Register User
 exports.registerUser = async (req, res) => {
-    const { name, email, phone, password, referredBy } = req.body;
+    const { name, email, phone, referredBy } = req.body;
   
     try {
       const existingUser = await User.findOne({ phone });
       if (existingUser) {
         return res.status(400).json({ msg: 'Phone number already exists' });
       }
-      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false, lowerCaseAlphabets: false, specialChars: false });
 
-      cache.set(phone, { name,phone,email,referredBy,password,otp });
+      cache.set(phone, { name,phone,email,referredBy });
 
-      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`)
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN`)
       // console.log('2Factor Response:', response.data);
       if(response.data.Status !== 'Success'){
         return res.status(500).json({ message: 'Failed to send OTP. Try again later.' });
@@ -59,19 +58,12 @@ exports.registerUser = async (req, res) => {
         return res.status(400).json({ message: 'No registration attempt found for this phone number' });
       }
   
-      // Generate new OTP and update cache
-      const otp = otpGenerator.generate(6, {
-        digits: true,
-        upperCaseAlphabets: false,
-        lowerCaseAlphabets: false,
-        specialChars: false,
-      });
   
       // Update cache with new OTP
-      cache.set(phone, { ...cachedData, otp });
+      cache.set(phone, { ...cachedData });
   
       // Send OTP via 2Factor
-      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`);
+      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN`);
   
       if (response.data.Status !== 'Success') {
         return res.status(500).json({ message: 'Failed to resend OTP. Try again later.' });
@@ -124,7 +116,6 @@ exports.verifyOTP = async(req,res) => {
       name: cachedData.name,
       email: cachedData.email,
       phone: cachedData.phone,
-      password: cachedData.password,
       referredBy: cachedData.referredBy,
     });
     await newUser.save();
@@ -153,120 +144,139 @@ exports.verifyOTP = async(req,res) => {
 
 // Login User
 exports.loginUser = async (req, res) => {
-    const { emailOrPhone, password } = req.body;
-  console.log(emailOrPhone,password)
-    try {
-      const user = await User.findOne({ $or: [{ email: emailOrPhone }, { phone: emailOrPhone }] });
-      if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-  
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log(isPasswordValid)
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-  
-      const payload = { id: user._id, role: user.role };
-      const accessToken = generateAccessToken(payload);
-      const refreshToken = generateRefreshToken(payload);
-  
-      res.status(200).json({
-        message: 'User logged in successfully',
-        user: { name: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role ,userId:user._id},
-        accessToken,
-        refreshToken,
-      });
-    } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone number is required" });
     }
-  };
 
-// otp for forget passsword (phone)
-exports.sendForgotPasswordOTPNumber = async (req, res) => {
-  const { phone } = req.body;
+    const user = await User.findOne({ phone });
 
-  try {   
-      const user = await User.findOne({ phone });
-      if (!user) {
-          return res.status(404).json({ message: 'User with this phone number does not exist' });
-      }
-      const otp = otpGenerator.generate(6, { digits: true, upperCaseAlphabets: false,  lowerCaseAlphabets: false,specialChars: false });
-      
-      // const response = await axios.get(
-      //     `https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN/OTP1`
-      // );
-      const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/${otp}`)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-      if (response.data.Status !== 'Success') {
-          return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
-      }
+    // Store user info temporarily in cache
+    cache.set(phone, {
+      phone,
+      name: user.name,
+      email: user.email,
+      userId: user._id,
+      role: user.role,
+    });
 
-      return res.status(200).json({ message: 'OTP sent successfully' });
+    const apiKey = process.env.FACTOR_API_KEY;
+
+    const response = await axios.get(
+      `https://2factor.in/API/V1/${apiKey}/SMS/${phone}/AUTOGEN/OTP1`
+    );
+
+    if (response.data.Status !== "Success") {
+      return res.status(500).json({ message: "Failed to send OTP" });
+    }
+    
+
+    res.status(200).json({
+      message: "OTP sent successfully",
+      sessionId: response.data.Details, 
+    });
   } catch (error) {
-      return res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// verify otp for password reset (phone)
-exports.verifyForgotPasswordOTPNumber = async (req, res) => {
-  const { phone, otp } = req.body;
+exports.resendLoginOTP = async (req, res) => {
+  const { phone } = req.body;
+  const apiKey = process.env.FACTOR_API_KEY;
 
   try {
-      const response = await axios.get(
-          `https://2factor.in/API/V1/${api_key}/SMS/VERIFY3/${phone}/${otp}`
-      );
+    // ✅ Check if user exists (because it's a login)
+    const existingUser = await User.findOne({ phone });
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-      if (response.data.Status !== 'Success') {
-          return res.status(400).json({ message: 'Invalid OTP. Please try again.' });
-      }
-      const tempToken = jwt.sign(
-          { phone },
-          process.env.JWT_SECRET,
-          { expiresIn: '5m' } 
-      );
-      
-      return res.status(200).json({ 
-          message: 'OTP verified successfully. Use the token to reset password.', 
-          tempToken 
-      });       
-       
-  } catch (err) {
-      return res.status(500).json({ message: 'Server error', error: err.message });
+    // ✅ Check if original login attempt (cache) exists
+    const cachedData = cache.get(phone);
+    if (!cachedData) {
+      return res.status(400).json({ message: "No previous login attempt found for this number" });
+    }
+
+    // ✅ Resend OTP via 2Factor
+    const response = await axios.get(
+      `https://2factor.in/API/V1/${apiKey}/SMS/${phone}/AUTOGEN/OTP1`
+    );
+
+    if (response.data.Status !== "Success") {
+      return res.status(500).json({ message: "Failed to resend OTP. Try again later." });
+    }
+
+    // ✅ Update cache if needed (optional, here it's the same)
+    cache.set(phone, { ...cachedData });
+
+    return res.status(200).json({
+      message: "OTP resent successfully",
+      sessionId: response.data.Details, // New session ID must be used in next verification
+    });
+  } catch (error) {
+    console.error("Resend OTP Error:", error?.response?.data || error.message);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// reset password after verification
-exports.resetPassword = async (req, res) => {
-  const { tempToken, newPassword } = req.body;
-
+exports.verifyLoginOtp = async (req, res) => {
   try {
-      
-      const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-      const phone = decoded.phone;
+    const { phone, otp, sessionId } = req.body;
 
-      
-      const user = await User.find({ phone });
-      if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-      }
+    if (!phone || !otp || !sessionId) {
+      return res.status(400).json({ message: "Phone, OTP, and Session ID are required" });
+    }
+    
+    const apiKey = process.env.FACTOR_API_KEY;
 
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      await User.updateOne({ phone }, { password:hashedPassword });
+    const response = await axios.get(
+      `https://2factor.in/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${otp}`
+    );
 
-      return res.status(200).json({ message: 'Password updated successfully' });
-  } catch (err) {
-      console.error(err.message);
-      if (err.name === 'TokenExpiredError') {
-          return res.status(401).json({ message: 'Token has expired. Please try again.' });
-      } else if (err.name === 'JsonWebTokenError') {
-          return res.status(400).json({ message: 'Invalid token.' });
-      }
+    
+    if (response.data.Status !== "Success") {
+      return res.status(401).json({ message: "Invalid OTP" });
+    }
 
-      return res.status(500).json({ message: 'Server error', error: err.message });
+    const userData = cache.get(phone);
+
+    if (!userData) {
+      return res.status(404).json({ message: "User session expired or invalid" });
+    }
+
+    
+    const payload = { id: userData.userId, role: userData.role };
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    res.status(200).json({
+      message: "User logged in successfully",
+      user: {
+        userId: userData.userId,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        role: userData.role,
+      },
+      accessToken,
+      refreshToken,
+    });
+
+    cache.del(phone); 
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
+
 
 // Google Login Callback
 

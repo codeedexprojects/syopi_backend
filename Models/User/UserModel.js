@@ -32,20 +32,6 @@ const userSchema = new mongoose.Schema(
         message: (props) => `${props.value} is not a valid phone number!`,
       },
     },
-    password: {
-      type: String,
-      required: false,
-      minlength: [6, 'Password must be at least 6 characters long'],
-      validate: {
-        validator: function (value) {
-          if (!this.googleId && (!value || value.length < 6)) {
-            return false;
-          }
-          return true;
-        },
-        message: 'Password is required and must be at least 6 characters long unless Google login is used.',
-      },
-    },
     image: { type: String },
     gender: {
       type: String,
@@ -86,12 +72,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-  next();
-});
+
 
 module.exports = mongoose.model('User', userSchema);
