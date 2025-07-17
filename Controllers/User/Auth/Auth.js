@@ -146,18 +146,49 @@ exports.verifyOTP = async(req,res) => {
 exports.loginUser = async (req, res) => {
   try {
     const { phone } = req.body;
+    const predefinedPhone = "9999999999";
+    const predefinedOTP = "123456";
 
     if (!phone) {
       return res.status(400).json({ message: "Phone number is required" });
     }
 
-    const user = await User.findOne({ phone });
+    let user = await User.findOne({ phone });
+
+    if (!user && phone === predefinedPhone) {
+      user = await User.create({
+        name: "Test User",
+        email: "test@example.com",
+        phone,
+        role: "user",
+      });
+    }
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Store user info temporarily in cache
+    // ✅ For predefined test user
+    if (phone === predefinedPhone) {
+      cache.set(phone, {
+        phone,
+        name: user.name,
+        email: user.email,
+        userId: user._id,
+        role: user.role,
+        otp: predefinedOTP, // Store the fixed OTP
+      });
+
+      return res.status(200).json({
+        message: "Test OTP sent successfully",
+        otp: predefinedOTP, // Optional: return in response for testing
+        sessionId: "TEST_SESSION", // Dummy session ID
+      });
+    }
+
+    // ✅ Normal OTP flow
+    const apiKey = process.env.FACTOR_API_KEY;
+
     cache.set(phone, {
       phone,
       name: user.name,
@@ -166,8 +197,6 @@ exports.loginUser = async (req, res) => {
       role: user.role,
     });
 
-    const apiKey = process.env.FACTOR_API_KEY;
-
     const response = await axios.get(
       `https://2factor.in/API/V1/${apiKey}/SMS/${phone}/AUTOGEN/OTP1`
     );
@@ -175,16 +204,17 @@ exports.loginUser = async (req, res) => {
     if (response.data.Status !== "Success") {
       return res.status(500).json({ message: "Failed to send OTP" });
     }
-    
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "OTP sent successfully",
-      sessionId: response.data.Details, 
+      sessionId: response.data.Details,
     });
+
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 exports.resendLoginOTP = async (req, res) => {
   const { phone } = req.body;
@@ -228,52 +258,76 @@ exports.resendLoginOTP = async (req, res) => {
 exports.verifyLoginOtp = async (req, res) => {
   try {
     const { phone, otp, sessionId } = req.body;
+    const predefinedPhone = "9999999999";
+    const predefinedOTP = "123456";
 
     if (!phone || !otp || !sessionId) {
       return res.status(400).json({ message: "Phone, OTP, and Session ID are required" });
     }
-    
+
+    // ✅ For predefined test user
+    if (phone === predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
+      const cachedData = cache.get(phone);
+      if (!cachedData) {
+        return res.status(400).json({ message: "Session expired. Please login again." });
+      }
+
+      const payload = { id: cachedData.userId, role: cachedData.role };
+      const accessToken = generateAccessToken(payload);
+      const refreshToken = generateRefreshToken(payload);
+
+      return res.status(200).json({
+        message: "Test user logged in successfully",
+        user: {
+          userId: cachedData.userId,
+          name: cachedData.name,
+          email: cachedData.email,
+          phone: cachedData.phone,
+          role: cachedData.role,
+        },
+        accessToken,
+        refreshToken,
+      });
+    }
+
+    // ✅ For regular users
     const apiKey = process.env.FACTOR_API_KEY;
-
-
     const response = await axios.get(
       `https://2factor.in/API/V1/${apiKey}/SMS/VERIFY/${sessionId}/${otp}`
     );
 
-    
     if (response.data.Status !== "Success") {
       return res.status(401).json({ message: "Invalid OTP" });
     }
 
-    const userData = cache.get(phone);
-
-    if (!userData) {
-      return res.status(404).json({ message: "User session expired or invalid" });
+    const cachedData = cache.get(phone);
+    if (!cachedData) {
+      return res.status(400).json({ message: "Session expired. Please login again." });
     }
 
-    
-    const payload = { id: userData.userId, role: userData.role };
+    const payload = { id: cachedData.userId, role: cachedData.role };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    res.status(200).json({
-      message: "User logged in successfully",
+    return res.status(200).json({
+      message: "Login successful",
       user: {
-        userId: userData.userId,
-        name: userData.name,
-        email: userData.email,
-        phone: userData.phone,
-        role: userData.role,
+        userId: cachedData.userId,
+        name: cachedData.name,
+        email: cachedData.email,
+        phone: cachedData.phone,
+        role: cachedData.role,
       },
       accessToken,
       refreshToken,
     });
 
-    cache.del(phone); 
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("OTP Verification Error:", error?.response?.data || error.message);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 
