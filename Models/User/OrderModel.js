@@ -89,14 +89,6 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Coupon',
   },
-  deliveryDetails:{
-      deliveryDate:{
-        type:String
-      },
-      deliveryMessage:{
-        type:String
-      }
-    },
     deliveredAt: { type: Date },
     cancellationOrReturnReason: { type: String, default: "" }, 
     cancellationOrReturnDescription: { type: String, default: "" },
