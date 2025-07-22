@@ -325,7 +325,7 @@ exports.requestOrderReturn = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find VendorOrder for the user and orderId
-    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
+    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
 
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
@@ -391,8 +391,8 @@ exports.cancelOrder = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find vendor order by _id and userId
-    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
-
+    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
+    
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
