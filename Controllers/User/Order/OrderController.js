@@ -67,7 +67,6 @@ exports.placeOrder = async (req, res) => {
       deliveryCharge,
       paymentMethod,
       coinsEarned: 0,
-      deliveryDetails
     });
     await newOrder.save();
 
@@ -240,10 +239,10 @@ exports.getUserOrder = async (req, res) => {
 exports.getSingleOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const userId = req.user.id; // Only fetch orders of the logged-in user
+    const userId = req.user.id;
 
     const order = await Order.findOne({ _id: orderId, userId })
-      .populate("products.productId", "name images returnWithinDays description") // populate product info
+      .populate("products.productId", "name images returnWithinDays description");
 
     if (!order) {
       return res.status(404).json({
@@ -252,12 +251,23 @@ exports.getSingleOrder = async (req, res) => {
       });
     }
 
-    // Optional: Determine return expiry based on first product
-    let returnExpired = false;
-    let expiryDateFormatted = null;
+    const vendorOrders = await VendorOrder.find({ orderId })
+      .select("productId deliveryDetails status")
+      .lean();
+
+    const deliveryMap = {};
+    vendorOrders.forEach(vo => {
+      deliveryMap[vo.productId.toString()] = {
+        deliveryDetails: vo.deliveryDetails,
+        status: vo.status,
+      };
+    });
+    
 
     const deliveredAt = order.deliveredAt;
     const firstProduct = order.products?.[0]?.productId;
+    let returnExpired = false;
+    let expiryDateFormatted = null;
 
     if (deliveredAt && firstProduct?.returnWithinDays) {
       const expiryDate = moment(deliveredAt).add(firstProduct.returnWithinDays, "days");
@@ -265,12 +275,27 @@ exports.getSingleOrder = async (req, res) => {
       expiryDateFormatted = expiryDate.format("YYYY-MM-DD");
     }
 
+
+    const productsWithDelivery = order.products.map(p => {
+  const pId = p.productId._id.toString();
+  return {
+    ...p._doc,
+    productId: {
+      ...p.productId.toObject(), 
+    },
+    deliveryDetails: deliveryMap[pId]?.deliveryDetails || null,
+    deliveryStatus: deliveryMap[pId]?.status || "Pending"
+  };
+});
+
+    
     const formattedOrder = {
       ...order._doc,
+      products: productsWithDelivery,
       createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(order.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
-      deliveredAt: order.deliveredAt
-        ? moment(order.deliveredAt).format("YYYY-MM-DD HH:mm:ss")
+      deliveredAt: deliveredAt
+        ? moment(deliveredAt).format("YYYY-MM-DD HH:mm:ss")
         : null,
       returnExpired,
       returnExpiryDate: expiryDateFormatted,
@@ -280,6 +305,7 @@ exports.getSingleOrder = async (req, res) => {
       success: true,
       order: formattedOrder,
     });
+
   } catch (error) {
     console.error("Error fetching user order:", error);
     res.status(500).json({
@@ -290,6 +316,7 @@ exports.getSingleOrder = async (req, res) => {
 };
 
 
+
 //for returning the order
 exports.requestOrderReturn = async (req, res) => {
   try {
@@ -298,7 +325,7 @@ exports.requestOrderReturn = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find VendorOrder for the user and orderId
-    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
+    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
 
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
@@ -364,8 +391,8 @@ exports.cancelOrder = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find vendor order by _id and userId
-    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
-
+    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
+    
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
