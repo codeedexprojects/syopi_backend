@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
 const DeliverySettingSchema = new mongoose.Schema({
-    minAmountForFreeDelivery: { type: Number, required: true },
-    deliveryCharge: { type: Number, required: true },
+  minAmountForCharge: { type: Number, required: true, default: 1000 }, 
+  deliveryCharge: { type: Number, required: true, default: 40 },       
 });
 
 module.exports = mongoose.model("DeliverySetting", DeliverySettingSchema);

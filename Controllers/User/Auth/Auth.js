@@ -9,6 +9,8 @@ const otpGenerator = require('otp-generator');
 const axios = require('axios');
 const { OAuth2Client } = require('google-auth-library');
 const admin = require('../../../Configs/firebaseConfig');
+const DeletedUser = require('../../../Models/User/deletedUserModel'); // 👈 new model
+
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -79,39 +81,48 @@ exports.registerUser = async (req, res) => {
 
   
 // verify otp and register user
-exports.verifyOTP = async(req,res) => {
-  const { phone,otp } = req.body;
+exports.verifyOTP = async (req, res) => {
+  const { phone, otp } = req.body;
+
   try {
-    //retrieve stored data from cashe
+    // Step 1: Get cached registration data
     const cachedData = cache.get(phone);
-    if(!cachedData){
-      return res.status(400).json({ message: 'OTP  invalid or expired ' });
+    if (!cachedData) {
+      return res.status(400).json({ message: 'OTP invalid or expired' });
     }
 
-    //verify the otp with 2Factor API
+    // Step 2: Verify OTP using 2Factor
     const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/VERIFY3/${phone}/${otp}`);
-    if(response.data.Status !== 'Success'){
-      return res.status(400).json({ message: 'Invalid OTP. Please try again.' })
+    if (response.data.Status !== 'Success') {
+      return res.status(400).json({ message: 'Invalid OTP. Please try again.' });
     }
 
+    // Step 3: Get referral settings
     const settings = await Coin.findOne();
-    const referralCoinReward = settings?.referralCoins || 40; // Default to 40 if not found
+    const referralCoinReward = settings?.referralCoins || 40;
 
-    // validate refferedBy (optional)
+    // Step 4: Handle referral (if provided)
     let referredUser = null;
-    if(cachedData.referredBy){
-      referredUser = await User.findOneAndUpdate(
-        { referralCode: cachedData.referredBy },
-        { $inc: { coins: referralCoinReward } },
-        { new: true }
-      );
+    if (cachedData.referredBy) {
+      // Check if the referral code belongs to a deleted user
+      const isDeletedUser = await DeletedUser.findOne({ phone: cachedData.phone });
 
-      if(!referredUser){
-        return res.status(400).json({ message: 'Invalid referral code' });
+      if (!isDeletedUser) {
+        // Try rewarding active referrer
+        referredUser = await User.findOneAndUpdate(
+          { referralCode: cachedData.referredBy },
+          { $inc: { coins: referralCoinReward } },
+          { new: true }
+        );
+
+        if (!referredUser) {
+          return res.status(400).json({ message: 'Invalid referral code' });
+        }
       }
+      // If referral is deleted, silently skip reward
     }
 
-    // Create new user
+    // Step 5: Create new user
     const newUser = new User({
       name: cachedData.name,
       email: cachedData.email,
@@ -120,27 +131,27 @@ exports.verifyOTP = async(req,res) => {
     });
     await newUser.save();
 
-    //generate JWT token
+    // Step 6: Generate JWT
     const token = jwt.sign(
-      // { userId: newUser._id, role: newUser.role },
       { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    //delete temporary data from cache
+    // Step 7: Clean up
     cache.del(phone);
 
+    // Step 8: Respond
     return res.status(201).json({
       message: 'User registered successfully',
       user: newUser,
       token,
-  });
+    });
 
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
-}
+};
 
 // Login User
 exports.loginUser = async (req, res) => {

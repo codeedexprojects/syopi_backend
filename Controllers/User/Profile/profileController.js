@@ -1,7 +1,7 @@
 const User = require('../../../Models/User/UserModel');
 const path = require('path');
 const Vendor = require('../../../Models/Admin/VendorModel')
-
+const DeletedUser = require('../../../Models/User/deletedUserModel')
 
 //get user profile
 exports.getUserProfile = async (req, res) => {
@@ -54,19 +54,28 @@ exports.updateUserData = async(req,res) => {
 }
 // Delete user account
 exports.deleteUserAccount = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const deletedUser = await User.findByIdAndDelete(userId);
+  try {
+    const userId = req.user.id;
 
-        if (!deletedUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-        res.status(200).json({ message: "User account deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting account", error: error.message });
-    }
+    // Store deleted data in DeletedUser model
+    await DeletedUser.create({
+      phone: user.phone,
+      email: user.email,
+      referredBy: user.referredBy,
+    });
+
+    // Hard delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: "User account permanently deleted and archived" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting account", error: error.message });
+  }
 };
+
 
 // Register vendor
 exports.registerVendor = async (req, res) => {

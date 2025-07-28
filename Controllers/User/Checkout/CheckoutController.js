@@ -5,7 +5,7 @@ const Coupon = require('../../../Models/Admin/couponModel')
 const User=require('../../../Models/User/UserModel')
 const mongoose=require('mongoose')
 const CoinSettings = require("../../../Models/Admin/CoinModel");
-const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel')
+const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel');
 
 // create checkout
 exports.createCheckout = async (req, res) => {
@@ -30,8 +30,9 @@ exports.createCheckout = async (req, res) => {
           // Calculate subtotal
         const subtotal = cart.subtotal;
 
-        // Determine delivery charge based on minAmountForFreeDelivery
-        const deliveryCharge = subtotal >= deliverySetting.minAmountForFreeDelivery ? 0 : deliverySetting.deliveryCharge;
+        // Determine delivery charge based on minAmountForCharge
+        const deliveryCharge = subtotal < deliverySetting.minAmountForCharge ? 0 : deliverySetting.deliveryCharge;
+        
 
         // Final total = Subtotal + Delivery Charge
         const finalTotal = subtotal + deliveryCharge;
@@ -80,7 +81,7 @@ exports.createBuyNowCheckout = async (req, res) => {
         const subtotal =itemTotal
 
         // Determine delivery charge based on minAmountForFreeDelivery
-        const deliveryCharge = subtotal >= deliverySetting.minAmountForFreeDelivery ? 0 : deliverySetting.deliveryCharge;
+        const deliveryCharge = subtotal < deliverySetting.minAmountForCharge ? 0 : deliverySetting.deliveryCharge;
 
         // Final total = Subtotal + Delivery Charge
         const finalTotal = subtotal + deliveryCharge;
