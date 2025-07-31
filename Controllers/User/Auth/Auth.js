@@ -171,7 +171,7 @@ exports.loginUser = async (req, res) => {
         name: "Test User",
         email: "test@example.com",
         phone,
-        role: "user",
+        role: "customer",
       });
     }
 
