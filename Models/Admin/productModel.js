@@ -10,7 +10,16 @@ const productSchema = new mongoose.Schema({
   images: { type: [String], required: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
   subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "SubCategory" },
-  brand: { type: mongoose.Schema.Types.ObjectId, ref: "Brand" },
+  brand: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+      validate: {
+        validator: function (v) {
+          return mongoose.Types.ObjectId.isValid(v) || typeof v === 'string';
+        },
+        message: 'Brand must be a valid ObjectId or a string',
+      },
+  },
   variants: [
     { 
       color: { type: String, required: true },

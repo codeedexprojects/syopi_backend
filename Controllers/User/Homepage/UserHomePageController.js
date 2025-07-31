@@ -21,8 +21,23 @@ exports.getHomePage = async (req, res) => {
         // Fetch all products (ensure createdAt, salesCount, price, offerPrice, and rating fields are included)
         const allProducts = await getProduct(userId);
 
-        if (!allProducts || allProducts.length === 0) {
-            return res.status(404).json({ message: "No products found" });
+        if (!Array.isArray(allProducts) || allProducts.length === 0) {
+        return res.status(200).json({
+            message: "No products found",
+            total: 0,
+            products: [],
+            topSales: [],
+            newArrivals: [],
+            brands: [],
+            affordableProducts: [],
+            lowToHighProducts: [],
+            topPicksBestPrice: [],
+            OfferSection: [],
+            ProductSliders: [],
+            CategorySliders: [],
+            BrandSliders: [],
+            featuringBrandsNow: []
+        });
         }
 
         const topSales = await TopSaleSectionModel.find();
