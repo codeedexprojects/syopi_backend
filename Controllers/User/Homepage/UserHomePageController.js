@@ -28,16 +28,16 @@ exports.getHomePage = async (req, res) => {
             products: [],
             topSales: [],
             newArrivals: [],
-            brands: [],
-            affordableProducts: [],
-            lowToHighProducts: [],
-            topPicksBestPrice: [],
-            OfferSection: [],
-            ProductSliders: [],
-            CategorySliders: [],
-            BrandSliders: [],
+            brands: await Brand.find().populate('discount'),
+            affordableProducts: await affordableProductsModel.find(),
+            lowToHighProducts: await LowestProductModel.find(),
+            topPicksBestPrice: await TopPicksModel.find(),
+            OfferSection: await OfferSectionModel.find(),
+            ProductSliders: await Slider.find({ isActive: true }),
+            CategorySliders: await CategorySlider.find({ isActive: true }),
+            BrandSliders: await BrandSlider.find({ isActive: true }),
             featuringBrandsNow: []
-        });
+            });
         }
 
         const topSales = await TopSaleSectionModel.find();
