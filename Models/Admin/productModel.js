@@ -58,7 +58,7 @@ const productSchema = new mongoose.Schema({
   reviewCount: { type: Number, default: 0 },
   isReturnable: { type: Boolean, required: true }, 
   CODAvailable: { type: Boolean, default:true }, 
-  returnWithinDays: { type: Number, required: true, min: 0 },
+  returnWithinDays: { type: Number, min: 0 },
   offers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Offer',
