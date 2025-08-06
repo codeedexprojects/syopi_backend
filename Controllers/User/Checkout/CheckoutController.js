@@ -23,10 +23,11 @@ exports.createCheckout = async (req, res) => {
             return res.status(403).json({ message: 'Unauthorized: Cart does not belong to the user.' });
         }
          // Fetch delivery settings from admin
-         const deliverySetting = await DeliverySetting.findOne();
-         if (!deliverySetting) {
-             return res.status(500).json({ message: "Delivery settings not found" });
-         }
+         let deliverySetting = await DeliverySetting.findOne();
+
+        if (!deliverySetting) {
+        deliverySetting = await DeliverySetting.create({});
+        }
           // Calculate subtotal
         const subtotal = cart.subtotal;
 
@@ -75,7 +76,7 @@ exports.createBuyNowCheckout = async (req, res) => {
         // Fetch delivery settings from admin
         const deliverySetting = await DeliverySetting.findOne();
         if (!deliverySetting) {
-            return res.status(500).json({ message: "Delivery settings not found" });
+        deliverySetting = await DeliverySetting.create({});
         }
         // Calculate subtotal
         const subtotal =itemTotal
