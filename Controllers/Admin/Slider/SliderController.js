@@ -6,16 +6,19 @@ const BrandSlider = require('../../../Models/Admin/BrandSlider');
 
 // Create a slider
 exports.createSlider = async (req, res) => {
-    const { title, productId } = req.body;
+    let { title, productIds } = req.body;
 
     if (!req.file) {
         return res.status(400).json({ message: "Please upload an image" });
     }
 
+     if (typeof productIds === 'string') {
+            productIds = JSON.parse(productIds);
+        }
     try {
         const newSlider = new Slider({
             title,
-            productId,
+            productIds,
             image: req.file.filename,
             role: req.user.role,    // 'admin' or 'vendor'
             ownerId: req.user.id,   // authenticated user ID
@@ -31,7 +34,7 @@ exports.createSlider = async (req, res) => {
 // Get all sliders
 exports.getAllSliders = async (req, res) => {
     try {
-        const sliders = await Slider.find().populate('productId');   // populate product
+        const sliders = await Slider.find().populate('productIds');   // populate product
         res.status(200).json(sliders);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching sliders', error: err.message });
@@ -43,7 +46,7 @@ exports.getSliderById = async (req, res) => {
     const { id } = req.params;
 
     try {
-        const slider = await Slider.findById(id).populate('productId');
+        const slider = await Slider.findById(id).populate('productIds');
         if (!slider) return res.status(404).json({ message: "Slider not found" });
 
         res.status(200).json(slider);
@@ -55,14 +58,14 @@ exports.getSliderById = async (req, res) => {
 // Update slider
 exports.updateSlider = async (req, res) => {
     const { id } = req.params;
-    const { title, productId, isActive } = req.body;
+    const { title, productIds, isActive } = req.body;
 
     try {
         const slider = await Slider.findById(id);
         if (!slider) return res.status(404).json({ message: "Slider not found" });
 
         if (title) slider.title = title;
-        if (productId) slider.productId = productId;
+        if (productIds) slider.productIds = productIds;
         if (typeof isActive === 'boolean') slider.isActive = isActive;
 
         if (req.file) {

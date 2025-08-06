@@ -17,11 +17,13 @@ const sliderSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',    // new product reference
-        required: true,
-    },
+    productIds: [  
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true,
+        }
+    ],
     isActive: {
         type: Boolean,
         default: true,
