@@ -142,12 +142,27 @@ exports.getallProducts = async (req, res) => {
         }
       }
 
-      // ✅ Search filtering
       if (searchQuery) {
         const searchWords = searchQuery.split(" ");
-        const isMatch = searchWords.every((word) =>
-          product.name?.toLowerCase().includes(word)
-        );
+
+        const isMatch = searchWords.every((word) => {
+          const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/gi, "");
+
+          const clean = (str) => str?.toLowerCase().replace(/[^a-z0-9]/gi, "") || "";
+
+          return (
+            clean(product.name).includes(cleanWord) ||
+            clean(product.description).includes(cleanWord) ||
+            clean(product.features?.material).includes(cleanWord) ||
+            clean(product.features?.fit).includes(cleanWord) ||
+            clean(product.features?.occasion).includes(cleanWord) ||
+            clean(product.supplierName).includes(cleanWord) ||
+            product.variants?.some(variant =>
+              clean(variant.colorName).includes(cleanWord)
+            )
+          );
+        });
+
         if (!isMatch) isMatching = false;
       }
 
