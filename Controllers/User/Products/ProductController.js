@@ -310,15 +310,21 @@ exports.getProductById = async (req, res) => {
               createdAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss"),
               updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
           }));
-          // Calculate discount percentage
-          let discountPercentage = 0;
-          const defaultVariant = product.variants?.[0]; 
 
-          if (defaultVariant?.wholesalePrice && defaultVariant.offerPrice < defaultVariant.wholesalePrice) {
-          discountPercentage = ((defaultVariant.wholesalePrice - defaultVariant.offerPrice) / defaultVariant.wholesalePrice) * 100;
-          discountPercentage = Math.floor(discountPercentage); 
+            let discountPercentage = 0;
+            const defaultVariant = product.variants?.[0];
 
-    }
+            if (defaultVariant?.wholesalePrice) {
+              const hasOffer = product.offers && product.offers.length > 0;
+              const effectivePrice = hasOffer ? defaultVariant.offerPrice : defaultVariant.price;
+
+              if (effectivePrice < defaultVariant.wholesalePrice) {
+                discountPercentage = Math.floor(
+                  ((defaultVariant.wholesalePrice - effectivePrice) / defaultVariant.wholesalePrice) * 100
+                );
+              }
+            }
+
     
         res.status(200).json({ product, brandName, reviews:formattedReview,
           discountPercentage
