@@ -91,11 +91,19 @@ const getProduct = async (userId) => {
                 };
             });
 
-            // Price info from first variant
             const variant = product.variants?.[0];
             const price = variant?.price || null;
+            const wholesalePrice = variant?.wholesalePrice || null;
             const offerPrice = variant?.offerPrice;
             const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+
+
+            let discountPercentage = null;
+
+            if (offerPrice != null && wholesalePrice) {
+                const rawDiscount = ((wholesalePrice - offerPrice) / wholesalePrice) * 100;
+                discountPercentage = Math.floor(rawDiscount); 
+            }
 
             return {
                 ...product.toObject(),
@@ -103,6 +111,7 @@ const getProduct = async (userId) => {
                 isWishlisted: productWishlists.includes(product._id.toString()),
                 defaultPrice: price,
                 defaultOfferPrice: hasValidOffer ? offerPrice : null,
+                discountPercentage
             };
         });
 
