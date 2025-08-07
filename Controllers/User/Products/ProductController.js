@@ -225,12 +225,33 @@ exports.getallProducts = async (req, res) => {
     //   };
     // });
 
+    const productsWithDiscount = paginatedProducts.map(product => {
+    const variant = product.variants?.[0];
+    const price = variant?.price || null;
+    const wholesalePrice = variant?.wholesalePrice || null;
+    const offerPrice = variant?.offerPrice;
+
+    let discountPercentage = null;
+
+    if (offerPrice != null && wholesalePrice) {
+      const rawDiscount = ((wholesalePrice - offerPrice) / wholesalePrice) * 100;
+      discountPercentage = Math.floor(rawDiscount); // ✅ No decimal
+    }
+
+    return {
+      ...product,
+      defaultPrice: price,
+      defaultOfferPrice: offerPrice,
+      discountPercentage: discountPercentage
+    };
+  });
+
     // ✅ Response with pagination info
     res.status(200).json({
       total: filteredProducts.length,
       currentPage: pageNumber,
       totalPages: Math.ceil(filteredProducts.length / pageSize),
-      products: paginatedProducts
+      products: productsWithDiscount
     });
 
   } catch (error) {
@@ -396,11 +417,29 @@ exports.getSimilarProducts = async (req, res) => {
         return scoreB - scoreA; // Higher score first
       });
 
-    if (similarProducts.length === 0) {
+    // Add discountPercentage field
+      const productsWithDiscount = similarProducts.map((product) => {
+      const variant = product.variants?.[0];
+      const wholesalePrice = variant?.wholesalePrice || 0;
+      const offerExists = product.offers && product.offers.length > 0;
+      const effectivePrice = offerExists ? variant?.offerPrice : variant?.price;
+
+      let discountPercentage = 0;
+      if (wholesalePrice && effectivePrice < wholesalePrice) {
+        discountPercentage = Math.floor(((wholesalePrice - effectivePrice) / wholesalePrice) * 100);
+      }
+      
+      return {
+        ...product,
+        discountPercentage
+      };
+    });
+
+    if (productsWithDiscount.length === 0) {
       return res.status(404).json({ message: "No similar products found" });
     }
 
-    res.status(200).json({ products: similarProducts });
+    res.status(200).json({ products: productsWithDiscount });
   } catch (error) {
     res.status(500).json({ message: "Error fetching similar products", error: error.message });
   }
