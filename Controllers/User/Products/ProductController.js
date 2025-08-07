@@ -311,27 +311,24 @@ exports.getProductById = async (req, res) => {
               updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
           }));
 
-            //  // Get default variant values
-            //   const defaultVariant = product.variants?.[0];
-            //   const price = defaultVariant?.price || null;
-            //   const offerPrice = defaultVariant?.offerPrice;
+            let discountPercentage = 0;
+            const defaultVariant = product.variants?.[0];
 
-            //   // Determine if a valid offer exists
-            //   const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+            if (defaultVariant?.wholesalePrice) {
+              const hasOffer = product.offers && product.offers.length > 0;
+              const effectivePrice = hasOffer ? defaultVariant.offerPrice : defaultVariant.price;
 
-            //   const defaultOfferPrice = hasValidOffer ? offerPrice : null;
-            //   const defaultPrice = price;
-            //   // Include both prices in the product response
-            //   res.status(200).json({
-            //     product: {
-            //       ...product,
-            //       defaultOfferPrice,
-            //       defaultPrice
-            //     },
-            //     reviews: formattedReview
-            //   });
+              if (effectivePrice < defaultVariant.wholesalePrice) {
+                discountPercentage = Math.floor(
+                  ((defaultVariant.wholesalePrice - effectivePrice) / defaultVariant.wholesalePrice) * 100
+                );
+              }
+            }
 
-        res.status(200).json({ product, brandName, reviews:formattedReview });
+    
+        res.status(200).json({ product, brandName, reviews:formattedReview,
+          discountPercentage
+         });
   
       // res.status(200).json(product);
     } catch (err) {

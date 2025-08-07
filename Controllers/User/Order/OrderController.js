@@ -13,7 +13,7 @@ const axios = require("axios");
 
 // place order
 exports.placeOrder = async (req, res) => {
-  const { checkoutId, addressId, deliveryCharge, paymentMethod } = req.body;
+  const { checkoutId, addressId, paymentMethod } = req.body;
   const userId = req.user.id;
 
   if (!checkoutId || !addressId || !userId || !paymentMethod) {
@@ -64,7 +64,7 @@ exports.placeOrder = async (req, res) => {
       userId,
       shippingAddress,
       checkoutId,
-      deliveryCharge,
+      deliveryCharge:checkout.deliveryCharge,
       paymentMethod,
       coinsEarned: 0,
     });
