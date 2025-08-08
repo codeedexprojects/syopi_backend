@@ -54,7 +54,7 @@ const productSchema = new mongoose.Schema({
   supplierName: { type: String },
   totalStock: { type: Number, default: 0 },
   totalSales: { type: Number, default: 0 }, // Track total sales for the product
-  averageRating: { type: Number, default: 0 },
+  averageRating: { type: Number, default: 2.5 },
   reviewCount: { type: Number, default: 0 },
   isReturnable: { type: Boolean, required: true }, 
   CODAvailable: { type: Boolean, default:true }, 

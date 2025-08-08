@@ -115,8 +115,6 @@ orderSchema.pre('save', async function (next) {
         .populate('items.productId')
         .lean();
         
-        console.log('Checkout Items:', checkout.items);
-
       
       if (!checkout) {
         throw new Error('Associated checkout not found');
