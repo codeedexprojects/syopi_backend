@@ -33,4 +33,16 @@ router.patch('/offer/update/:id', verifyToken(['admin']), multerConfig.single('i
 router.delete('/offer/delete/:id', verifyToken(['admin']), HomepageController.deleteOfferSectionImages);
 router.get('/offer/view', verifyToken(['admin']), HomepageController.getAllOfferSection);
 
+//Shop Earn
+router.post("/shop-earn/", multerConfig.single("image"), HomepageController.createShopAndEarn);
+router.get("/shop-earn/", HomepageController.getShopAndEarn);
+router.patch("/shop-earn/:id", multerConfig.single("image"), HomepageController.updateShopAndEarn);
+router.delete("/shop-earn/:id", HomepageController.deleteShopAndEarn);
+
+//Pay Smarter
+router.post("/pay-smarter/", multerConfig.single("image"), HomepageController.createPaySmarter);
+router.patch("/pay-smarter/:id", multerConfig.single("image"),HomepageController.updatePaySmarter);
+router.get("/pay-smarter/", HomepageController.getPaySmarter);
+router.delete("/pay-smarter/:id", HomepageController.deletePaySmarter);
+
 module.exports = router;

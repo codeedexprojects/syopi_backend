@@ -10,6 +10,9 @@ const Brand = require('../../../Models/Admin/BrandModel');
 const TopPicksModel = require('../../../Models/Admin/TopPicksModel')
 const TopSaleSectionModel = require('../../../Models/Admin/TopSaleSectionModel')
 const OfferSectionModel = require('../../../Models/Admin/OfferSectionModel')
+const PaySmarter = require("../../../Models/Admin/PaySmarter")
+const ShopAndEarn= require("../../../Models/Admin/ShopEarnModel")
+
 
 exports.getHomePage = async (req, res) => {
     try {
@@ -76,7 +79,7 @@ exports.getHomePage = async (req, res) => {
         const topPicksBestPrice = await TopPicksModel.find();
 
         // Fetch sliders
-        const ProductSliders = await Slider.find({ isActive: true });
+        const ProductSliders = await Slider.find({ isActive: true }).populate('productIds')
         const CategorySliders = await CategorySlider.find({ isActive: true });
         const BrandSliders = await BrandSlider.find({ isActive: true });
 
@@ -120,3 +123,28 @@ exports.getHomePage = async (req, res) => {
     }
 };
 
+exports.getPaySmarter = async (req, res) => {
+    try {
+        const data = await PaySmarter.find().sort({ createdAt: -1 });
+
+        res.status(200).json({
+            message: "Pay Smarter data fetched successfully",
+            data
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+exports.getShopEarn = async (req, res) => {
+    try {
+        const data = await ShopAndEarn.find().sort({ createdAt: -1 });
+
+        res.status(200).json({
+            message: "Shop and Earn data fetched successfully",
+            data
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
