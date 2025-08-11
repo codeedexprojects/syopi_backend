@@ -7,6 +7,9 @@ const Category = require('../../../Models/Admin/CategoryModel');
 const Subcategory = require('../../../Models/Admin/SubCategoryModel');  
 const fs = require("fs");
 const CoinSettings = require('../../../Models/Admin/CoinModel')
+const ShopAndEarn = require("../../../Models//Admin/ShopEarnModel");
+const PaySmarter = require("../../../Models/Admin/PaySmarter")
+
 
 // Create Affordable Product
 exports.createAffordableProduct = async (req, res) => {
@@ -543,5 +546,146 @@ exports.deleteOfferSectionImages = async (req, res) => {
         res.status(200).json({ message: "Offer Section deleted successfully" });
     } catch (err) {
         res.status(500).json({ message: "Error deleting Offer Section", error: err.message });
+    }
+};
+
+
+// Create
+exports.createShopAndEarn = async (req, res) => {
+  try {
+    const { description } = req.body;
+    const imageFile = req.file ? req.file.filename : null;
+
+    const newEntry = new ShopAndEarn({
+      description,
+      image: imageFile,
+    });
+
+    await newEntry.save();
+    res.status(201).json({ message: "Shop & Earn entry created", data: newEntry });
+  } catch (error) {
+    console.error("Error creating Shop & Earn:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Get all
+exports.getShopAndEarn = async (req, res) => {
+  try {
+    const entries = await ShopAndEarn.find();
+    res.status(200).json(entries);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Update
+exports.updateShopAndEarn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body;
+    const imageFile = req.file ? req.file.filename : undefined;
+
+    const updatedEntry = await ShopAndEarn.findByIdAndUpdate(
+      id,
+      {
+        ...(description && { description }),
+        ...(imageFile && { image: imageFile }),
+      },
+      { new: true }
+    );
+
+    if (!updatedEntry) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
+
+    res.status(200).json({ message: "Shop & Earn updated", data: updatedEntry });
+  } catch (error) {
+    console.error("Error updating Shop & Earn:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+// Delete
+exports.deleteShopAndEarn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await ShopAndEarn.findByIdAndDelete(id);
+    res.status(200).json({ message: "Entry deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
+exports.createPaySmarter = async (req, res) => {
+    try {
+        const { description } = req.body;
+        const image = req.file ? req.file.filename : null;
+
+        if (!image) {
+            return res.status(400).json({ message: "Image is required" });
+        }
+
+        const paySmarter = new PaySmarter({ description, image });
+        await paySmarter.save();
+
+        res.status(201).json({ message: "Pay Smarter entry created successfully", data: paySmarter });
+    } catch (error) {
+        console.error("Error creating Pay Smarter:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+// Update Pay Smarter
+exports.updatePaySmarter = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { description } = req.body;
+        const image = req.file ? req.file.filename : null;
+
+        const paySmarter = await PaySmarter.findById(id);
+        if (!paySmarter) {
+            return res.status(404).json({ message: "Pay Smarter entry not found" });
+        }
+
+        if (description) paySmarter.description = description;
+        if (image) paySmarter.image = image;
+
+        await paySmarter.save();
+
+        res.status(200).json({ message: "Pay Smarter updated successfully", data: paySmarter });
+    } catch (error) {
+        console.error("Error updating Pay Smarter:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+// Get All Pay Smarter entries
+exports.getPaySmarter = async (req, res) => {
+    try {
+        const paySmarterEntries = await PaySmarter.find().sort({ createdAt: -1 });
+        res.status(200).json(paySmarterEntries);
+    } catch (error) {
+        console.error("Error fetching Pay Smarter entries:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+// Delete Pay Smarter entry
+exports.deletePaySmarter = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const paySmarter = await PaySmarter.findById(id);
+
+        if (!paySmarter) {
+            return res.status(404).json({ message: "Pay Smarter entry not found" });
+        }
+
+        await paySmarter.deleteOne();
+
+        res.status(200).json({ message: "Pay Smarter entry deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting Pay Smarter:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };

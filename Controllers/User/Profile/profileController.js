@@ -113,15 +113,10 @@ exports.registerVendor = async (req, res) => {
     const displayImages = files.images || [];
 
     // Validate essential files
-    if (!storeLogo || !license || !passbookImage) {
+    if (!storeLogo || !passbookImage) {
       return res.status(400).json({
-        message: "Store logo, license, and passbook image are required",
+        message: "Store logo, and passbook image are required",
       });
-    }
-
-    // Validate GST number
-    if (!body.gstNumber) {
-      return res.status(400).json({ message: "GST number is required" });
     }
 
     const imagePaths = displayImages.map((img) => img.filename);
@@ -130,10 +125,10 @@ exports.registerVendor = async (req, res) => {
     const newVendor = new Vendor({
       ...body,
       storelogo: storeLogo.filename,
-      license: license.filename,
+      license: license ? license.filename : null,
       passbookImage: passbookImage.filename,
       images: imagePaths,
-      gstNumber: body.gstNumber,
+      gstNumber: body.gstNumber || null,
       userId: user.id, 
       bankDetails: {
         bankName: body.bankDetails?.bankName,

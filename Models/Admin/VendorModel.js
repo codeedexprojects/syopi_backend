@@ -68,13 +68,15 @@ const vendorSchema = new mongoose.Schema({
     },
     license: {
         type: String,
-        required: [true, "license is required"],
         validate: {
+            
             validator: function (value) {
+                      if (!value) return true; // ✅ skip validation if value is null or undefined
                 return /\.(pdf|doc|docx|jpg|jpeg)$/i.test(value);
             },
             message: "License must be a PDF, DOC, DOCX, JPG, or JPEG file",
         },
+          default: null, // optional, ensures default is null if not provided
     },
     images: {
         type: [String],
@@ -130,7 +132,6 @@ const vendorSchema = new mongoose.Schema({
     },
     gstNumber: {
         type: String,
-        required: [true, "GST number is required"],
         match: [
             /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
             "Please enter a valid 15-character GST number"
