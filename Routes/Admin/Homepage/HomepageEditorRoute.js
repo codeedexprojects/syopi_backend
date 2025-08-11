@@ -34,15 +34,15 @@ router.delete('/offer/delete/:id', verifyToken(['admin']), HomepageController.de
 router.get('/offer/view', verifyToken(['admin']), HomepageController.getAllOfferSection);
 
 //Shop Earn
-router.post("/shop-earn/", multerConfig.single("image"), HomepageController.createShopAndEarn);
-router.get("/shop-earn/", HomepageController.getShopAndEarn);
-router.patch("/shop-earn/:id", multerConfig.single("image"), HomepageController.updateShopAndEarn);
-router.delete("/shop-earn/:id", HomepageController.deleteShopAndEarn);
+router.post("/shop-earn/", verifyToken(['admin']), multerConfig.single("image"), HomepageController.createShopAndEarn);
+router.get("/shop-earn/", verifyToken(['admin']), HomepageController.getShopAndEarn);
+router.patch("/shop-earn/:id", verifyToken(['admin']), multerConfig.single("image"), HomepageController.updateShopAndEarn);
+router.delete("/shop-earn/:id", verifyToken(['admin']), HomepageController.deleteShopAndEarn);
 
 //Pay Smarter
-router.post("/pay-smarter/", multerConfig.single("image"), HomepageController.createPaySmarter);
-router.patch("/pay-smarter/:id", multerConfig.single("image"),HomepageController.updatePaySmarter);
-router.get("/pay-smarter/", HomepageController.getPaySmarter);
-router.delete("/pay-smarter/:id", HomepageController.deletePaySmarter);
+router.post("/pay-smarter/", verifyToken(['admin']), multerConfig.single("image"), HomepageController.createPaySmarter);
+router.patch("/pay-smarter/:id", verifyToken(['admin']), multerConfig.single("image"),HomepageController.updatePaySmarter);
+router.get("/pay-smarter/", verifyToken(['admin']), HomepageController.getPaySmarter);
+router.delete("/pay-smarter/:id", verifyToken(['admin']), HomepageController.deletePaySmarter);
 
 module.exports = router;
