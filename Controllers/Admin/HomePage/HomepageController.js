@@ -7,8 +7,7 @@ const Category = require('../../../Models/Admin/CategoryModel');
 const Subcategory = require('../../../Models/Admin/SubCategoryModel');  
 const fs = require("fs");
 const CoinSettings = require('../../../Models/Admin/CoinModel')
-const ShopAndEarn = require("../../../Models//Admin/ShopEarnModel");
-const PaySmarter = require("../../../Models/Admin/PaySmarter")
+const InfoSection = require("../../../Models//Admin/InfoSection");
 
 
 // Create Affordable Product
@@ -551,28 +550,33 @@ exports.deleteOfferSectionImages = async (req, res) => {
 
 
 // Create
-exports.createShopAndEarn = async (req, res) => {
+exports.createInfoSection = async (req, res) => {
   try {
-    const { description } = req.body;
+    const { description, referralId } = req.body;
     const imageFile = req.file ? req.file.filename : null;
 
-    const newEntry = new ShopAndEarn({
+    if (!referralId) {
+      return res.status(400).json({ message: "ReferralSection ID is required" });
+    }
+
+    const newEntry = new InfoSection({
       description,
       image: imageFile,
+      referralId,
     });
 
     await newEntry.save();
-    res.status(201).json({ message: "Shop & Earn entry created", data: newEntry });
+    res.status(201).json({ message: "Info section entry created", data: newEntry });
   } catch (error) {
-    console.error("Error creating Shop & Earn:", error);
+    console.error("Error creating InfoSection:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
 // Get all
-exports.getShopAndEarn = async (req, res) => {
+exports.getInfoSection = async (req, res) => {
   try {
-    const entries = await ShopAndEarn.find();
+    const entries = await InfoSection.find().populate("referralId", 'title');
     res.status(200).json(entries);
   } catch (error) {
     res.status(500).json({ message: "Internal server error", error: error.message });
@@ -580,17 +584,18 @@ exports.getShopAndEarn = async (req, res) => {
 };
 
 // Update
-exports.updateShopAndEarn = async (req, res) => {
+exports.updateInfoSection = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description } = req.body;
+    const { description, referralId } = req.body;
     const imageFile = req.file ? req.file.filename : undefined;
 
-    const updatedEntry = await ShopAndEarn.findByIdAndUpdate(
+    const updatedEntry = await InfoSection.findByIdAndUpdate(
       id,
       {
         ...(description && { description }),
         ...(imageFile && { image: imageFile }),
+        ...(referralId && { referralId }),
       },
       { new: true }
     );
@@ -599,93 +604,20 @@ exports.updateShopAndEarn = async (req, res) => {
       return res.status(404).json({ message: "Entry not found" });
     }
 
-    res.status(200).json({ message: "Shop & Earn updated", data: updatedEntry });
+    res.status(200).json({ message: "Info section updated", data: updatedEntry });
   } catch (error) {
-    console.error("Error updating Shop & Earn:", error);
+    console.error("Error updating InfoSection:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
 // Delete
-exports.deleteShopAndEarn = async (req, res) => {
+exports.deleteInfoSection = async (req, res) => {
   try {
     const { id } = req.params;
-    await ShopAndEarn.findByIdAndDelete(id);
+    await InfoSection.findByIdAndDelete(id);
     res.status(200).json({ message: "Entry deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
-};
-
-exports.createPaySmarter = async (req, res) => {
-    try {
-        const { description } = req.body;
-        const image = req.file ? req.file.filename : null;
-
-        if (!image) {
-            return res.status(400).json({ message: "Image is required" });
-        }
-
-        const paySmarter = new PaySmarter({ description, image });
-        await paySmarter.save();
-
-        res.status(201).json({ message: "Pay Smarter entry created successfully", data: paySmarter });
-    } catch (error) {
-        console.error("Error creating Pay Smarter:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
-};
-
-// Update Pay Smarter
-exports.updatePaySmarter = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { description } = req.body;
-        const image = req.file ? req.file.filename : null;
-
-        const paySmarter = await PaySmarter.findById(id);
-        if (!paySmarter) {
-            return res.status(404).json({ message: "Pay Smarter entry not found" });
-        }
-
-        if (description) paySmarter.description = description;
-        if (image) paySmarter.image = image;
-
-        await paySmarter.save();
-
-        res.status(200).json({ message: "Pay Smarter updated successfully", data: paySmarter });
-    } catch (error) {
-        console.error("Error updating Pay Smarter:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
-};
-
-// Get All Pay Smarter entries
-exports.getPaySmarter = async (req, res) => {
-    try {
-        const paySmarterEntries = await PaySmarter.find().sort({ createdAt: -1 });
-        res.status(200).json(paySmarterEntries);
-    } catch (error) {
-        console.error("Error fetching Pay Smarter entries:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
-};
-
-// Delete Pay Smarter entry
-exports.deletePaySmarter = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const paySmarter = await PaySmarter.findById(id);
-
-        if (!paySmarter) {
-            return res.status(404).json({ message: "Pay Smarter entry not found" });
-        }
-
-        await paySmarter.deleteOne();
-
-        res.status(200).json({ message: "Pay Smarter entry deleted successfully" });
-    } catch (error) {
-        console.error("Error deleting Pay Smarter:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
 };

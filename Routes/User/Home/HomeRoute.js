@@ -4,7 +4,6 @@ const UserHomepageController = require('../../../Controllers/User/Homepage/UserH
 const attachWishlistIfAuthenticated = require('../../../Middlewares/WishlistIfAuthenticat');
 
 router.get('/',attachWishlistIfAuthenticated,UserHomepageController.getHomePage)
-router.get('/pay-smarter',UserHomepageController.getPaySmarter)
-router.get('/shop-earn',UserHomepageController.getShopEarn)
+router.get('/info/:id',UserHomepageController.getInfoSection)
 
 module.exports=router   
