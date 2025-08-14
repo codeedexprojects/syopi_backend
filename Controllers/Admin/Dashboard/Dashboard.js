@@ -82,21 +82,58 @@ const getProductStats = async (req, res) => {
 // 🔸 Order Stats with filters
 const getOrderStats = async (req, res) => {
   try {
-    const { status, startDate, endDate } = req.query;
+    const { status, type, startDate, endDate } = req.query;
     const filter = {};
 
+    // Status filter
     if (status) filter.status = status;
-    if (startDate && endDate) {
+
+    // Date filtering logic
+    const now = new Date();
+
+    if (type === "daily") {
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+
+    } else if (type === "weekly") {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      filter.createdAt = { $gte: startOfWeek, $lte: endOfWeek };
+
+    } else if (type === "monthly") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      filter.createdAt = { $gte: startOfMonth, $lte: endOfMonth };
+
+    } else if (type === "yearly") {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      filter.createdAt = { $gte: startOfYear, $lte: endOfYear };
+
+    } else if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       };
     }
 
-    const totalOrders = await Order.countDocuments();
-    const currentOrders = await Order.countDocuments({ status: { $in: ['Pending', 'Processing', 'In-Transit'] } });
+    // Stats based on filters
+    const totalOrders = await Order.countDocuments(filter);
+
+    const currentOrders = await Order.countDocuments({
+      ...filter,
+      status: { $in: ['Pending', 'Processing', 'In-Transit'] }
+    });
 
     const orderStatusCount = await Order.aggregate([
+      { $match: filter }, // <-- APPLY filter here
       { $group: { _id: "$status", count: { $sum: 1 } } }
     ]);
 
@@ -114,6 +151,7 @@ const getOrderStats = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 // 🔸 User Stats with filters
 const getUserStats = async (req, res) => {
@@ -141,29 +179,49 @@ const getUserStats = async (req, res) => {
 
 const getAdminRevenueStats = async (req, res) => {
   try {
-    const { type } = req.query;
-    const matchStage = { status: "Delivered" }; // ✅ only delivered
-
-    // ✅ Date filter
+    const { type, startDate, endDate } = req.query;
     const now = new Date();
-    if (type === "monthly") {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      matchStage.createdAt = { $gte: startOfMonth, $lte: endOfMonth };
-    } else if (type === "weekly") {
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-      startOfWeek.setHours(0, 0, 0, 0);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
-      matchStage.createdAt = { $gte: startOfWeek, $lte: endOfWeek };
+
+    // Base match: only Delivered orders
+    const matchStage = { status: "Delivered" };
+
+    // === Date filters ===
+    if (type === "daily") {
+      const start = new Date(now.setHours(0, 0, 0, 0));
+      const end = new Date(now.setHours(23, 59, 59, 999));
+      matchStage.createdAt = { $gte: start, $lte: end };
+    } 
+    else if (type === "weekly") {
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end };
+    } 
+    else if (type === "monthly") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end };
+    } 
+    else if (type === "yearly") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end };
+    }
+
+    // Custom date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end };
     }
     
+    // === Aggregation ===
     const revenueData = await Order.aggregate([
       { $match: matchStage },
-
-      // 🔁 Join with Product collection
       {
         $lookup: {
           from: "products",
@@ -173,22 +231,11 @@ const getAdminRevenueStats = async (req, res) => {
         }
       },
       { $unwind: "$productDetails" },
-
-      // ✅ Filter admin-owned products only (adjust as per your admin identification)
-      {
-        $match: {
-          "productDetails.ownerType": 'admin' // or: mongoose.Types.ObjectId('ADMIN_USER_ID')
-        }
-      },
-
-      // 🧮 Compute cost = cost * quantity
       {
         $addFields: {
           cost: { $multiply: ["$productDetails.cost", "$quantity"] }
         }
       },
-
-      // 📊 Group stats
       {
         $group: {
           _id: null,
@@ -208,6 +255,7 @@ const getAdminRevenueStats = async (req, res) => {
       }
     ]);
 
+    // Default response if no data
     const result = revenueData[0] || {
       totalOrders: 0,
       totalRevenue: 0,
@@ -215,30 +263,33 @@ const getAdminRevenueStats = async (req, res) => {
       netRevenue: 0
     };
 
-    return res.status(200).json({
-      message: `Admin revenue stats ${type ? `for ${type}` : ""}`,
+    res.status(200).json({
+      message: `Admin revenue stats ${
+        type ? `for ${type}` : (startDate && endDate ? `from ${startDate} to ${endDate}` : "for all time")
+      }`,
       ...result
     });
+
   } catch (error) {
     console.error("Admin Revenue Error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-
-
 const getAdminCommissionRevenue = async (req, res) => {
   try {
-    const { type } = req.query;
-    const matchStage = {}; // dynamic date filtering
+    const { type, startDate, endDate } = req.query;
+    const matchStage = {}; // Dynamic filter
 
-    // 📅 Date filter
     const now = new Date();
-    if (type === 'monthly') {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      matchStage.payoutDate = { $gte: startOfMonth, $lte: endOfMonth };
-    } else if (type === 'weekly') {
+
+    // 📅 Predefined date filters
+    if (type === "daily") {
+      const start = new Date(now.setHours(0, 0, 0, 0));
+      const end = new Date(now.setHours(23, 59, 59, 999));
+      matchStage.payoutDate = { $gte: start, $lte: end };
+    } 
+    else if (type === "weekly") {
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
       startOfWeek.setHours(0, 0, 0, 0);
@@ -246,8 +297,22 @@ const getAdminCommissionRevenue = async (req, res) => {
       endOfWeek.setDate(endOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
       matchStage.payoutDate = { $gte: startOfWeek, $lte: endOfWeek };
+    } 
+    else if (type === "monthly") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      matchStage.payoutDate = { $gte: startOfMonth, $lte: endOfMonth };
     }
 
+    // 📅 Custom date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      matchStage.payoutDate = { $gte: start, $lte: end };
+    }
+
+    // 📊 Aggregation
     const result = await VendorPayout.aggregate([
       { $match: matchStage },
       {
@@ -275,7 +340,13 @@ const getAdminCommissionRevenue = async (req, res) => {
     };
 
     return res.status(200).json({
-      message: `Admin commission stats ${type ? `for ${type}` : "for all time"}`,
+      message: `Admin commission stats ${
+        type
+          ? `for ${type}`
+          : startDate && endDate
+          ? `from ${startDate} to ${endDate}`
+          : "for all time"
+      }`,
       ...stats
     });
   } catch (error) {
@@ -283,6 +354,7 @@ const getAdminCommissionRevenue = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 
 

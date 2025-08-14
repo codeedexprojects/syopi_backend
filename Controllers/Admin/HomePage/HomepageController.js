@@ -203,128 +203,124 @@ exports.deleteLowestPriceProduct = async (req, res) => {
     }
 };
 
-
+// -------------------- Create Top Pick --------------------
 exports.createTopPickProduct = async (req, res) => {
-    const { description, title, categoryId, subcategoryId } = req.body;
+    const { description, title, productIds } = req.body;
 
+    // Check image
     if (!req.file) {
         return res.status(400).json({ message: "Please upload an image" });
     }
 
+    // Check title
     if (!title || title.trim() === "") {
         return res.status(400).json({ message: "Title is required" });
     }
 
-    if (!categoryId || !subcategoryId) {
-        return res.status(400).json({ message: "Category and Subcategory IDs are required" });
+    // Check productIds
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: "At least one product ID is required" });
+    }
+
+    // Validate each product ID
+    for (const id of productIds) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: `Invalid product ID: ${id}` });
+        }
     }
 
     try {
-        // Ensure the category ID is valid
-        const category = await Category.findById(categoryId);
-        if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+        // Ensure all product IDs exist
+        const existingProducts = await Product.find({ _id: { $in: productIds } }).select("_id");
+        if (existingProducts.length !== productIds.length) {
+            return res.status(404).json({ message: "Some product IDs do not exist" });
         }
 
-        // Ensure the subcategory ID is valid and belongs to the category
-        const subcategory = await Subcategory.findById(subcategoryId);
-        if (!subcategory) {
-            return res.status(404).json({ message: "Subcategory not found" });
-        }
-        if (!subcategory.category.equals(categoryId)) {
-            return res.status(400).json({ message: "Subcategory does not belong to the specified category" });
-        }
-
-        const newProduct = new TopPicks({
+        const newTopPick = new TopPicks({
             image: req.file.filename,
             description,
             title,
-            category: categoryId,
-            subcategory: subcategoryId  // Store subcategory ID
+            productIds
         });
 
-        await newProduct.save();
-        res.status(201).json({ message: "Top pick product created successfully", newProduct });
+        await newTopPick.save();
+        res.status(201).json({ message: "Top pick created successfully", newTopPick });
     } catch (err) {
-        res.status(500).json({ message: "Error creating product", error: err.message });
+        res.status(500).json({ message: "Error creating top pick", error: err.message });
     }
 };
 
-// -------------------- Update Top Pick Product --------------------
-
-// Update Top Pick Product with Category and Subcategory
+// -------------------- Update Top Pick --------------------
 exports.updateTopPickProduct = async (req, res) => {
     const { id } = req.params;
-    const { description, title, categoryId, subcategoryId } = req.body;
+    const { description, title, productIds } = req.body;
 
     try {
-        const product = await TopPicks.findById(id);
-        if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+        const topPick = await TopPicks.findById(id);
+        if (!topPick) {
+            return res.status(404).json({ message: "Top pick not found" });
         }
 
-        if (description) product.description = description;
+        if (description) topPick.description = description;
+
         if (title !== undefined) {
             if (title.trim() === "") {
                 return res.status(400).json({ message: "Title is required" });
             }
-            product.title = title;
+            topPick.title = title;
         }
 
-        if (categoryId) {
-            const category = await Category.findById(categoryId);
-            if (!category) {
-                return res.status(404).json({ message: "Category not found" });
+        if (productIds) {
+            if (!Array.isArray(productIds) || productIds.length === 0) {
+                return res.status(400).json({ message: "At least one product ID is required" });
             }
-            product.category = categoryId;
-        }
 
-        if (subcategoryId) {
-            const subcategory = await Subcategory.findById(subcategoryId);
-            if (!subcategory) {
-                return res.status(404).json({ message: "Subcategory not found" });
+            for (const pid of productIds) {
+                if (!mongoose.Types.ObjectId.isValid(pid)) {
+                    return res.status(400).json({ message: `Invalid product ID: ${pid}` });
+                }
             }
-            if (!subcategory.category.equals(product.category)) {
-                return res.status(400).json({ message: "Subcategory does not belong to the specified category" });
+
+            const existingProducts = await Product.find({ _id: { $in: productIds } }).select("_id");
+            if (existingProducts.length !== productIds.length) {
+                return res.status(404).json({ message: "Some product IDs do not exist" });
             }
-            product.subcategory = subcategoryId;
+
+            topPick.productIds = productIds;
         }
 
         if (req.file) {
-            const oldImagePath = `./uploads/top_picks/${product.image}`;
+            const oldImagePath = `./uploads/top_picks/${topPick.image}`;
             if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
             }
-            product.image = req.file.filename;
+            topPick.image = req.file.filename;
         }
 
-        await product.save();
-        res.status(200).json({ message: "Top pick product updated successfully", product });
+        await topPick.save();
+        res.status(200).json({ message: "Top pick updated successfully", topPick });
     } catch (err) {
-        res.status(500).json({ message: "Error updating product", error: err.message });
+        res.status(500).json({ message: "Error updating top pick", error: err.message });
     }
 };
 
-// -------------------- Get All Top Pick Products --------------------
-
-// Get all Top Picks with category and subcategory information
+// -------------------- Get All Top Picks --------------------
 exports.getAllTopPickProducts = async (req, res) => {
     try {
         const topPickProducts = await TopPicks.find()
-            .populate('category') // Populate category details
-            .populate('subcategory') // Populate subcategory details
+            .populate("productIds") // Populate product details
             .sort({ createdAt: -1 });
+
         res.status(200).json({ topPickProducts });
     } catch (err) {
-        res.status(500).json({ message: "Error fetching products", error: err.message });
+        res.status(500).json({ message: "Error fetching top picks", error: err.message });
     }
 };
 
-// -------------------- Create Top Sale Section Product --------------------
 
-// Create Top Sale Section Product with Category and Subcategory
+// -------------------- Create --------------------
 exports.createTopSaleSection = async (req, res) => {
-    const { description, title, categoryId, subcategoryId } = req.body;
+    const { description, title, productIds } = req.body;
 
     if (!req.file) {
         return res.status(400).json({ message: "Please upload an image" });
@@ -334,110 +330,86 @@ exports.createTopSaleSection = async (req, res) => {
         return res.status(400).json({ message: "Title is required" });
     }
 
-    if (!categoryId || !subcategoryId) {
-        return res.status(400).json({ message: "Category and Subcategory IDs are required" });
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: "At least one product ID is required" });
     }
 
     try {
-        // Ensure the category ID is valid
-        const category = await Category.findById(categoryId);
-        if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+        // Validate all product IDs exist
+        const products = await Product.find({ _id: { $in: productIds } });
+        if (products.length !== productIds.length) {
+            return res.status(400).json({ message: "Some product IDs are invalid" });
         }
 
-        // Ensure the subcategory ID is valid and belongs to the category
-        const subcategory = await Subcategory.findById(subcategoryId);
-        if (!subcategory) {
-            return res.status(404).json({ message: "Subcategory not found" });
-        }
-        if (!subcategory.category.equals(categoryId)) {
-            return res.status(400).json({ message: "Subcategory does not belong to the specified category" });
-        }
-
-        const newProduct = new TopSaleSection({
+        const newSection = new TopSaleSection({
             image: req.file.filename,
             description,
             title,
-            category: categoryId,
-            subcategory: subcategoryId  // Store subcategory ID
+            productIds
         });
 
-        await newProduct.save();
-        res.status(201).json({ message: "Top Sale Section product created successfully", newProduct });
+        await newSection.save();
+        res.status(201).json({ message: "Top Sale Section created successfully", newSection });
     } catch (err) {
-        res.status(500).json({ message: "Error creating product", error: err.message });
+        res.status(500).json({ message: "Error creating section", error: err.message });
     }
 };
 
-// -------------------- Update Top Sale Section Product --------------------
-
-// Update Top Sale Section Product with Category and Subcategory
-exports.updateTopSaleSectionProduct = async (req, res) => {
+// -------------------- Update --------------------
+exports.updateTopSaleSection = async (req, res) => {
     const { id } = req.params;
-    const { description, title, categoryId, subcategoryId } = req.body;
+    const { description, title, productIds } = req.body;
 
     try {
-        const product = await TopSaleSection.findById(id);
-        if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+        const section = await TopSaleSection.findById(id);
+        if (!section) {
+            return res.status(404).json({ message: "Section not found" });
         }
 
-        if (description) product.description = description;
+        if (description) section.description = description;
         if (title !== undefined) {
             if (title.trim() === "") {
                 return res.status(400).json({ message: "Title is required" });
             }
-            product.title = title;
+            section.title = title;
         }
 
-        if (categoryId) {
-            const category = await Category.findById(categoryId);
-            if (!category) {
-                return res.status(404).json({ message: "Category not found" });
+        if (productIds && Array.isArray(productIds)) {
+            const products = await Product.find({ _id: { $in: productIds } });
+            if (products.length !== productIds.length) {
+                return res.status(400).json({ message: "Some product IDs are invalid" });
             }
-            product.category = categoryId;
-        }
-
-        if (subcategoryId) {
-            const subcategory = await Subcategory.findById(subcategoryId);
-            if (!subcategory) {
-                return res.status(404).json({ message: "Subcategory not found" });
-            }
-            if (!subcategory.category.equals(product.category)) {
-                return res.status(400).json({ message: "Subcategory does not belong to the specified category" });
-            }
-            product.subcategory = subcategoryId;
+            section.productIds = productIds;
         }
 
         if (req.file) {
-            const oldImagePath = `./uploads/top_sale_section/${product.image}`;
+            const oldImagePath = `./uploads/top_sale_section/${section.image}`;
             if (fs.existsSync(oldImagePath)) {
                 fs.unlinkSync(oldImagePath);
             }
-            product.image = req.file.filename;
+            section.image = req.file.filename;
         }
 
-        await product.save();
-        res.status(200).json({ message: "Top Sale Section product updated successfully", product });
+        await section.save();
+        res.status(200).json({ message: "Top Sale Section updated successfully", section });
     } catch (err) {
-        res.status(500).json({ message: "Error updating product", error: err.message });
+        res.status(500).json({ message: "Error updating section", error: err.message });
     }
 };
 
-// -------------------- Get All Top Sale Section Products --------------------
-
-// Get all Top Sale Section products with category and subcategory information
-exports.getAllTopSaleSectionProducts = async (req, res) => {
+// -------------------- Get All --------------------
+exports.getAllTopSaleSections = async (req, res) => {
     try {
-        const topSaleSectionProducts = await TopSaleSection.find()
-            .populate('category') // Populate category details
-            .populate('subcategory') // Populate subcategory details
+        const sections = await TopSaleSection.find()
+            .populate("productIds")
             .sort({ createdAt: -1 });
-        res.status(200).json({ topSaleSectionProducts });
+
+        res.status(200).json({ sections });
     } catch (err) {
-        res.status(500).json({ message: "Error fetching products", error: err.message });
+        res.status(500).json({ message: "Error fetching sections", error: err.message });
     }
 };
+
 
 // Create Offer Section 
 exports.createOfferSection = async (req, res) => {
