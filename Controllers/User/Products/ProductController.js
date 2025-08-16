@@ -5,6 +5,9 @@ const Review = require("../../../Models/User/ReviewModel");
 const moment = require("moment");
 const axios = require("axios");
 const Brand = require('../../../Models/Admin/BrandModel');
+const TopPicks = require('../../../Models/Admin/TopPicksModel')
+const TopSaleSection = require('../../../Models/Admin/TopSaleSectionModel')
+const ProductSlider = require('../../../Models/Admin/SliderModel')
 
 
 // const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
@@ -16,11 +19,12 @@ exports.getallProducts = async (req, res) => {
     const { 
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
-      category, subcategory, page = 1, limit = 20, topSales 
+      category, subcategory, page = 1, limit = 20, topSales, topPicksId,
+      topSaleSectionId, productSliderId
     } = req.query;
     
     let userId = req.user?.id;
-    const allProducts = await getProduct(userId);
+    let allProducts = await getProduct(userId);
 
     if (!allProducts || allProducts.length === 0) {
 
@@ -30,6 +34,65 @@ exports.getallProducts = async (req, res) => {
         products: [],
       });
    }
+
+   // ✅ If topPicksId is provided, filter products by that section's productIds
+    if (topPicksId) {
+      if (!mongoose.Types.ObjectId.isValid(topPicksId)) {
+        return res.status(400).json({ message: "Invalid TopPicks ID" });
+      }
+
+      const topPicks = await TopPicks.findById(topPicksId).select("productIds");
+      if (!topPicks) {
+        return res.status(404).json({ message: "TopPicks not found" });
+      }
+
+      const topPicksIds = topPicks.productIds.map(id => id.toString());
+      allProducts = allProducts.filter(p => topPicksIds.includes(p._id.toString()));
+
+      if (allProducts.length === 0) {
+        return res.status(200).json({ message: "No products found in TopPicks", total: 0, products: [] });
+      }
+    }
+
+    // ✅ If topSaleSectionId is provided, filter products by that section's productIds
+    if (topSaleSectionId) {
+      if (!mongoose.Types.ObjectId.isValid(topSaleSectionId)) {
+        return res.status(400).json({ message: "Invalid TopSaleSection ID" });
+      }
+
+      const topSaleSection = await TopSaleSection.findById(topSaleSectionId).select("productIds");
+      if (!topSaleSection) {
+        return res.status(404).json({ message: "TopSaleSection not found" });
+      }
+
+      const topSaleIds = topSaleSection.productIds.map(id => id.toString());
+      allProducts = allProducts.filter(p => topSaleIds.includes(p._id.toString()));
+
+      if (allProducts.length === 0) {
+        return res.status(200).json({ message: "No products found in TopSaleSection", total: 0, products: [] });
+      }
+    }
+
+
+      if (productSliderId) {
+  if (!mongoose.Types.ObjectId.isValid(productSliderId)) {
+    return res.status(400).json({ message: "Invalid Product Slider ID" });
+  }
+
+  const sliderDoc = await ProductSlider.findById(productSliderId).select("productIds");
+
+  if (!sliderDoc) {
+    return res.status(404).json({ message: "Products not found" });
+  }
+
+  const productIdsSet = new Set(sliderDoc.productIds.map(id => id.toString()));
+  allProducts = allProducts.filter(p => productIdsSet.has(p._id.toString()));
+
+  if (!allProducts.length) {
+    return res.status(200).json({ message: "No products found", total: 0, products: [] });
+  }
+}
+
 
     let brandIds = [];
     if (brand) {

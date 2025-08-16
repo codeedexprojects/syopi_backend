@@ -13,16 +13,13 @@ const TopPicksSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    category: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',  // Referencing the Category model
-        required: true
-    },
-    subcategory: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'SubCategory',  // Referencing the Subcategory model
-        required: true
-    }
+    productIds: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true
+        }
+    ]
 }, { timestamps: true });
 
 module.exports = mongoose.model("TopPicks", TopPicksSchema);

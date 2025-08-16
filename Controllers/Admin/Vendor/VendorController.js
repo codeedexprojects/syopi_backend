@@ -251,11 +251,10 @@ exports.updateVendorStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
 
     // Validate status value
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: "Invalid status. Must be 'approved' or 'rejected'" });
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be 'approved', 'rejected', or 'pending'" });
     }
 
     const vendor = await Vendor.findByIdAndUpdate(
@@ -277,3 +276,4 @@ exports.updateVendorStatus = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+

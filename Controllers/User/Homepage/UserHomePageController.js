@@ -45,28 +45,12 @@ exports.getHomePage = async (req, res) => {
         const topSales = await TopSaleSectionModel.find();
 
         // ** New Arrivals with Filtering (All, Men, Women, Kids, Sale) **
-        let filteredNewArrivals = allProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        // Apply category filter if provided
-        if (req.query.category) {
-            const categoryFilter = req.query.category.toLowerCase();
-            if (["men", "women", "kids"].includes(categoryFilter)) {
-                filteredNewArrivals = filteredNewArrivals.filter(product => 
-                    product.category.toLowerCase() === categoryFilter
-                );
-            }
-        }
-
-        // Apply sale filter (products with offerPrice lower than price)
-        if (req.query.sale === "true") {
-            filteredNewArrivals = filteredNewArrivals.filter(product =>
-                product.variants.some(variant => variant.offerPrice !== null && variant.offerPrice < variant.price)
-            );
-        }
+        
 
         // Limit results to the latest 10
-        const newArrivals = filteredNewArrivals.slice(0, 10);
-
+        const newArrivals = allProducts
+        .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0)) // highest sales first
+        .slice(0, 10);
         // Section: Products under ₹1000
         const affordableProducts = await affordableProductsModel.find();
 
