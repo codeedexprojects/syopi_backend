@@ -9,6 +9,7 @@ const fs = require("fs");
 const CoinSettings = require('../../../Models/Admin/CoinModel')
 const InfoSection = require("../../../Models//Admin/InfoSection");
 const Product = require('../../../Models/Admin/productModel')
+const mongoose = require('mongoose')
 
 
 // Create Affordable Product
