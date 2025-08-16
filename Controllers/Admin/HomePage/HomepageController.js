@@ -8,6 +8,7 @@ const Subcategory = require('../../../Models/Admin/SubCategoryModel');
 const fs = require("fs");
 const CoinSettings = require('../../../Models/Admin/CoinModel')
 const InfoSection = require("../../../Models//Admin/InfoSection");
+const Product = require('../../../Models/Admin/productModel')
 
 
 // Create Affordable Product
