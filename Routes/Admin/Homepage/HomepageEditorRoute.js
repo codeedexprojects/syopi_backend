@@ -21,11 +21,15 @@ router.get('/lowest-price/view', verifyToken(['admin']), HomepageController.getL
 router.post('/top-pick/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createTopPickProduct);
 router.patch('/top-pick/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateTopPickProduct);
 router.get('/top-pick/view', verifyToken(['admin']), HomepageController.getAllTopPickProducts);
+router.delete('/top-pick/:id', verifyToken(['admin']), HomepageController.deleteTopPickProduct);
+
 
 // Top Sale Section Routes
 router.post('/top-sale/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createTopSaleSection);
 router.patch('/top-sale/update/:id', verifyToken(['admin']), multerConfig.single('image'), HomepageController.updateTopSaleSection);
 router.get('/top-sale/view', verifyToken(['admin']), HomepageController.getAllTopSaleSections);
+router.delete('/top-sale/:id', verifyToken(['admin']), HomepageController.deleteTopSaleSection);
+
 
 // Referral Section Routes
 router.post('/offer/create', verifyToken(['admin']), multerConfig.single('image'), HomepageController.createOfferSection);
