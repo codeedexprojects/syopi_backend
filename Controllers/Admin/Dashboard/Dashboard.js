@@ -303,6 +303,11 @@ const getAdminCommissionRevenue = async (req, res) => {
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       matchStage.payoutDate = { $gte: startOfMonth, $lte: endOfMonth };
     }
+    else if (type === "yearly") {
+      const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0); // Jan 1
+      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999); // Dec 31
+      matchStage.payoutDate = { $gte: startOfYear, $lte: endOfYear };
+    }
 
     // 📅 Custom date range
     if (startDate && endDate) {
@@ -354,6 +359,7 @@ const getAdminCommissionRevenue = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 
 
