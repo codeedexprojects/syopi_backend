@@ -319,6 +319,31 @@ exports.getAllTopPickProducts = async (req, res) => {
     }
 };
 
+// -------------------- Delete Top Pick --------------------
+exports.deleteTopPickProduct = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const topPick = await TopPicks.findById(id);
+        if (!topPick) {
+            return res.status(404).json({ message: "Top pick not found" });
+        }
+
+        // Delete image file if exists
+        const imagePath = `./uploads/top_picks/${topPick.image}`;
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+        }
+
+        // Delete from DB
+        await TopPicks.findByIdAndDelete(id);
+
+        res.status(200).json({ message: "Top pick deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error deleting top pick", error: err.message });
+    }
+};
+
 
 // -------------------- Create --------------------
 exports.createTopSaleSection = async (req, res) => {
@@ -409,6 +434,31 @@ exports.getAllTopSaleSections = async (req, res) => {
         res.status(200).json({ sections });
     } catch (err) {
         res.status(500).json({ message: "Error fetching sections", error: err.message });
+    }
+};
+
+// -------------------- Delete --------------------
+exports.deleteTopSaleSection = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const section = await TopSaleSection.findById(id);
+        if (!section) {
+            return res.status(404).json({ message: "Section not found" });
+        }
+
+        // Delete image file if exists
+        const imagePath = `./uploads/top_sale_section/${section.image}`;
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+        }
+
+        // Delete from DB
+        await TopSaleSection.findByIdAndDelete(id);
+
+        res.status(200).json({ message: "Top Sale Section deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error deleting section", error: err.message });
     }
 };
 
