@@ -80,77 +80,97 @@ const getProductStats = async (req, res) => {
 };
 
 // 🔸 Order Stats with filters
+// -------------------- Sales Graph --------------------
 const getOrderStats = async (req, res) => {
-  try {
-    const { status, type, startDate, endDate } = req.query;
-    const filter = {};
+    try {
+        const { range = "month" } = req.query; // default: last month
+        const now = new Date();
+        let startDate;
 
-    // Status filter
-    if (status) filter.status = status;
+        switch (range) {
+            case "today":
+                startDate = new Date(now.setHours(0, 0, 0, 0));
+                break;
+            case "week":
+                startDate = new Date();
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case "month":
+                startDate = new Date();
+                startDate.setMonth(now.getMonth() - 1);
+                break;
+            case "year":
+                startDate = new Date();
+                startDate.setFullYear(now.getFullYear() - 1);
+                break;
+            default:
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid range. Use today, week, month, or year."
+                });
+        }
 
-    // Date filtering logic
-    const now = new Date();
+        // Build dynamic group
+        let groupId = {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+        };
 
-    if (type === "daily") {
-      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(now.setHours(23, 59, 59, 999));
-      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+        if (range === "today" || range === "week" || range === "month") {
+            groupId.day = { $dayOfMonth: "$createdAt" };
+        }
 
-    } else if (type === "weekly") {
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+        const salesData = await Order.aggregate([
+            {
+                $match: {
+                    status: "Delivered",
+                    createdAt: { $gte: startDate }
+                }
+            },
+            {
+                $group: {
+                    _id: groupId,
+                    totalSales: { $sum: "$itemTotal" },
+                    orderCount: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 }
+            }
+        ]);
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
+        // ✅ Format consistently for frontend
+        const formattedData = salesData.map(item => {
+            let label;
+            if (range === "year") {
+                label = `${item._id.month}/${item._id.year}`;
+            } else {
+                label = `${item._id.day}/${item._id.month}`;
+            }
 
-      filter.createdAt = { $gte: startOfWeek, $lte: endOfWeek };
+            return {
+                label,
+                totalSales: item.totalSales,
+                orderCount: item.orderCount
+            };
+        });
 
-    } else if (type === "monthly") {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      filter.createdAt = { $gte: startOfMonth, $lte: endOfMonth };
+        res.status(200).json({
+            success: true,
+            range,
+            data: formattedData
+        });
 
-    } else if (type === "yearly") {
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      filter.createdAt = { $gte: startOfYear, $lte: endOfYear };
-
-    } else if (startDate && endDate) {
-      filter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+    } catch (error) {
+        console.error("Sales Graph Error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching sales graph data",
+            error: error.message
+        });
     }
-
-    // Stats based on filters
-    const totalOrders = await Order.countDocuments(filter);
-
-    const currentOrders = await Order.countDocuments({
-      ...filter,
-      status: { $in: ['Pending', 'Processing', 'In-Transit'] }
-    });
-
-    const orderStatusCount = await Order.aggregate([
-      { $match: filter }, // <-- APPLY filter here
-      { $group: { _id: "$status", count: { $sum: 1 } } }
-    ]);
-
-    const filteredOrders = await Order.find(filter).lean();
-
-    res.status(200).json({
-      totalOrders,
-      currentOrders,
-      orderStatusCount,
-      filteredCount: filteredOrders.length,
-      orders: filteredOrders
-    });
-  } catch (err) {
-    console.error("Error fetching order stats:", err);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
 };
+
 
 
 // 🔸 User Stats with filters
