@@ -166,20 +166,32 @@ exports.deleteVendor = async (req, res) => {
     const vendor = await Vendor.findById(req.params.id);
     if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-    const basePath = path.join(__dirname, "../uploads/admin/vendor");
+    const basePath = path.join(__dirname, "../../../uploads/admin/vendor"); // adjust path if needed
 
-    [vendor.storelogo, vendor.license, vendor.passbookImage, ...vendor.images].forEach((file) => {
-      const filePath = path.join(basePath, file);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const files = [
+      vendor.storelogo,
+      vendor.license,
+      vendor.passbookImage,
+      ...(vendor.images || []) // in case it's undefined
+    ];
+
+    files.forEach((file) => {
+      if (file && typeof file === "string") { // ✅ check first
+        const filePath = path.join(basePath, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
     });
 
     await vendor.deleteOne();
     res.status(200).json({ message: "Vendor deleted successfully" });
   } catch (error) {
     console.error("Delete vendor error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
 
 // delete a specific image by name
 exports.deleteVendorImage = async (req,res) =>{
