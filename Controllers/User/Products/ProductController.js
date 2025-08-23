@@ -254,16 +254,31 @@ exports.getallProducts = async (req, res) => {
 
     // ✅ Sorting (optional, after top sales filter)
     if (sort) {
-      if (!["asc", "desc"].includes(sort)) {
-        return res.status(400).json({ message: 'Invalid sort parameter. Use "asc" or "desc"' });
-      }
+      switch (sort) {
+        case "asc": // Price ascending
+          filteredProducts.sort((a, b) => {
+            const offerPriceA = a.variants?.[0]?.offerPrice || 0;
+            const offerPriceB = b.variants?.[0]?.offerPrice || 0;
+            return offerPriceA - offerPriceB;
+          });
+          break;
 
-      filteredProducts.sort((a, b) => {
-        const offerPriceA = a.variants?.[0]?.offerPrice || 0;
-        const offerPriceB = b.variants?.[0]?.offerPrice || 0;
-        return sort === "asc" ? offerPriceA - offerPriceB : offerPriceB - offerPriceA;
-      });
+        case "desc": // Price descending
+          filteredProducts.sort((a, b) => {
+            const offerPriceA = a.variants?.[0]?.offerPrice || 0;
+            const offerPriceB = b.variants?.[0]?.offerPrice || 0;
+            return offerPriceB - offerPriceA;
+          });
+          break;
+        case "rating": // Rating descending
+          filteredProducts.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
+
+        default:
+          return res.status(400).json({ message: 'Invalid sort parameter. Use "asc", "desc", "rating_asc", or "rating_desc"' });
+      }
     }
+
 
     // ✅ Pagination Logic
     const pageNumber = parseInt(page) || 1; // Ensure page is a number
