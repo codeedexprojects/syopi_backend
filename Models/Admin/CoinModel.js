@@ -3,23 +3,27 @@ const mongoose = require('mongoose');
 const CoinSettingsSchema = new mongoose.Schema({
   coinValue: {
     type: Number,
-    default: 0.5,  // 1 coin = ₹0.5
+    default: 0.5,
   },
   minAmount: {
     type: Number,
-    default: 100,  // Minimum order value to earn coins
+    default: 100,
   },
   maxOrderDiscountPercent: {
     type: Number,
-    default: 5, // Max discount allowed per order in percent
+    default: 5,
   },
   percentage: {
     type: Number,
-    default: 4,  // % of order total converted to coins
+    default: 4,
   },
   referralCoins: {
     type: Number,
-    default: 50, // 👈 Amount of coins given for a successful referral
+    default: 100,
+  },
+  referralCoinsUser: {
+    type: Number,
+    default: 40,
   }
 }, { timestamps: true });
 

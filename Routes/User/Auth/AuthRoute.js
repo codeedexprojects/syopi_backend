@@ -39,4 +39,12 @@ router.get("/apple", passport.authenticate("apple", { scope: ["name", "email"] }
 // Apple Callback
 router.post("/apple/callback", userController.appleLoginCallback);
 
+router.post('/send-otp', loginUserValidator, validationHandler, userController.sendOtp);
+
+router.post('/resend-otp',userController.resendOtp);
+
+
+router.post('/verify-otp', userController.verifyOtp);
+
+
 module.exports = router;
