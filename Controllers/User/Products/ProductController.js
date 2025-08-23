@@ -365,60 +365,73 @@ exports.getallProducts = async (req, res) => {
 
 // get product by id
 exports.getProductById = async (req, res) => {
-    const { id } = req.params;
-    try {
-      let userId;
-      if (req.user && req.user.id) {
-        userId = req.user.id;
-      }
+  const { id } = req.params;
+  try {
+    let userId;
+    if (req.user && req.user.id) {
+      userId = req.user.id;
+    }
 
-      const products = await getProduct(userId);
-      const product = products.find((product) => product._id.toString() === id);
-  
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
+    const products = await getProduct(userId);
+    const product = products.find((product) => product._id.toString() === id);
 
-      let brandName = null;
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // **Sort variants by total stock in descending order**
+    if (product.variants && product.variants.length > 0) {
+      product.variants.sort((a, b) => {
+        const stockA = a.sizes.reduce((sum, size) => sum + (size.stock || 0), 0);
+        const stockB = b.sizes.reduce((sum, size) => sum + (size.stock || 0), 0);
+        return stockB - stockA;
+      });
+    }
+
+    // Fetch brand name
+    let brandName = null;
     if (product.brand && mongoose.Types.ObjectId.isValid(product.brand)) {
       const brandDoc = await Brand.findById(product.brand, "name");
       brandName = brandDoc?.name || null;
     }
 
-        // Fetch reviews for the product
-        const reviews = await Review.find({ productId: id })
-            .populate("userId", "name")
-            .sort({ createdAt: -1 });
-            const formattedReview = reviews.map(review => ({
-              ...review._doc,  // Spread existing document data
-              createdAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss"),
-              updatedAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss")
-          }));
+    // Fetch reviews
+    const reviews = await Review.find({ productId: id })
+      .populate("userId", "name")
+      .sort({ createdAt: -1 });
 
-            let discountPercentage = 0;
-            const defaultVariant = product.variants?.[0];
+    const formattedReview = reviews.map(review => ({
+      ...review._doc,
+      createdAt: moment(review.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+      updatedAt: moment(review.updatedAt).format("YYYY-MM-DD HH:mm:ss")
+    }));
 
-            if (defaultVariant?.wholesalePrice) {
-              const hasOffer = product.offers && product.offers.length > 0;
-              const effectivePrice = hasOffer ? defaultVariant.offerPrice : defaultVariant.price;
+    // Calculate discount percentage
+    let discountPercentage = 0;
+    const defaultVariant = product.variants?.[0];
+    if (defaultVariant?.wholesalePrice) {
+      const hasOffer = product.offers && product.offers.length > 0;
+      const effectivePrice = hasOffer ? defaultVariant.offerPrice : defaultVariant.price;
 
-              if (effectivePrice < defaultVariant.wholesalePrice) {
-                discountPercentage = Math.floor(
-                  ((defaultVariant.wholesalePrice - effectivePrice) / defaultVariant.wholesalePrice) * 100
-                );
-              }
-            }
-
-    
-        res.status(200).json({ product, brandName, reviews:formattedReview,
-          discountPercentage
-         });
-  
-      // res.status(200).json(product);
-    } catch (err) {
-      res.status(500).json({ message: "Error fetching product", error: err.message });
+      if (effectivePrice < defaultVariant.wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((defaultVariant.wholesalePrice - effectivePrice) / defaultVariant.wholesalePrice) * 100
+        );
+      }
     }
+
+    res.status(200).json({
+      product,
+      brandName,
+      reviews: formattedReview,
+      discountPercentage
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching product", error: err.message });
   }
+};
+
  
   
 // Get Similar Products
