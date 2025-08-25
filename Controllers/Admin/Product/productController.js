@@ -293,11 +293,6 @@ exports.updateProduct = async (req, res) => {
             existingVariant[key] = variantUpdate[key];
           }
         });
-
-        const newImgs = variantImageMapById[variantUpdate._id];
-        if (newImgs?.length) {
-          existingVariant.images = [...(existingVariant.images || []), ...newImgs];
-        }
       }
     });
 
