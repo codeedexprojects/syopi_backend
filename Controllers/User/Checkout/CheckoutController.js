@@ -10,34 +10,66 @@ const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel');
 // create checkout
 exports.createCheckout = async (req, res) => {
     const { cartId } = req.body;
-    const userId=req.user.id
+    const userId = req.user.id;
+
     try {
         if (!userId || !cartId) {
             return res.status(400).json({ message: 'User ID and Cart ID are required.' });
         }
+
         const cart = await Cart.findById(cartId).populate('items.productId');
         if (!cart) {
             return res.status(404).json({ message: 'Cart not found.' });
         }
+
         if (String(cart.userId) !== userId) {
             return res.status(403).json({ message: 'Unauthorized: Cart does not belong to the user.' });
         }
-         // Fetch delivery settings from admin
-         let deliverySetting = await DeliverySetting.findOne();
 
-        if (!deliverySetting) {
-        deliverySetting = await DeliverySetting.create({});
+        // **Check stock for each item in the cart**
+        for (let item of cart.items) {
+            const product = await Product.findById(item.productId._id);
+
+            if (!product) {
+                return res.status(404).json({ message: `Product not found: ${item.productId._id}` });
+            }
+
+            // Find variant and size in product
+            const variant = product.variants.find(v => v.color === item.color);
+            if (!variant) {
+                return res.status(400).json({ message: `Selected color is not available for ${product.name}.` });
+            }
+
+            const sizeDetail = variant.sizes.find(s => s.size === item.size);
+            if (!sizeDetail) {
+                return res.status(400).json({ message: `Selected size is not available for ${product.name}.` });
+            }
+
+            if (sizeDetail.stock < item.quantity) {
+                return res.status(400).json({ 
+                    message: `Insufficient stock for ${product.name} (${item.size}, ${item.color}). Only ${sizeDetail.stock} left.` 
+                });
+            }
         }
-          // Calculate subtotal
+
+        // **Fetch delivery settings**
+        let deliverySetting = await DeliverySetting.findOne();
+        if (!deliverySetting) {
+            deliverySetting = await DeliverySetting.create({});
+        }
+
+        // **Calculate subtotal**
         const subtotal = cart.subtotal;
 
-        // Determine delivery charge based on minAmountForCharge
-        const deliveryCharge = subtotal < deliverySetting.minAmountForCharge ? 0 : deliverySetting.deliveryCharge;
-        
+        // **Determine delivery charge**
+        const deliveryCharge = subtotal < deliverySetting.minAmountForCharge 
+            ? deliverySetting.deliveryCharge 
+            : 0;
 
-        // Final total = Subtotal + Delivery Charge
+        // **Final total**
         const finalTotal = subtotal + deliveryCharge;
 
+        // **Create checkout**
         const newCheckout = new Checkout({
             userId,
             cartId,
@@ -45,11 +77,14 @@ exports.createCheckout = async (req, res) => {
             deliveryCharge,
             finalTotal
         });
+
         await newCheckout.save();
+
         res.status(201).json({
             message: 'Checkout created successfully.',
             checkout: newCheckout,
         });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({
@@ -58,6 +93,7 @@ exports.createCheckout = async (req, res) => {
         });
     }
 };
+
 
 
 exports.createBuyNowCheckout = async (req, res) => {

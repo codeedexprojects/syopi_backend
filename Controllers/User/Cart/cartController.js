@@ -67,7 +67,7 @@ exports.createOrUpdateCart = async (req, res) => {
       if (newQuantity > sizeDetails.stock) {
         return res.status(400).json({ 
           success: false, 
-          message: `Cannot add more than ${sizeDetails.stock} items in the cart`
+          message: `Only ${sizeDetails.stock} items available in stock`
         });
       }
 
