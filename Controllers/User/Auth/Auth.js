@@ -532,3 +532,185 @@ exports.appleLoginCallback = (req, res, next) => {
     }
   })(req, res, next);
 };
+
+const predefinedPhone = "9999999999";
+const predefinedOTP = "123456";
+
+// Send OTP (Handles Test User & Referral Cache)
+exports.sendOtp = async (req, res) => {
+    try {
+        const { phone, referredBy } = req.body;
+        if (!phone) return res.status(400).json({ message: "Phone number is required" });
+
+        let user = await User.findOne({ phone });
+
+        // Cache phone & referral info (even for test user)
+        cache.set(phone, { phone, referredBy });
+
+        // ✅ Handle predefined test user
+        if (phone === predefinedPhone) {
+            if (!user) {
+                user = await User.create({
+                    name: "Test User",
+                    phone,
+                    role: "customer",
+                });
+            }
+
+            cache.set(phone, {
+                phone,
+                userId: user._id,
+                role: user.role,
+                name: user.name,
+                referredBy,
+                otp: predefinedOTP,
+            });
+
+            return res.status(200).json({
+                message: "Test OTP sent successfully",
+                otp: predefinedOTP, 
+                sessionId: "TEST_SESSION",
+            });
+        }
+
+        // ✅ Normal OTP flow
+        const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN`);
+        if (response.data.Status !== "Success") {
+            return res.status(500).json({ message: "Failed to send OTP" });
+        }
+
+        return res.status(200).json({ message: "OTP sent successfully", sessionId: response.data.Details });
+    } catch (error) {
+        console.error("Send OTP Error:", error?.response?.data || error.message);
+        return res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// Verify OTP (Handles Test User, Referral Rewards, Anti-Abuse)
+exports.verifyOtp = async (req, res) => {
+    try {
+        const { phone, otp, sessionId } = req.body;
+        if (!phone || !otp || !sessionId) 
+            return res.status(400).json({ message: "Phone, OTP, and Session ID are required" });
+
+        let user = await User.findOne({ phone });
+
+        // ✅ Test User Flow
+        if (phone === predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
+            const cachedData = cache.get(phone);
+            if (!cachedData) return res.status(400).json({ message: "Session expired. Please login again." });
+
+            const payload = { id: cachedData.userId, role: cachedData.role };
+            const accessToken = generateAccessToken(payload);
+            const refreshToken = generateRefreshToken(payload);
+
+            return res.status(200).json({
+                message: "Test user logged in successfully",
+                user: {
+                    userId: cachedData.userId,
+                    phone: cachedData.phone,
+                    role: cachedData.role,
+                    coins: user?.coins || 0
+                },
+                accessToken,
+                refreshToken,
+            });
+        }
+
+        // ✅ Verify OTP for normal users
+        const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/VERIFY/${sessionId}/${otp}`);
+        if (response.data.Status !== "Success") {
+            return res.status(401).json({ message: "Invalid OTP" });
+        }
+
+        // ✅ Create new user if not exists (with referral logic)
+        if (!user) {
+            const cachedData = cache.get(phone);
+            const settings = await Coin.findOne();
+            const referrerReward = settings?.referralCoins || 100;
+            const newUserReward = settings?.referralCoinsUser || 40;
+            let referredBy = cachedData?.referredBy;
+            
+
+            // Anti-abuse check (Don't allow referral if this phone was previously registered)
+            const wasDeleted = await DeletedUser.findOne({ phone });
+            if (wasDeleted) referredBy = null;
+
+            // Award referral coins to referrer (if valid)
+            if (referredBy) {
+                const referrer = await User.findOne({ referralCode: referredBy });
+                if (referrer) {
+                    await User.findByIdAndUpdate(referrer._id, { $inc: { coins: referrerReward } });
+                } else {
+                    referredBy = null;
+                }
+            }
+
+            // Create new user with referral bonus (if eligible)
+            user = await User.create({
+                phone,
+                referredBy,
+                coins: referredBy ? newUserReward : 0
+            });
+        }
+
+        // Generate tokens & return response
+        const payload = { id: user._id, role: user.role };
+        const accessToken = generateAccessToken(payload);
+        const refreshToken = generateRefreshToken(payload);
+
+        cache.del(phone); // Cleanup cache after successful login
+
+        return res.status(200).json({
+            message: "Login successful",
+            user: {
+                userId: user._id,
+                phone: user.phone,
+                role: user.role,
+                coins: user.coins
+            },
+            accessToken,
+            refreshToken,
+        });
+    } catch (error) {
+        console.error("Verify OTP Error:", error?.response?.data || error.message);
+        return res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// Resend OTP (Preserves referral info & supports Test User)
+exports.resendOtp = async (req, res) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) return res.status(400).json({ message: "Phone number is required" });
+
+        const cachedData = cache.get(phone) || {};
+        const referredBy = cachedData.referredBy || null;
+
+        // ✅ Test User Flow
+        if (phone === predefinedPhone) {
+            return res.status(200).json({
+                message: "Test OTP resent successfully",
+                otp: predefinedOTP,
+                sessionId: "TEST_SESSION"
+            });
+        }
+
+        // ✅ Normal user flow
+        const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/${phone}/AUTOGEN`);
+        if (response.data.Status !== "Success") {
+            return res.status(500).json({ message: "Failed to resend OTP" });
+        }
+
+        // Preserve referral info in cache
+        cache.set(phone, { ...cachedData, phone, referredBy });
+
+        return res.status(200).json({
+            message: "OTP resent successfully",
+            sessionId: response.data.Details
+        });
+    } catch (error) {
+        console.error("Resend OTP Error:", error?.response?.data || error.message);
+        return res.status(500).json({ message: "Server error", error: error.message });
+    }
+};

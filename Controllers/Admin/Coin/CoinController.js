@@ -1,18 +1,21 @@
 const CoinSettings = require("../../../Models/Admin/CoinModel");
 
-// Get current coin settings (including referral coins)
+// Get current coin settings (including referral coins for referrer & user)
 exports.getCoinSettings = async (req, res) => {
   try {
     let settings = await CoinSettings.findOne();
+
     if (!settings) {
       settings = await CoinSettings.create({
         coinValue: 0.5,
         percentage: 4,
         minAmount: 100,
         maxOrderDiscountPercent: 5,
-        referralCoins: 50, // Default referral coins
+        referralCoins: 100,
+        referralCoinsUser: 40
       });
     }
+
     res.json(settings);
   } catch (error) {
     console.error("Error fetching coin settings:", error);
@@ -20,7 +23,7 @@ exports.getCoinSettings = async (req, res) => {
   }
 };
 
-// Update coin settings (including referral coins)
+// Update coin settings (including referral coins for referrer & user)
 exports.updateCoinSettings = async (req, res) => {
   try {
     const {
@@ -28,7 +31,8 @@ exports.updateCoinSettings = async (req, res) => {
       percentage,
       minAmount,
       maxOrderDiscountPercent,
-      referralCoins
+      referralCoins,
+      referralCoinsUser
     } = req.body;
 
     let settings = await CoinSettings.findOne();
@@ -39,7 +43,8 @@ exports.updateCoinSettings = async (req, res) => {
         percentage,
         minAmount,
         maxOrderDiscountPercent,
-        referralCoins
+        referralCoins,
+        referralCoinsUser
       });
     } else {
       if (coinValue !== undefined) settings.coinValue = coinValue;
@@ -48,6 +53,7 @@ exports.updateCoinSettings = async (req, res) => {
       if (maxOrderDiscountPercent !== undefined)
         settings.maxOrderDiscountPercent = maxOrderDiscountPercent;
       if (referralCoins !== undefined) settings.referralCoins = referralCoins;
+      if (referralCoinsUser !== undefined) settings.referralCoinsUser = referralCoinsUser;
     }
 
     await settings.save();

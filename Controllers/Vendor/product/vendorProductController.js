@@ -321,11 +321,6 @@ exports.updateProduct = async (req, res) => {
             existingVariant[key] = variantUpdate[key];
           }
         });
-
-        const newImgs = variantImageMapById[variantUpdate._id];
-        if (newImgs?.length) {
-          existingVariant.images = [...(existingVariant.images || []), ...newImgs];
-        }
       }
     });
 
@@ -360,7 +355,7 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
-  
+
 
 // Delete a product
 exports.deleteProduct = async (req, res) => {
