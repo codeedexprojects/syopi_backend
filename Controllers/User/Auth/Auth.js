@@ -548,7 +548,7 @@ exports.sendOtp = async (req, res) => {
         cache.set(phone, { phone, referredBy });
 
         // ✅ Handle predefined test user
-        if (phone === predefinedPhone) {
+        if (phone == predefinedPhone) {
             if (!user) {
                 user = await User.create({
                     name: "Test User",
@@ -596,7 +596,7 @@ exports.verifyOtp = async (req, res) => {
         let user = await User.findOne({ phone });
 
         // ✅ Test User Flow
-        if (phone === predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
+        if (phone == predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
             const cachedData = cache.get(phone);
             if (!cachedData) return res.status(400).json({ message: "Session expired. Please login again." });
 
