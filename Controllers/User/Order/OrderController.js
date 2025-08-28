@@ -386,13 +386,12 @@ exports.requestOrderReturn = async (req, res) => {
 
 exports.cancelOrder = async (req, res) => {
   try {
-    const { orderId } = req.params; // VendorOrder _id
+    const { orderId } = req.params; 
     const { reason, description } = req.body;
     const userId = req.user.id;
 
     // Step 1: Find vendor order by _id and userId
-    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
-    
+    const vendorOrder = await VendorOrder.findOne({ orderId, userId });
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
@@ -405,7 +404,7 @@ exports.cancelOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Order already canceled" });
     }
 
-    // Step 2: Cancel the vendor order
+    // Step 2: Cancel vendor order
     vendorOrder.status = "Cancelled";
     vendorOrder.cancellationOrReturnReason = reason;
     vendorOrder.cancellationOrReturnDescription = description || "";
@@ -417,24 +416,39 @@ exports.cancelOrder = async (req, res) => {
     }
 
     // Step 3: Reverse coins if awarded
-    if (vendorOrder.coinsAwarded && !vendorOrder.coinsReversed && vendorOrder.coinsEarned > 0) {
-      await User.findByIdAndUpdate(vendorOrder.userId, {
-        $inc: { coins: -vendorOrder.coinsEarned }
-      });
+    if (vendorOrder.coinsEarned > 0 && !vendorOrder.coinsReversed) {
+      await User.findByIdAndUpdate(vendorOrder.userId, { $inc: { coins: -vendorOrder.coinsEarned } });
       vendorOrder.coinsReversed = true;
+    }
+
+    // **Step 4: Restore stock and adjust sales counts**
+    const product = await Product.findById(vendorOrder.productId);
+    if (product) {
+      const variant = product.variants.find(v => v.color === vendorOrder.color);
+      if (variant) {
+        const sizeObj = variant.sizes.find(s => s.size === vendorOrder.size);
+        if (sizeObj) {
+          sizeObj.stock += vendorOrder.quantity;
+          sizeObj.salesCount = Math.max(0, sizeObj.salesCount - vendorOrder.quantity);
+        }
+        variant.salesCount = Math.max(0, variant.salesCount - vendorOrder.quantity);
+      }
+
+      product.totalSales = Math.max(0, product.totalSales - vendorOrder.quantity);
+      product.totalStock = product.variants.reduce((sum, v) =>
+        sum + v.sizes.reduce((sizeSum, s) => sizeSum + s.stock, 0), 0);
+
+      await product.save();
     }
 
     await vendorOrder.save();
 
-    // Step 4: Update main Order model too
-    await Order.findByIdAndUpdate(
-      vendorOrder.orderId,
-      {
-        status: "Cancelled",
-        cancellationOrReturnReason: reason,
-        cancellationOrReturnDescription: description || ""
-      }
-    );
+    // Step 5: Update main order if needed
+    await Order.findByIdAndUpdate(vendorOrder.orderId, {
+      status: "Cancelled",
+      cancellationOrReturnReason: reason,
+      cancellationOrReturnDescription: description || ""
+    });
 
     return res.status(200).json({
       success: true,
@@ -446,6 +460,7 @@ exports.cancelOrder = async (req, res) => {
     return res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
   }
 };
+
 
 
 

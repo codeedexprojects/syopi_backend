@@ -1,4 +1,6 @@
 const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel')
+const Order = require('../../../Models/User/OrderModel');
+
 
 
 //For updating delivery charge
@@ -31,3 +33,26 @@ exports.updateDeliverySettings = async (req, res) => {
     }
   };
   
+
+exports.getTotalDeliveryCharges = async (req, res) => {
+  try {
+    const totalDeliveryCharges = await Order.aggregate([
+      { $match: { status: 'Delivered' } }, // Only count delivered orders
+      {
+        $group: {
+          _id: null,
+          totalDeliveryCharges: { $sum: '$deliveryCharge' },
+          orderCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      totalDeliveryCharges: totalDeliveryCharges[0]?.totalDeliveryCharges || 0,
+      totalOrdersWithDeliveryCharge: totalDeliveryCharges[0]?.orderCount || 0
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching delivery charges", error: error.message });
+  }
+};
