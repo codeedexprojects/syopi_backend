@@ -9,4 +9,9 @@ router.get('/getcount',verifyToken(['admin']),wishlistController.getAllWishlistC
 //Get Wishlist Count for a Product
 router.get('/getcount/:id',verifyToken(['admin']),verifyToken(['admin']),wishlistController.getProductWishlistCount);
 
+router.get("/count", wishlistController.getWishlistProductCount);
+router.get("/products", wishlistController.getWishlistProducts);
+router.get("/product/:id/users", wishlistController.getUsersForWishlistProduct);
+
+
 module.exports = router;
