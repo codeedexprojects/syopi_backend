@@ -17,20 +17,14 @@ exports.addAddress = async (req, res) => {
       defaultAddress,
     } = req.body;
 
-     // Validate pincode (Indian 6-digit numeric code)
-     const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
-     const data = response.data;
- 
-     if (data[0].Status !== "Success" || data[0].PostOffice.length === 0) {
-       return res.status(400).json({ message: "Invalid Pincode or No Post Office found" });
-     }
+    const userId = req.user.id;
 
     if (defaultAddress) {
       await Address.updateMany({ userId }, { defaultAddress: false });
     }
 
     const newAddress = new Address({
-      userId: req.user.id,
+      userId,
       name,
       number,
       alternatenumber,
@@ -44,11 +38,20 @@ exports.addAddress = async (req, res) => {
     });
 
     await newAddress.save();
-    res.status(200).json({ message: "Address added successfully",address: newAddress });
+
+    res.status(200).json({
+      message: "Address added successfully",
+      address: newAddress,
+    });
+
   } catch (error) {
-    res.status(500).json({message: "Server error while adding address",error: error.message,});  
+    res.status(500).json({
+      message: "Server error while adding address",
+      error: error.message,
+    });
   }
 };
+
 
 // Get all addresses for a user
 exports.getAddressesByUserId = async(req,res) =>{
