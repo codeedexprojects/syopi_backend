@@ -589,7 +589,7 @@ exports.sendOtp = async (req, res) => {
 // Verify OTP (Handles Test User, Referral Rewards, Anti-Abuse)
 exports.verifyOtp = async (req, res) => {
     try {
-        const { phone, otp, sessionId } = req.body;
+        const { phone, otp, sessionId, playerId } = req.body;
         if (!phone || !otp || !sessionId) 
             return res.status(400).json({ message: "Phone, OTP, and Session ID are required" });
 
@@ -603,6 +603,11 @@ exports.verifyOtp = async (req, res) => {
             const payload = { id: cachedData.userId, role: cachedData.role };
             const accessToken = generateAccessToken(payload);
             const refreshToken = generateRefreshToken(payload);
+            if(playerId){
+              user.playerId = playerId;
+              user.save() 
+            }
+                       
 
             return res.status(200).json({
                 message: "Test user logged in successfully",
@@ -650,9 +655,16 @@ exports.verifyOtp = async (req, res) => {
             user = await User.create({
                 phone,
                 referredBy,
+                playerId,
                 coins: referredBy ? newUserReward : 0
             });
         }
+        else {
+              if (user && playerId) {                
+                  await User.findByIdAndUpdate(user._id, { playerId });
+                  user.playerId = playerId;                  
+              }
+          }
 
         // Generate tokens & return response
         const payload = { id: user._id, role: user.role };
