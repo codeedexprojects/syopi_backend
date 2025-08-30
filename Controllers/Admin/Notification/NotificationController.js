@@ -289,7 +289,7 @@ const sendNotification = async (externalUserIds, title, message, data = {}) => {
     contents: { en: message },
     data
   };
-console.log('here');
+console.log(payload);
 
   const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
     headers: {
