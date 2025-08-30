@@ -215,12 +215,13 @@ exports.notifyUser = async (req, res) => {
 
     const user = await UserModel.findById(userId);
 
-    if (!user || !user.externalUserId) {
-      return res.status(404).json({ message: 'User or External User ID not found' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
+    
 
-    // 🔑 Use externalUserId instead of playerId
-    await sendNotification(user.externalUserId, title, message, { orderId });
+    // 🔑 Use user._id directly as externalUserId
+    await sendNotification(user._id.toString(), title, message, { orderId });
 
     // Store in DB
     await NotificationModel.create({
@@ -228,7 +229,7 @@ exports.notifyUser = async (req, res) => {
       title,
       message,
       orderId: orderId || null,
-      notificationType
+      notificationType,
     });
 
     res.status(200).json({ message: 'Notification sent to user' });
@@ -237,6 +238,7 @@ exports.notifyUser = async (req, res) => {
     res.status(500).json({ message: 'Failed to send notification', error: error.message });
   }
 };
+
 
 // ✅ Send notification to all users
 exports.notifyAllUsers = async (req, res) => {
@@ -279,14 +281,15 @@ exports.notifyAllUsers = async (req, res) => {
 };
 
 
-  const sendNotification = async (externalUserId, title, message, data = {}) => {
+const sendNotification = async (externalUserIds, title, message, data = {}) => {
   const payload = {
     app_id: process.env.ONESIGNAL_APP_ID,
-    include_external_user_ids: [externalUserId], // ✅ instead of playerId
+    include_external_user_ids: Array.isArray(externalUserIds) ? externalUserIds : [externalUserIds],
     headings: { en: title },
     contents: { en: message },
     data
   };
+console.log('here');
 
   const response = await axios.post('https://onesignal.com/api/v1/notifications', payload, {
     headers: {
@@ -295,5 +298,6 @@ exports.notifyAllUsers = async (req, res) => {
     },
   });
 
-  console.log(response.data);
+  console.log("OneSignal response:", response.data);
+  return response.data;
 };
