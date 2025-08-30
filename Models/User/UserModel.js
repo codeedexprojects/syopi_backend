@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       validate: {
         validator: function (v) {
-          const phoneRegex = /^[0-9]{10,15}$/; // International phone format
+          const phoneRegex = /^[0-9]{10,15}$/;
           return phoneRegex.test(v);
         },
         message: (props) => `${props.value} is not a valid phone number!`,
@@ -61,15 +61,13 @@ const userSchema = new mongoose.Schema(
     role: { type: String, default: 'customer' },
     appleId: { type: String, default: "user" },
     playerId: { type: String, default: null },
+    externalUserId: { type: String, unique: true, sparse: true },
 
-    // ✅ New field
-    isActive: {
-      type: Boolean,
-      default: true,
-    }
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
+
 
 
 
