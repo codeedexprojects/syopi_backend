@@ -125,35 +125,35 @@ exports.searchNotifications = async (req,res) => {
 }
 
 // ✅ Send notification to a specific user
-exports.notifyUser = async (req, res) => {
-    try {
-      const { userId, title, message,orderId,notificationType } = req.body;
+// exports.notifyUser = async (req, res) => {
+//     try {
+//       const { userId, title, message,orderId,notificationType } = req.body;
   
-      const user = await UserModel.findById(userId);
-    //   console.log(user.playerId)
-      if (!user || !user.playerId) {
-        return res.status(404).json({ message: 'User or Player ID not found' });
-      }
+//       const user = await UserModel.findById(userId);
+//     //   console.log(user.playerId)
+//       if (!user || !user.playerId) {
+//         return res.status(404).json({ message: 'User or Player ID not found' });
+//       }
   
-      await sendNotification(user.playerId, title, message,{ orderId });
-       // Store in DB
-       await NotificationModel.create({
-        userId,
-        title,
-        message,
-        orderId: orderId || null,
-        notificationType
-      });
+//       await sendNotification(user.playerId, title, message,{ orderId });
+//        // Store in DB
+//        await NotificationModel.create({
+//         userId,
+//         title,
+//         message,
+//         orderId: orderId || null,
+//         notificationType
+//       });
   
-      res.status(200).json({ message: 'Notification sent to user' });
-    } catch (error) {
-      console.error('Error sending notification:', error.message);
-      res.status(500).json({ message: 'Failed to send notification', error: error.message });
-    }
-  };
+//       res.status(200).json({ message: 'Notification sent to user' });
+//     } catch (error) {
+//       console.error('Error sending notification:', error.message);
+//       res.status(500).json({ message: 'Failed to send notification', error: error.message });
+//     }
+//   };
   
-  // ✅ Send notification to all users
-  exports.notifyAllUsers = async (req, res) => {
+//   // ✅ Send notification to all users
+exports.notifyAllUsers = async (req, res) => {
     try {
       const { title, message,productId, categoryId,subCategoryId,notificationType } = req.body;
   
@@ -190,19 +190,62 @@ exports.notifyUser = async (req, res) => {
     }
   };
 
-  const sendNotification = async (playerIds, title, message,data = {}) => {
-    const payload = {
-      app_id: process.env.ONESIGNAL_APP_ID,
-      include_player_ids: Array.isArray(playerIds) ? playerIds : [playerIds],
-      headings: { en: title },
-      contents: { en: message },
-      data
-    };
+// const sendNotification = async (playerIds, title, message,data = {}) => {
+//     const payload = {
+//       app_id: process.env.ONESIGNAL_APP_ID,
+//       include_player_ids: Array.isArray(playerIds) ? playerIds : [playerIds],
+//       headings: { en: title },
+//       contents: { en: message },
+//       data
+//     };
   
-    await axios.post('https://onesignal.com/api/v1/notifications', payload, {
-      headers: {
-        Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
+//     await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+//       headers: {
+//         Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+//         'Content-Type': 'application/json',
+//       },
+//     });
+//   };
+
+const sendNotification = async (userId, title, message, data = {}) => {
+  const payload = {
+    app_id: process.env.ONESIGNAL_APP_ID,
+    include_external_user_ids: [userId],  // ✅ your DB userId
+    headings: { en: title },
+    contents: { en: message },
+    data,
   };
+
+  await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+    headers: {
+      Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+exports.notifyUser = async (req, res) => {
+  try {
+    const { userId, title, message, orderId, notificationType } = req.body;
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await sendNotification(userId, title, message, { orderId });
+
+    await NotificationModel.create({
+      userId,
+      title,
+      message,
+      orderId: orderId || null,
+      notificationType
+    });
+
+    res.status(200).json({ message: 'Notification sent to user' });
+  } catch (error) {
+    console.error('Error sending notification:', error.message);
+    res.status(500).json({ message: 'Failed to send notification', error: error.message });
+  }
+};
