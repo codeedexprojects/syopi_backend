@@ -25,4 +25,8 @@ router.delete("/delete/:id", verifyToken(["vendor"]), vendorProductController.de
 // Delete a specific image by name
 router.delete("/delete/:id/image", verifyToken(["vendor"]), vendorProductController.deleteProductImage);
 
+//Delete variant
+router.delete("/delete/:productId/variant/:variantId", verifyToken(["vendor"]), vendorProductController.deleteVariantFromProduct)
+
+
 module.exports = router;
