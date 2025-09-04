@@ -304,25 +304,30 @@ exports.getallProducts = async (req, res) => {
     // });
 
     const productsWithDiscount = paginatedProducts.map(product => {
-    const variant = product.variants?.[0];
-    const price = variant?.price || null;
-    const wholesalePrice = variant?.wholesalePrice || null;
-    const offerPrice = variant?.offerPrice;
+      const variant = product.variants?.[0];
+      const price = variant?.price || null;
+      const wholesalePrice = variant?.wholesalePrice || null;
 
-    let discountPercentage = null;
+      // ✅ check if product has valid offer
+      const hasOffer = product.offers && product.offers.length > 0;
+      const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
 
-    if (offerPrice != null && wholesalePrice) {
-      const rawDiscount = ((wholesalePrice - offerPrice) / wholesalePrice) * 100;
-      discountPercentage = Math.floor(rawDiscount); // ✅ No decimal
-    }
+      let discountPercentage = 0;
 
-    return {
-      ...product,
-      defaultPrice: price,
-      defaultOfferPrice: offerPrice,
-      discountPercentage: discountPercentage
-    };
-  });
+      if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((wholesalePrice - effectivePrice) / wholesalePrice) * 100
+        );
+      }
+
+      return {
+        ...product,
+        defaultPrice: price,
+        defaultOfferPrice: hasOffer ? variant?.offerPrice : null,
+        discountPercentage
+      };
+    });
+
 
     // ✅ Response with pagination info
     res.status(200).json({
