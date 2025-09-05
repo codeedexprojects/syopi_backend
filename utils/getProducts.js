@@ -94,23 +94,21 @@ const getProduct = async (userId) => {
             const variant = product.variants?.[0];
             const price = variant?.price || null;
             const wholesalePrice = variant?.wholesalePrice || null;
-            const offerPrice = variant?.offerPrice;
-            const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
 
+            const hasOffer = product.offers && product.offers.length > 0;
+            const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
 
-            let discountPercentage = null;
-
-            if (offerPrice != null && wholesalePrice) {
-                const rawDiscount = ((wholesalePrice - offerPrice) / wholesalePrice) * 100;
-                discountPercentage = Math.floor(rawDiscount); 
+            let discountPercentage = 0;
+            if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
+                discountPercentage = Math.floor(((wholesalePrice - effectivePrice) / wholesalePrice) * 100);
             }
 
-            return {
+             return {
                 ...product.toObject(),
                 variants,
                 isWishlisted: productWishlists.includes(product._id.toString()),
                 defaultPrice: price,
-                defaultOfferPrice: hasValidOffer ? offerPrice : null,
+                defaultOfferPrice: hasOffer ? variant?.offerPrice : null,
                 discountPercentage
             };
         });
