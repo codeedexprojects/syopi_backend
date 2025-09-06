@@ -251,43 +251,50 @@ exports.notifyUser = async (req, res) => {
   }
 };
 
+
+
+
+const sendBroadcastNotification = async (title, message, data = {}) => {
+  const payload = {
+    app_id: process.env.ONESIGNAL_APP_ID,
+    included_segments: ["All"], 
+    headings: { en: title },
+    contents: { en: message },
+    data
+  };
+
+  await axios.post("https://onesignal.com/api/v1/notifications", payload, {
+    headers: {
+      Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+};
+
 exports.notifyAllUsers = async (req, res) => {
   try {
     const { title, message, productId, categoryId, subCategoryId, notificationType } = req.body;
-
-    // ✅ Get all users (we don't care about playerId anymore)
-    const users = await UserModel.find({});
-    if (users.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
-    }
-
-    // ✅ Extract external userIds from DB
-    const userIds = users.map((user) => user._id.toString());
 
     const customData = {};
     if (productId) customData.productId = productId;
     if (categoryId) customData.categoryId = categoryId;
     if (subCategoryId) customData.subCategoryId = subCategoryId;
 
-    // ✅ Send notification to all users by their external_user_ids
-    await sendNotification(userIds, title, message, customData);
+    await sendBroadcastNotification(title, message, customData);
 
-    // ✅ Store notifications in DB
-    const notifications = users.map(user => ({
-      userId: user._id,
+    await NotificationModel.create({
       title,
       message,
       productId: productId || null,
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
-      notificationType
-    }));
+      notificationType,
+      isBroadcast: true  
+    });
 
-    await NotificationModel.insertMany(notifications);
-
-    res.status(200).json({ message: 'Notification sent to all users' });
+    res.status(200).json({ message: "Broadcast notification sent & stored once" });
   } catch (error) {
-    console.error('Error sending bulk notification:', error.message);
-    res.status(500).json({ message: 'Failed to send bulk notification', error: error.message });
+    console.error("Error sending broadcast notification:", error.message);
+    res.status(500).json({ message: "Failed to send broadcast notification", error: error.message });
   }
 };
