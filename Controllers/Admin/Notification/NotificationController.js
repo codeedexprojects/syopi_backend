@@ -291,3 +291,53 @@ exports.notifyAllUsers = async (req, res) => {
     res.status(500).json({ message: 'Failed to send bulk notification', error: error.message });
   }
 };
+
+
+const sendBroadcastNotification = async (title, message, data = {}) => {
+  const payload = {
+    app_id: process.env.ONESIGNAL_APP_ID,
+    included_segments: ["All"], 
+    headings: { en: title },
+    contents: { en: message },
+    data
+  };
+
+  await axios.post("https://onesignal.com/api/v1/notifications", payload, {
+    headers: {
+      Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+};
+
+exports.notifyAllUsers = async (req, res) => {
+  try {
+    const { title, message, productId, categoryId, subCategoryId, notificationType } = req.body;
+
+    const customData = {};
+    if (productId) customData.productId = productId;
+    if (categoryId) customData.categoryId = categoryId;
+    if (subCategoryId) customData.subCategoryId = subCategoryId;
+
+    await sendBroadcastNotification(title, message, customData);
+
+    const users = await UserModel.find({});
+    if (users.length > 0) {
+      const notifications = users.map(user => ({
+        userId: user._id,
+        title,
+        message,
+        productId: productId || null,
+        categoryId: categoryId || null,
+        subCategoryId: subCategoryId || null,
+        notificationType
+      }));
+      await NotificationModel.insertMany(notifications);
+    }
+
+    return res.status(200).json({ message: "Notification sent to all users (including guests)" });
+  } catch (error) {
+    console.error("Error sending broadcast notification:", error.message);
+    res.status(500).json({ message: "Failed to send broadcast notification", error: error.message });
+  }
+};
