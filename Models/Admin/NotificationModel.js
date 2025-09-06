@@ -44,6 +44,7 @@ const notificationSchema = new mongoose.Schema({
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null },
   orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null },
   isRead: { type: Boolean, default: false },
+  isBroadcast: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 

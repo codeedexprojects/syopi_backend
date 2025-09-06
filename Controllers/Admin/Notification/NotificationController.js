@@ -251,46 +251,7 @@ exports.notifyUser = async (req, res) => {
   }
 };
 
-exports.notifyAllUsers = async (req, res) => {
-  try {
-    const { title, message, productId, categoryId, subCategoryId, notificationType } = req.body;
 
-    // ✅ Get all users (we don't care about playerId anymore)
-    const users = await UserModel.find({});
-    if (users.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
-    }
-
-    // ✅ Extract external userIds from DB
-    const userIds = users.map((user) => user._id.toString());
-
-    const customData = {};
-    if (productId) customData.productId = productId;
-    if (categoryId) customData.categoryId = categoryId;
-    if (subCategoryId) customData.subCategoryId = subCategoryId;
-
-    // ✅ Send notification to all users by their external_user_ids
-    await sendNotification(userIds, title, message, customData);
-
-    // ✅ Store notifications in DB
-    const notifications = users.map(user => ({
-      userId: user._id,
-      title,
-      message,
-      productId: productId || null,
-      categoryId: categoryId || null,
-      subCategoryId: subCategoryId || null,
-      notificationType
-    }));
-
-    await NotificationModel.insertMany(notifications);
-
-    res.status(200).json({ message: 'Notification sent to all users' });
-  } catch (error) {
-    console.error('Error sending bulk notification:', error.message);
-    res.status(500).json({ message: 'Failed to send bulk notification', error: error.message });
-  }
-};
 
 
 const sendBroadcastNotification = async (title, message, data = {}) => {
@@ -321,21 +282,17 @@ exports.notifyAllUsers = async (req, res) => {
 
     await sendBroadcastNotification(title, message, customData);
 
-    const users = await UserModel.find({});
-    if (users.length > 0) {
-      const notifications = users.map(user => ({
-        userId: user._id,
-        title,
-        message,
-        productId: productId || null,
-        categoryId: categoryId || null,
-        subCategoryId: subCategoryId || null,
-        notificationType
-      }));
-      await NotificationModel.insertMany(notifications);
-    }
+    await NotificationModel.create({
+      title,
+      message,
+      productId: productId || null,
+      categoryId: categoryId || null,
+      subCategoryId: subCategoryId || null,
+      notificationType,
+      isBroadcast: true  
+    });
 
-    return res.status(200).json({ message: "Notification sent to all users (including guests)" });
+    res.status(200).json({ message: "Broadcast notification sent & stored once" });
   } catch (error) {
     console.error("Error sending broadcast notification:", error.message);
     res.status(500).json({ message: "Failed to send broadcast notification", error: error.message });
