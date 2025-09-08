@@ -38,15 +38,15 @@ exports.placeOrder = async (req, res) => {
     }
 
     const shippingAddress = {
-    name: address.name,
-    number: address.number,
-    alternatenumber: address.alternatenumber,
-    address: address.address,
-    landmark: address.landmark,
-    pincode: address.pincode,
-    city: address.city,
-    state: address.state,
-    addressType: address.addressType,
+      name: address.name,
+      number: address.number,
+      alternatenumber: address.alternatenumber,
+      address: address.address,
+      landmark: address.landmark,
+      pincode: address.pincode,
+      city: address.city,
+      state: address.state,
+      addressType: address.addressType,
     };
 
     const deliveryDetails = await fetchDeliveryDetails(address.pincode);
@@ -59,19 +59,18 @@ exports.placeOrder = async (req, res) => {
 
     const settings = await CoinSettings.findOne();
 
-    // ✅ Create the parent Order ONCE
+    // ✅ Create the parent Order once
     const newOrder = new Order({
       userId,
       shippingAddress,
       checkoutId,
-      deliveryCharge:checkout.deliveryCharge,
+      deliveryCharge: checkout.deliveryCharge,
       paymentMethod,
       coinsEarned: 0,
     });
     await newOrder.save();
 
-    let totalCoinsEarned = 0;
-
+    // ✅ Update inventory for each item and create vendor orders
     for (const item of checkout.items) {
       const product = await Product.findById(item.productId);
       if (!product) continue;
@@ -88,7 +87,7 @@ exports.placeOrder = async (req, res) => {
         });
       }
 
-      // Update inventory
+      // ✅ Update inventory
       sizeData.stock -= item.quantity;
       sizeData.salesCount += item.quantity;
       variant.salesCount += item.quantity;
@@ -97,13 +96,6 @@ exports.placeOrder = async (req, res) => {
         sum + v.sizes.reduce((sizeSum, s) => sizeSum + s.stock, 0), 0);
 
       await product.save();
-
-      // ✅ Calculate coins for this item
-      let coinsEarned = 0;
-      if (settings && checkout.subtotal >= settings.minAmount) {
-        coinsEarned = Math.floor((settings.percentage / 100) * item.price * item.quantity);
-        totalCoinsEarned += coinsEarned;
-      }
 
       // ✅ Create vendor-specific order
       const vendorOrder = new VendorOrder({
@@ -122,17 +114,55 @@ exports.placeOrder = async (req, res) => {
         size: item.size,
         deliveryDetails,
         status: "Pending",
-        coinsEarned
+        coinsEarned: 0 // placeholder; will calculate globally
       });
 
       await vendorOrder.save();
     }
 
-    // ✅ Update coinsEarned in the main order (after loop)
+    // ✅ Calculate coins earned based on subtotal
+    let totalCoinsEarned = 0;
+    if (settings && checkout.subtotal >= settings.minAmount) {
+    totalCoinsEarned = Math.floor((checkout.subtotal * settings.percentage / 100) / settings.coinValue);
+      
+    }
     newOrder.coinsEarned = totalCoinsEarned;
     await newOrder.save();
 
-    // ✅ Clean up checkout and cart
+    // ✅ Deduct coins after placing the order
+    if (checkout.coinsApplied && checkout.coinsApplied > 0) {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      try {
+        const user = await User.findById(userId).session(session);
+        if (!user) {
+          throw new Error('User not found when deducting coins.');
+        }
+
+        if (user.coins < checkout.coinsApplied) {
+          throw new Error('Insufficient coins to apply.');
+        }
+
+        user.coins -= checkout.coinsApplied;
+        await user.save();
+
+        newOrder.coinsApplied = checkout.coinsApplied;
+        newOrder.discountFromCoins = checkout.discountFromCoins;
+        await newOrder.save();
+
+        await session.commitTransaction();
+        session.endSession();
+      } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error("Coin deduction failed:", error);
+        return res.status(500).json({ message: "Failed to apply coins to order.", error: error.message });
+      }
+    }
+
+    // ✅ Mark checkout as processed and cleanup
+    checkout.isProcessed = true;
+    await checkout.save();
     await Checkout.findByIdAndDelete(checkoutId);
     await Cart.findByIdAndDelete(checkout.cartId);
 
@@ -146,6 +176,7 @@ exports.placeOrder = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+
 
 
 const fetchDeliveryDetails = async (pincode) => {

@@ -357,58 +357,37 @@ exports.applyCoins = async (req, res) => {
             return res.status(400).json({ message: `Coins can only be applied for orders above ₹${minAmount}.` });
         }
 
-        // Max discount allowed in ₹
         const maxDiscount = (checkout.subtotal * maxOrderDiscountPercent) / 100;
-        
-
-        // Convert ₹ to coins, floor to avoid exceeding the limit
         const maxCoinsByOrderLimit = Math.floor(maxDiscount / coinValue);
-        
-
-        // Final coins that can be applied (limited by user balance)
         const coinsToApply = Math.min(user.coins, maxCoinsByOrderLimit);
-        
+
         if (coinsToApply <= 0) {
             return res.status(400).json({ message: 'No coins can be applied.' });
         }
 
         const discountValue = coinsToApply * coinValue;
+
+        // ✅ Store the coins applied in checkout without deducting from user balance
         checkout.coinsApplied = coinsToApply;
         checkout.discountFromCoins = discountValue;
+        await checkout.save();
 
-
-
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        try {
-            await checkout.save({ session });
-
-            user.coins -= coinsToApply;
-            await user.save({ session });
-
-            await session.commitTransaction();
-            session.endSession();
-
-            res.status(200).json({
-                message: `₹${discountValue.toFixed(2)} worth of coins applied successfully.`,
-                coinsApplied: coinsToApply,
-                discount: discountValue,
-                remainingCoins: user.coins,
-                checkout,
-            });
-        } catch (error) {
-            await session.abortTransaction();
-            session.endSession();
-            throw error;
-        }
+        return res.status(200).json({
+            message: `₹${discountValue.toFixed(2)} worth of coins applied successfully.`,
+            coinsApplied: coinsToApply,
+            discount: discountValue,
+            remainingCoins: user.coins,
+            checkout,
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        console.error("Apply Coins Error:", error);
+        return res.status(500).json({
             message: 'Internal server error.',
             error: error.message || error,
         });
     }
 };
+
 
 
 
