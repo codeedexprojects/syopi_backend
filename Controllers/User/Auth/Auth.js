@@ -540,9 +540,24 @@ const predefinedOTP = "123456";
 exports.sendOtp = async (req, res) => {
     try {
         const { phone, referredBy } = req.body;
-        if (!phone) return res.status(400).json({ message: "Phone number is required" });
+
+        if (!phone) {
+            return res.status(400).json({ message: "Phone number is required" });
+        }
 
         let user = await User.findOne({ phone });
+
+        // ✅ Referral check
+        let referrer = null;
+        if (referredBy) {
+            referrer = await User.findOne({ referralCode: referredBy });
+            if (!referrer) {
+                return res.status(400).json({ message: "Invalid referral code" });
+            }
+            if (referrer.phone === phone) {
+                return res.status(400).json({ message: "You cannot refer yourself" });
+            }
+        }
 
         // Cache phone & referral info (even for test user)
         cache.set(phone, { phone, referredBy });
@@ -568,7 +583,7 @@ exports.sendOtp = async (req, res) => {
 
             return res.status(200).json({
                 message: "Test OTP sent successfully",
-                otp: predefinedOTP, 
+                otp: predefinedOTP,
                 sessionId: "TEST_SESSION",
             });
         }
@@ -579,12 +594,18 @@ exports.sendOtp = async (req, res) => {
             return res.status(500).json({ message: "Failed to send OTP" });
         }
 
-        return res.status(200).json({ message: "OTP sent successfully", sessionId: response.data.Details });
+        return res.status(200).json({
+            message: "OTP sent successfully",
+            sessionId: response.data.Details,
+        });
+
     } catch (error) {
         console.error("Send OTP Error:", error?.response?.data || error.message);
         return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
+
 
 // Verify OTP (Handles Test User, Referral Rewards, Anti-Abuse)
 exports.verifyOtp = async (req, res) => {
