@@ -19,6 +19,17 @@ exports.getAllUsers = async (req, res) => {
         const activeUsers = await User.countDocuments({ isActive: true });
         const inactiveUsers = totalUsers - activeUsers;
 
+        // Calculate today's registered users
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const todayRegisteredUsers = await User.countDocuments({
+            createdAt: { $gte: startOfDay, $lte: endOfDay }
+        });
+
         // Most wishlisted product with count
         const mostWishlistedProduct = await Wishlist.aggregate([
             { $group: { _id: "$productId", count: { $sum: 1 } } },
@@ -43,34 +54,34 @@ exports.getAllUsers = async (req, res) => {
         ]);
 
         // Top ordered product with count
-            const topOrderedProduct = await Product.findOne({ totalSales: { $gt: 0 } })
-            .sort({ totalSales: -1 })
+        const topOrderedProduct = await Product.findOne({ totalSales: { $gt: 0 } })
+            .sort({ totalSales: -1 });
 
-
-            res.status(200).json({
-                users,
-                totalUsers,
-                activeUsers,
-                inactiveUsers,
-                mostWishlistedProduct: mostWishlistedProduct[0]
-                    ? {
-                        product: mostWishlistedProduct[0].product,
-                        count: mostWishlistedProduct[0].count
-                    }
-                    : null,
-                topOrderedProduct: topOrderedProduct
-                    ? {
-                        product: topOrderedProduct,
-                        count: topOrderedProduct.totalSales
-                    }
-                    : null
-            });
-            
+        res.status(200).json({
+            users,
+            totalUsers,
+            activeUsers,
+            inactiveUsers,
+            todayRegisteredUsers,
+            mostWishlistedProduct: mostWishlistedProduct[0]
+                ? {
+                    product: mostWishlistedProduct[0].product,
+                    count: mostWishlistedProduct[0].count
+                }
+                : null,
+            topOrderedProduct: topOrderedProduct
+                ? {
+                    product: topOrderedProduct,
+                    count: topOrderedProduct.totalSales
+                }
+                : null
+        });
 
     } catch (error) {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 exports.getUserById = async (req, res) => {
