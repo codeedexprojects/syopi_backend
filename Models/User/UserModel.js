@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema(
     image: { type: String },
     gender: {
       type: String,
-      enum: ['male', 'female']
+      enum: ['male', 'female', 'others']
     },
     referralCode: {
       type: String,
