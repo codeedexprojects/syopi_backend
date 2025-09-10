@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Vendor = require("../Admin/VendorModel");
 const Category = require("../Admin/CategoryModel");
 const Admin = require("../Admin/AdminModel");
+const Counter = require('../User/counterModel')
 
 const productSchema = new mongoose.Schema({
   productId: { type: Number, unique: true },
