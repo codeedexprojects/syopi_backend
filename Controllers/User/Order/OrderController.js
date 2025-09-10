@@ -423,7 +423,6 @@ exports.cancelOrder = async (req, res) => {
 
     // Step 1: Find vendor order by _id and userId
     const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
-    
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
@@ -457,15 +456,48 @@ exports.cancelOrder = async (req, res) => {
 
     await vendorOrder.save();
 
-    // Step 4: Update main Order model too
-    await Order.findByIdAndUpdate(
+    // Step 4: Update main Order model
+    const mainOrder = await Order.findByIdAndUpdate(
       vendorOrder.orderId,
       {
         status: "Cancelled",
         cancellationOrReturnReason: reason,
         cancellationOrReturnDescription: description || ""
-      }
+      },
+      { new: true }
     );
+
+    if (!mainOrder) {
+      return res.status(404).json({ success: false, message: "Main order not found" });
+    }
+
+    // Step 5: Update Product stock and sales at both levels
+    for (const item of mainOrder.products) {
+      const product = await Product.findById(item.productId);
+      if (!product) continue;
+
+      // Update total stock and sales
+      product.totalStock += item.quantity;
+      product.totalSales -= item.quantity;
+
+      // Find the correct variant by color and price (or another identifier)
+      const variant = product.variants.find(v => 
+        v.color === item.color && v.price === item.price
+      );
+
+      if (variant) {
+        variant.salesCount -= item.quantity;
+
+        // Find the correct size within the variant
+        const sizeObj = variant.sizes.find(s => s.size === item.size);
+        if (sizeObj) {
+          sizeObj.stock += item.quantity;
+          sizeObj.salesCount -= item.quantity;
+        }
+      }
+
+      await product.save();
+    }
 
     return res.status(200).json({
       success: true,
@@ -477,6 +509,7 @@ exports.cancelOrder = async (req, res) => {
     return res.status(500).json({ success: false, message: "Error canceling order", error: error.message });
   }
 };
+
 
 
 

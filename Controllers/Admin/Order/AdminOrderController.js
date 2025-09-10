@@ -1,6 +1,7 @@
 const VendorOrder = require('../../../Models/Vendor/VendorOrderModel');
 const UserOrder = require('../../../Models/User/OrderModel')
 const User = require('../../../Models/User/UserModel')
+const Product = require('../../../Models/Admin/productModel')
 
 // Get all orders with optional status filtering and product details
 exports.getAllOrders = async (req, res) => {
@@ -32,7 +33,6 @@ exports.getAllOrders = async (req, res) => {
 };
 
 
-// Update order status
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status, orderId } = req.body;
@@ -72,7 +72,8 @@ exports.updateOrderStatus = async (req, res) => {
     if (!userOrder) {
       return res.status(404).json({ success: false, message: "User order not found" });
     }
-
+    console.log(vendorOrder.userId);
+    
     // ✅ Fetch the user
     const user = await User.findById(vendorOrder.userId);
     if (!user) {
@@ -108,6 +109,35 @@ exports.updateOrderStatus = async (req, res) => {
       await vendorOrder.save();
     }
 
+    // ✅ Update stock and sales on cancellation or return
+    if (status === "Cancelled" || status === "Returned") {
+      for (const item of userOrder.products) {
+        const product = await Product.findById(item.productId);
+        if (!product) continue;
+
+        // Increase totalStock and decrease totalSales
+        product.totalStock += item.quantity;
+        product.totalSales -= item.quantity;
+
+        // Find the correct variant by color and price
+        const variant = product.variants.find(v =>
+          v.color === item.color && v.price === item.price
+        );
+
+        if (variant) {
+          variant.salesCount -= item.quantity;
+
+          const sizeObj = variant.sizes.find(s => s.size === item.size);
+          if (sizeObj) {
+            sizeObj.stock += item.quantity;
+            sizeObj.salesCount -= item.quantity;
+          }
+        }
+
+        await product.save();
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Order status updated",
@@ -120,7 +150,42 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+exports.getOrderByUserId = async (req, res) => {
+    try {
+        const userId = req.params.userId;
 
+        if (!userId) {
+            return res.status(400).json({ success: false, message: "User ID is required" });
+        }
 
+        // Verify user existence
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
 
+        // Find all orders for the given user
+        const orders = await UserOrder.find({ userId })
+            .populate({
+                path: 'products.productId',
+                select: 'name images category'
+            })
+            .populate({
+                path: 'coupon',
+                select: 'code type value'
+            });
 
+        if (!orders.length) {
+            return res.status(404).json({ success: false, message: "No orders found for this user" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            orders
+        });
+
+    } catch (error) {
+        console.error("Error fetching orders by userId:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
