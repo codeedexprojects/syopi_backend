@@ -34,6 +34,12 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (existingVendor.status === "blocked") {
+      return res.status(403).json({
+        message: "Your are blocked. Please contact support.",
+      });
+    }
+
     const payload = { id: existingVendor._id, role: existingVendor.role };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);

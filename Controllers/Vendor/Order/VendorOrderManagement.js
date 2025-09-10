@@ -39,11 +39,9 @@ exports.updateOrderStatus = async (req, res) => {
     console.log("Updating order status:", status, "Order ID:", orderId);
 
     const validStatuses = [
-      "Pending", "Confirmed", "Processing", "Shipping",
-      "In-Transit", "Delivered", "Cancelled", 
-      "Return_Requested", "Return_Processing", "Returned"
+      'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
+      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Processing', 'Returned'
     ];
-
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid order status" });
     }
@@ -53,53 +51,97 @@ exports.updateOrderStatus = async (req, res) => {
       updateFields.deliveredAt = new Date();
     }
 
-    const vendorOrder = await VendorOrder.findById(orderId);
+    // ✅ Update VendorOrder
+    const vendorOrder = await VendorOrder.findOneAndUpdate(
+      { _id: orderId },
+      updateFields,
+      { new: true }
+    );
+
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Vendor order not found" });
     }
 
-    // ✅ Update VendorOrder fields
-    Object.assign(vendorOrder, updateFields);
+    // ✅ Update corresponding UserOrder
+    const userOrder = await UserOrder.findByIdAndUpdate(
+      vendorOrder.orderId,
+      updateFields,
+      { new: true }
+    );
 
-    // ✅ Coin award on Delivered
-    if (
-      status === "Delivered" &&
-      !vendorOrder.coinsAwarded &&
-      vendorOrder.coinsEarned > 0
-    ) {
-      await User.findByIdAndUpdate(vendorOrder.userId, {
-        $inc: { coins: vendorOrder.coinsEarned }
-      });
-      vendorOrder.coinsAwarded = true;
+    if (!userOrder) {
+      return res.status(404).json({ success: false, message: "User order not found" });
+    }
+    console.log(vendorOrder.userId);
+    
+    // ✅ Fetch the user
+    const user = await User.findById(vendorOrder.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // ✅ Coin reversal on Cancelled/Returned
+    // ✅ Coins: Award on "Delivered" using coinsEarned from UserOrder
+    if (status === "Delivered" && !vendorOrder.coinsAwarded && userOrder.coinsEarned > 0) {
+      await user.creditCoins(
+        userOrder.coinsEarned,
+        userOrder._id,
+        'Order',
+        'Coins awarded for delivered order'
+      );
+      vendorOrder.coinsAwarded = true;
+      await vendorOrder.save();
+    }
+
+    // ✅ Coins: Reversal on "Cancelled" or "Returned" using coinsEarned from UserOrder
     if (
-      ["Cancelled", "Returned"].includes(status) &&
+      (status === "Cancelled" || status === "Returned") &&
       vendorOrder.coinsAwarded &&
       !vendorOrder.coinsReversed &&
-      vendorOrder.coinsEarned > 0
+      userOrder.coinsEarned > 0
     ) {
-      await User.findByIdAndUpdate(vendorOrder.userId, {
-        $inc: { coins: -vendorOrder.coinsEarned }
-      });
+      await user.spendCoins(
+        userOrder.coinsEarned,
+        userOrder._id,
+        'Order',
+        'Coins reversed due to cancellation or return'
+      );
       vendorOrder.coinsReversed = true;
+      await vendorOrder.save();
     }
 
-    await vendorOrder.save();
+    // ✅ Update stock and sales on cancellation or return
+    if (status === "Cancelled" || status === "Returned") {
+      for (const item of userOrder.products) {
+        const product = await Product.findById(item.productId);
+        if (!product) continue;
 
-    // ✅ Update main Order status (top-level)
-    if (vendorOrder.orderId) {
-      await UserOrder.findByIdAndUpdate(
-        vendorOrder.orderId,
-        updateFields
-      );
+        // Increase totalStock and decrease totalSales
+        product.totalStock += item.quantity;
+        product.totalSales -= item.quantity;
+
+        // Find the correct variant by color and price
+        const variant = product.variants.find(v =>
+          v.color === item.color && v.price === item.price
+        );
+
+        if (variant) {
+          variant.salesCount -= item.quantity;
+
+          const sizeObj = variant.sizes.find(s => s.size === item.size);
+          if (sizeObj) {
+            sizeObj.stock += item.quantity;
+            sizeObj.salesCount -= item.quantity;
+          }
+        }
+
+        await product.save();
+      }
     }
 
     return res.status(200).json({
       success: true,
-      message: "Order status updated successfully",
-      order: vendorOrder,
+      message: "Order status updated",
+      order: vendorOrder
     });
 
   } catch (error) {

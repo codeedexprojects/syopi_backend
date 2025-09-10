@@ -265,7 +265,7 @@ exports.updateVendorStatus = async (req, res) => {
     const { status } = req.body;
 
     // Validate status value
-    if (!['approved', 'rejected', 'pending'].includes(status)) {
+    if (!['approved', 'rejected', 'pending', 'blocked'].includes(status)) {
       return res.status(400).json({ message: "Invalid status. Must be 'approved', 'rejected', or 'pending'" });
     }
 

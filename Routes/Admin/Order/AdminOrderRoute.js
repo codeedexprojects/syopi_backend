@@ -9,4 +9,7 @@ router.get('/', verifyToken(['admin']), AdminOrderController.getAllOrders);
 // Route to update order status
 router.patch('/', verifyToken(['admin']), AdminOrderController.updateOrderStatus);
 
+router.get('/:userId', verifyToken(['admin']), AdminOrderController.getOrderByUserId);
+
+
 module.exports = router;
