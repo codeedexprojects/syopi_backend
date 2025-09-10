@@ -47,6 +47,7 @@ const Product = require('../../../Models/Admin/productModel');
 const Order = require('../../../Models/Vendor/VendorOrderModel');
 const User = require('../../../Models/User/UserModel');
 const VendorPayout = require('../../../Models/Admin/vendorPayout')
+const UserOrder = require('../../../Models/User/OrderModel')
 
 // 🔸 Product Stats with filters
 const getProductStats = async (req, res) => {
@@ -63,6 +64,7 @@ const getProductStats = async (req, res) => {
     const totalProducts = await Product.countDocuments();
     const outOfStock = await Product.countDocuments({ totalStock: { $lte: 0 } });
     const limitedStock = await Product.countDocuments({ totalStock: { $lte: 10, $gt: 0 } });
+    const totalOrders = await UserOrder.countDocuments()
 
     const filteredProducts = await Product.find(filter).lean();
 
@@ -70,6 +72,7 @@ const getProductStats = async (req, res) => {
       totalProducts,
       outOfStock,
       limitedStock,
+      totalOrders,
       filteredCount: filteredProducts.length,
       products: filteredProducts
     });
@@ -123,7 +126,6 @@ const getOrderStats = async (req, res) => {
         const salesData = await Order.aggregate([
             {
                 $match: {
-                    status: "Delivered",
                     createdAt: { $gte: startDate }
                 }
             },
