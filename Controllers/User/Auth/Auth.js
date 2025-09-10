@@ -662,23 +662,24 @@ exports.verifyOtp = async (req, res) => {
             const wasDeleted = await DeletedUser.findOne({ phone });
             if (wasDeleted) referredBy = null;
 
-            // Award referral coins to referrer (if valid)
-            if (referredBy) {
-                const referrer = await User.findOne({ referralCode: referredBy });
-                if (referrer) {
-                    await User.findByIdAndUpdate(referrer._id, { $inc: { coins: referrerReward } });
-                } else {
-                    referredBy = null;
-                }
-            }
 
             // Create new user with referral bonus (if eligible)
             user = await User.create({
                 phone,
                 referredBy,
                 playerId,
-                coins: referredBy ? newUserReward : 0
             });
+
+            // Award referral coins to referrer (if valid)
+            if (referredBy) {
+                const referrer = await User.findOne({ referralCode: referredBy });
+                if (referrer) {
+                    await referrer.creditCoins(referrerReward, user._id, 'Referral', `Referral bonus for referring ${phone}`);
+                } else {
+                    referredBy = null;
+                }
+                    await user.creditCoins(newUserReward, referrer?._id, 'Referral', `Referral bonus for being referred by ${referrer?.phone || 'unknown'}`);
+            }
         }
         else {
               if (user && playerId) {                

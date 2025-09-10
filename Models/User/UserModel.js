@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const Counter = require('./counterModel'); 
+const CoinHistory = require('./coinHistoryModel'); 
 
-const userSchema = new mongoose.Schema(
-  {
+const userSchema = new mongoose.Schema({
+    userId: { type: Number, unique: true },
     name: {
       type: String,
       minlength: [3, 'Name must be at least 3 characters long'],
@@ -62,13 +64,56 @@ const userSchema = new mongoose.Schema(
     appleId: { type: String, default: "user" },
     playerId: { type: String, default: null },
     externalUserId: { type: String, unique: true, sparse: true },
-
     isActive: { type: Boolean, default: true },
-  },
-  { timestamps: true }
-);
+}, { timestamps: true });
 
+// ✅ Pre-save hook to assign userId
+userSchema.pre('save', async function(next) {
+    if (!this.isNew) return next();
 
+    try {
+        const counter = await Counter.findOneAndUpdate(
+            { name: 'userId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        );
 
+        this.userId = counter.seq;
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ✅ Methods to credit and spend coins
+userSchema.methods.creditCoins = async function(amount, referenceId, referenceType, description) {
+    this.coins += amount;
+    await this.save();
+
+    await CoinHistory.create({
+        userId: this._id,
+        amount: amount,
+        referenceId: referenceId,
+        referenceType: referenceType,
+        description: description,
+        type: 'credit'
+    });
+};
+
+userSchema.methods.spendCoins = async function(amount, referenceId, referenceType, description) {
+    if (this.coins < amount) throw new Error('Insufficient coins');
+
+    this.coins -= amount;
+    await this.save();
+
+    await CoinHistory.create({
+        userId: this._id,
+        amount: amount,
+        referenceId: referenceId,
+        referenceType: referenceType,
+        description: description,
+        type: 'debit'
+    });
+};
 
 module.exports = mongoose.model('User', userSchema);

@@ -63,30 +63,47 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     // ✅ Update corresponding UserOrder
-    await UserOrder.findByIdAndUpdate(
+    const userOrder = await UserOrder.findByIdAndUpdate(
       vendorOrder.orderId,
       updateFields,
       { new: true }
     );
 
-    // ✅ Coins: Award on "Delivered"
-    if (status === "Delivered" && !vendorOrder.coinsAwarded && vendorOrder.coinsEarned > 0) {
-      await User.findByIdAndUpdate(vendorOrder.userId, {
-        $inc: { coins: vendorOrder.coinsEarned }
-      });
+    if (!userOrder) {
+      return res.status(404).json({ success: false, message: "User order not found" });
+    }
+
+    // ✅ Fetch the user
+    const user = await User.findById(vendorOrder.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // ✅ Coins: Award on "Delivered" using coinsEarned from UserOrder
+    if (status === "Delivered" && !vendorOrder.coinsAwarded && userOrder.coinsEarned > 0) {
+      await user.creditCoins(
+        userOrder.coinsEarned,
+        userOrder._id,
+        'Order',
+        'Coins awarded for delivered order'
+      );
       vendorOrder.coinsAwarded = true;
       await vendorOrder.save();
     }
 
-    // ✅ Coins: Reversal on "Cancelled" or "Returned"
+    // ✅ Coins: Reversal on "Cancelled" or "Returned" using coinsEarned from UserOrder
     if (
       (status === "Cancelled" || status === "Returned") &&
       vendorOrder.coinsAwarded &&
-      !vendorOrder.coinsReversed
+      !vendorOrder.coinsReversed &&
+      userOrder.coinsEarned > 0
     ) {
-      await User.findByIdAndUpdate(vendorOrder.userId, {
-        $inc: { coins: -vendorOrder.coinsEarned }
-      });
+      await user.spendCoins(
+        userOrder.coinsEarned,
+        userOrder._id,
+        'Order',
+        'Coins reversed due to cancellation or return'
+      );
       vendorOrder.coinsReversed = true;
       await vendorOrder.save();
     }
