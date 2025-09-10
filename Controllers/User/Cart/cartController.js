@@ -138,7 +138,7 @@ exports.getCart = async (req, res) => {
     cart.subtotal = updatedSubtotal;
     cart.totalPrice = updatedSubtotal - cart.discount;
 
-    res.status(200).json({ success: true, cart });
+    res.status(200).json(cart);
   } catch (error) {
     console.error(error);
     res.status(500).json({
