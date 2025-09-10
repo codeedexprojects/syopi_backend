@@ -6,6 +6,7 @@ const verifyToken = require('../../../Middlewares/jwtConfig')
 
 router.get('/view',verifyToken(['admin']),DeliveryCharge.getDeliverySettings)
 router.put('/update',verifyToken(['admin']),DeliveryCharge.updateDeliverySettings)
+router.get('/delivery-total', verifyToken(['admin']), DeliveryCharge.getTotalDeliveryCharges)
 
 
 

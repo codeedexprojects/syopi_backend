@@ -72,6 +72,16 @@ const VendorOrderSchema = new mongoose.Schema(
 // Pre-save hook to manage vendor payout creation and updates
 VendorOrderSchema.pre("save", async function (next) {
   try {
+    if (this.status !== "Delivered") {
+      return next();
+    }
+
+    const vendor = await mongoose.model("Vendor").findById(this.vendorId);
+    if (!vendor || vendor.status !== "approved") {
+      return next(); 
+    }
+
+    // Get Admin Commission settings
     const adminCommissionSettings = await AdminCommission.findOne();
     if (!adminCommissionSettings) {
       return next(new Error("Admin commission settings not found"));
@@ -80,21 +90,18 @@ VendorOrderSchema.pre("save", async function (next) {
     const vendorId = this.vendorId;
     const orderAmount = this.itemTotal;
     const couponDiscount = this.couponDiscountedValue;
-    const adminCommission = (orderAmount * adminCommissionSettings.commissionRate) / 100; 
+    const adminCommission = (orderAmount * adminCommissionSettings.commissionRate) / 100;
     const netPayable = orderAmount - adminCommission - couponDiscount;
 
-    // Find an existing pending payout for the vendor
     let vendorPayout = await VendorPayout.findOne({ vendorId, status: "Pending" });
 
     if (vendorPayout) {
-      // If a pending payout exists, update it
       vendorPayout.totalSales += orderAmount;
       vendorPayout.totalCouponDiscounts += couponDiscount;
       vendorPayout.adminCommission += adminCommission;
       vendorPayout.netPayable += netPayable;
       vendorPayout.orderIds.push(this._id);
     } else {
-      // If no pending payout exists, create a new one
       vendorPayout = new VendorPayout({
         vendorId,
         totalSales: orderAmount,
@@ -106,12 +113,13 @@ VendorOrderSchema.pre("save", async function (next) {
       });
     }
 
-    // Save the vendor payout record
     await vendorPayout.save();
     next();
   } catch (error) {
     next(error);
   }
 });
+
+
 
 module.exports = mongoose.model("VendorOrder", VendorOrderSchema);
