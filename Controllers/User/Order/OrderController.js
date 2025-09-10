@@ -143,8 +143,8 @@ exports.placeOrder = async (req, res) => {
           throw new Error('Insufficient coins to apply.');
         }
 
-        user.coins -= checkout.coinsApplied;
-        await user.save();
+        await user.spendCoins(checkout.coinsApplied, newOrder._id, 'Order', 'Coins applied to order discount');
+
 
         newOrder.coinsApplied = checkout.coinsApplied;
         newOrder.discountFromCoins = checkout.discountFromCoins;

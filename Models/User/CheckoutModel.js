@@ -75,7 +75,7 @@ CheckoutSchema.pre('save', async function (next) {
 
       if (coupon.type === 'percentage') {
         couponDiscount = (totalApplicablePrice * coupon.value) / 100;
-      } else if (coupon.type === 'flat') {
+      } else if (coupon.type === 'fixed') {
         couponDiscount = coupon.value;
       }
 

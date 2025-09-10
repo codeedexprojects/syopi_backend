@@ -290,20 +290,23 @@ exports.getAvailableCoupons = async(req,res) => {
 
 
         const coupons = await Coupon.find({
-            $and: [
-                { createdBy: { $in: ownerId } },
+            status: 'active',
+            endDate: { $gte: new Date() },
+            $or: [
                 {
+                    applicableCategories: { $size: 0 },
+                    applicableSubcategories: { $size: 0 },
+                    applicableProducts: { $size: 0 }
+                },
+                {
+                    createdBy: { $in: ownerId },
                     $or: [
                         { applicableCategories: { $in: categoryIds } },
                         { applicableSubcategories: { $in: subcategoryIds } },
                         { applicableProducts: { $in: productIds } },
                     ],
-                },
-
-            ],
-            status: 'active',
-            startDate: { $lte: new Date() },
-            endDate: { $gte: new Date() },
+                }
+            ]
         });
 
         if(!coupons || coupons.length === 0){

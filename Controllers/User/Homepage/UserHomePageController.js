@@ -34,7 +34,7 @@ exports.getHomePage = async (req, res) => {
             affordableProducts: await affordableProductsModel.find(),
             lowToHighProducts: await LowestProductModel.find(),
             topPicksBestPrice: await TopPicksModel.find(),
-            OfferSection: await OfferSectionModel.find(),
+            OfferSection: await OfferSectionModel.find().populate('coin'),
             ProductSliders: await Slider.find({ isActive: true }),
             CategorySliders: await CategorySlider.find({ isActive: true }),
             BrandSliders: await BrandSlider.find({ isActive: true }),
@@ -58,7 +58,17 @@ exports.getHomePage = async (req, res) => {
         const lowToHighProducts = await LowestProductModel.find();
 
         const brands = await Brand.find().populate('discount');
-        const OfferSection = await OfferSectionModel.find();
+        const OfferSection = await OfferSectionModel.find().populate('coin' , 'referralCoins');
+
+        const transformedOfferSection = OfferSection.map(section => {
+            return {
+                ...section.toObject(),
+                coins: section.coin ? section.coin.referralCoins : null, // Extract referralCoins and rename to coins
+                coin: undefined // Optionally remove the original 'coin' field
+            };
+        });
+
+
         const topPicksBestPrice = await TopPicksModel.find();
 
         // Fetch sliders
@@ -94,7 +104,7 @@ exports.getHomePage = async (req, res) => {
             affordableProducts, // Products under ₹1000
             lowToHighProducts, // Products sorted from low to high price
             topPicksBestPrice, // Your Top Picks in the Best Price section
-            OfferSection,
+            OfferSection:transformedOfferSection,
             ProductSliders,
             CategorySliders,
             BrandSliders,

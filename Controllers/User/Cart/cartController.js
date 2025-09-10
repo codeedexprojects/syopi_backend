@@ -113,18 +113,41 @@ exports.getCart = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const cart = await Cart.findOne({ userId:userId }).populate('items.productId', 'name images') .exec();
+    const cart = await Cart.findOne({ userId }).populate('items.productId', 'name images variants offers').exec();
     if (!cart) {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    res.status(200).json(cart);
+    // ✅ Update prices based on current offers before sending response
+    let updatedSubtotal = 0;
+
+    for (const item of cart.items) {
+      const product = item.productId;
+      const variant = product.variants.find(v => v.color === item.color);
+      if (!variant) continue;
+
+      const hasOffer = Array.isArray(product.offers) && product.offers.length > 0;
+      const effectivePrice = hasOffer && variant.offerPrice && variant.offerPrice > 0
+        ? variant.offerPrice
+        : variant.price;
+
+      item.price = effectivePrice;
+      updatedSubtotal += item.price * item.quantity;
+    }
+
+    cart.subtotal = updatedSubtotal;
+    cart.totalPrice = updatedSubtotal - cart.discount;
+
+    res.status(200).json({ success: true, cart });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, 
-        message: error.message || 'Failed to get cart'  });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get cart'
+    });
   }
 };
+
 
 // increment or decrement quantity
 exports.updateCartQuantity = async (req, res) => {
