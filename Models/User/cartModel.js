@@ -47,32 +47,29 @@ CartSchema.pre('save', async function (next) {
 
     for (const item of this.items) {
       // Fetch the product details
-      const product = await Product.findById(item.productId).select('variants');
+      const product = await Product.findById(item.productId).select('variants offers');
       if (!product) {
         throw new Error(`Product with ID ${item.productId} not found`);
       }
 
       // Find the matching variant by color
-      const variant = product.variants.find(variant => variant.color === item.color);
+      const variant = product.variants.find(v => v.color === item.color);
       if (!variant) {
         throw new Error(`Variant with color '${item.color}' not found for product ID ${item.productId}`);
       }
 
       // Find the matching size details within the variant
-      const sizeDetails = variant.sizes.find(size => size.size === item.size);
+      const sizeDetails = variant.sizes.find(s => s.size === item.size);
       if (!sizeDetails) {
         throw new Error(`Size '${item.size}' not found for product ID ${item.productId} with color '${item.color}'`);
       }
 
-      // Ensure the offer price is valid
-      if (!variant.offerPrice || variant.offerPrice <= 0) {
-        throw new Error(`Offer price not set or invalid for product ID ${item.productId} with color '${item.color}'`);
+      // Determine the price based on offer availability
+      if (product.offers && product.offers.length > 0 && variant.offerPrice && variant.offerPrice > 0) {
+        item.price = variant.offerPrice;
+      } else {
+        item.price = variant.price;
       }
-
-      // Always set the price for the item to ensure correctness
-      item.price = variant.offerPrice;
-
-      // item.itemTotal=variant.offerPrice*item.quantity
 
       // Calculate subtotal for this item
       subtotal += item.price * item.quantity;
@@ -87,6 +84,7 @@ CartSchema.pre('save', async function (next) {
     next(error);
   }
 });
+
 
 
 
