@@ -23,5 +23,8 @@ router.delete('/delete', verifyToken(['customer']), profileController.deleteUser
 // Register vendor
 router.post('/register', verifyToken(['customer']), uploadFields,profileController.registerVendor);
 
+router.post('/logout', verifyToken(['customer']), profileController.logout);
+
+
 
 module.exports = router;
