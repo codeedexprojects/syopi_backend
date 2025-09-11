@@ -2,10 +2,8 @@ const mongoose = require("mongoose");
 const Vendor = require("../Admin/VendorModel");
 const Category = require("../Admin/CategoryModel");
 const Admin = require("../Admin/AdminModel");
-const Counter = require('../User/counterModel')
 
 const productSchema = new mongoose.Schema({
-  productId: { type: Number, unique: true },
   name: { type: String, required: true },
   productCode: { type: String, unique: true },
   productType: { type: String, enum: ["Dress", "Chappal"], required: true },
@@ -74,12 +72,6 @@ const productSchema = new mongoose.Schema({
 // Pre-save hook to generate product code, populate supplierName, and calculate total stock
 productSchema.pre("save", async function (next) {
   if (this.isNew) {
-    const counter = await Counter.findOneAndUpdate(
-        { name: 'product' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      this.productId = counter.seq;
 
     const ownerId = this.owner;
     const productType = this.productType;

@@ -86,7 +86,7 @@ const getProductStats = async (req, res) => {
 // -------------------- Sales Graph --------------------
 const getOrderStats = async (req, res) => {
     try {
-        const { range = "month" } = req.query; // default: last month
+        const { range = "month" } = req.query;
         const now = new Date();
         let startDate;
 
@@ -113,35 +113,66 @@ const getOrderStats = async (req, res) => {
                 });
         }
 
-        // Build dynamic group
+        // Possible statuses to include
+        const possibleStatuses = [
+            "Pending", "Confirmed", "Processing", "Shipping",
+            "In-Transit", "Delivered", "Cancelled",
+            "Return_Requested", "Return_Processing", "Returned"
+        ];
+
+        const matchFilter = {
+            createdAt: { $gte: startDate }
+        };
+
         let groupId = {
             year: { $year: "$createdAt" },
             month: { $month: "$createdAt" }
         };
-
         if (range === "today" || range === "week" || range === "month") {
             groupId.day = { $dayOfMonth: "$createdAt" };
         }
 
         const salesData = await Order.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate }
-                }
-            },
+            { $match: matchFilter },
             {
                 $group: {
-                    _id: groupId,
-                    totalSales: { $sum: "$itemTotal" },
+                    _id: {
+                        ...groupId,
+                        status: "$status"
+                    },
+                    totalSales: {
+                        $sum: {
+                            $cond: [{ $eq: ["$status", "Delivered"] }, "$finalPayableAmount", 0]
+                        }
+                    },
                     orderCount: { $sum: 1 }
                 }
             },
             {
-                $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 }
+                $group: {
+                    _id: {
+                        year: "$_id.year",
+                        month: "$_id.month",
+                        day: "$_id.day"
+                    },
+                    totalSales: { $sum: "$totalSales" },
+                    statuses: {
+                        $push: {
+                            status: "$_id.status",
+                            count: "$orderCount"
+                        }
+                    }
+                }
+            },
+            {
+                $sort: {
+                    "_id.year": 1,
+                    "_id.month": 1,
+                    "_id.day": 1
+                }
             }
         ]);
 
-        // ✅ Format consistently for frontend
         const formattedData = salesData.map(item => {
             let label;
             if (range === "year") {
@@ -150,10 +181,21 @@ const getOrderStats = async (req, res) => {
                 label = `${item._id.day}/${item._id.month}`;
             }
 
+            // Ensure every possible status is included
+            const statusMap = {};
+            item.statuses.forEach(s => {
+                statusMap[s.status] = s.count;
+            });
+
+            const completeStatuses = possibleStatuses.map(status => ({
+                status,
+                count: statusMap[status] || 0
+            }));
+
             return {
                 label,
                 totalSales: item.totalSales,
-                orderCount: item.orderCount
+                statuses: completeStatuses
             };
         });
 
@@ -164,10 +206,10 @@ const getOrderStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Sales Graph Error:", error.message);
+        console.error("Order Stats Error:", error.message);
         res.status(500).json({
             success: false,
-            message: "Error fetching sales graph data",
+            message: "Error fetching order stats",
             error: error.message
         });
     }

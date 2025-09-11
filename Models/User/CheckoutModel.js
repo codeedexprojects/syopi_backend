@@ -53,7 +53,7 @@ CheckoutSchema.pre('save', async function (next) {
     let couponDiscount = 0;
     let vendorCoinBreakdown = {};
 
-    const cart = await Cart.findById(this.cartId).populate('items.productId', 'price owner');
+    const cart = await Cart.findById(this.cartId).populate('items.productId', 'price owner variants offers');
     if (!cart) throw new Error('Cart not found');
 
     let applicableProducts = [];
@@ -173,7 +173,42 @@ CheckoutSchema.pre('save', async function (next) {
       );
     }
 
-    this.ReducedDiscount = this.couponDiscount + this.coinDiscount;
+    // After COUPON & COIN logic in pre-save
+    let totalReducedDiscount = 0;
+
+    this.items = this.items.map((item) => {
+      const cartItem = cart.items.find(
+        (cItem) => cItem.productId._id.toString() === item.productId.toString()
+      );
+
+      let wholesaleDiscount = 0;
+
+      if (cartItem && cartItem.productId.variants && cartItem.productId.variants.length > 0) {
+        
+        const variant = cartItem.productId.variants.find(v => 
+          v.color === item.color && v.colorName === item.colorName
+        );
+        if (variant) {
+          if (cartItem.productId.offers && cartItem.productId.offers.length > 0) {            
+            wholesaleDiscount = (variant.wholesalePrice - variant.offerPrice) * item.quantity;
+          } else {            
+            wholesaleDiscount = (variant.wholesalePrice - variant.price) * item.quantity;
+          }
+        }
+      }
+
+      totalReducedDiscount += wholesaleDiscount;
+
+      return {
+        ...item,
+        wholesaleDiscountedValue: wholesaleDiscount, // optional to track per item
+      };
+    });
+
+    // Add to existing ReducedDiscount
+    this.ReducedDiscount = (this.couponDiscount || 0) + (this.coinDiscount || 0) + totalReducedDiscount;
+
+
     next();
   } catch (error) {
     next(error);

@@ -30,6 +30,7 @@ exports.getHomePage = async (req, res) => {
             products: [],
             topSales: [],
             newArrivals: [],
+            featuredProducts: [],
             brands: await Brand.find().populate('discount'),
             affordableProducts: await affordableProductsModel.find(),
             lowToHighProducts: await LowestProductModel.find(),
@@ -48,9 +49,14 @@ exports.getHomePage = async (req, res) => {
         
 
         // Limit results to the latest 10
-        const newArrivals = allProducts
+        const featuredProducts = allProducts
         .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0)) // highest sales first
         .slice(0, 10);
+
+        const newArrivals = allProducts
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10); 
+
         // Section: Products under ₹1000
         const affordableProducts = await affordableProductsModel.find();
 
@@ -99,7 +105,8 @@ exports.getHomePage = async (req, res) => {
         // Return the response with all the sections
         res.status(200).json({
             topSales,
-            newArrivals, // Newly added products (with filter applied)
+            featuredProducts,
+            newArrivals,
             brands, 
             affordableProducts, // Products under ₹1000
             lowToHighProducts, // Products sorted from low to high price

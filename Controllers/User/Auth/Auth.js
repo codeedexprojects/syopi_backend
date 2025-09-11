@@ -621,14 +621,27 @@ exports.verifyOtp = async (req, res) => {
             const cachedData = cache.get(phone);
             if (!cachedData) return res.status(400).json({ message: "Session expired. Please login again." });
 
+            // Ensure test user is active
+            if (!user) {
+                user = await User.create({
+                    phone,
+                    name: "Test User",
+                    role: "customer",
+                    isActive: true
+                });
+            } else {
+                user.isActive = true;
+                await user.save();
+            }
+
+            if (playerId) {
+                user.playerId = playerId;
+                await user.save();
+            }
+
             const payload = { id: cachedData.userId, role: cachedData.role };
             const accessToken = generateAccessToken(payload);
             const refreshToken = generateRefreshToken(payload);
-            if(playerId){
-              user.playerId = playerId;
-              user.save() 
-            }
-                       
 
             return res.status(200).json({
                 message: "Test user logged in successfully",
@@ -643,7 +656,7 @@ exports.verifyOtp = async (req, res) => {
             });
         }
 
-        // ✅ Verify OTP for normal users
+        // ✅ Normal OTP Verification
         const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/VERIFY/${sessionId}/${otp}`);
         if (response.data.Status !== "Success") {
             return res.status(401).json({ message: "Invalid OTP" });
@@ -656,21 +669,19 @@ exports.verifyOtp = async (req, res) => {
             const referrerReward = settings?.referralCoins || 100;
             const newUserReward = settings?.referralCoinsUser || 40;
             let referredBy = cachedData?.referredBy;
-            
 
-            // Anti-abuse check (Don't allow referral if this phone was previously registered)
+            // Anti-abuse check
             const wasDeleted = await DeletedUser.findOne({ phone });
             if (wasDeleted) referredBy = null;
 
-
-            // Create new user with referral bonus (if eligible)
             user = await User.create({
                 phone,
                 referredBy,
                 playerId,
+                isActive: true // ✅ Set active for new user
             });
 
-            // Award referral coins to referrer (if valid)
+            // Award referral coins if applicable
             if (referredBy) {
                 const referrer = await User.findOne({ referralCode: referredBy });
                 if (referrer) {
@@ -678,22 +689,22 @@ exports.verifyOtp = async (req, res) => {
                 } else {
                     referredBy = null;
                 }
-                    await user.creditCoins(newUserReward, referrer?._id, 'Referral', `Referral bonus for being referred by ${referrer?.phone || 'unknown'}`);
+                await user.creditCoins(newUserReward, referrer?._id, 'Referral', `Referral bonus for being referred by ${referrer?.phone || 'unknown'}`);
             }
-        }
-        else {
-              if (user && playerId) {                
-                  await User.findByIdAndUpdate(user._id, { playerId });
-                  user.playerId = playerId;                  
-              }
-          }
 
-        // Generate tokens & return response
+        } else {
+            // Existing user: update playerId and set active
+            if (playerId) user.playerId = playerId;
+            user.isActive = true; // ✅ Set active
+            await user.save();
+        }
+
+        // Generate tokens
         const payload = { id: user._id, role: user.role };
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
 
-        cache.del(phone); // Cleanup cache after successful login
+        cache.del(phone); // Cleanup cache
 
         return res.status(200).json({
             message: "Login successful",
@@ -706,11 +717,13 @@ exports.verifyOtp = async (req, res) => {
             accessToken,
             refreshToken,
         });
+
     } catch (error) {
         console.error("Verify OTP Error:", error?.response?.data || error.message);
         return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 // Resend OTP (Preserves referral info & supports Test User)
 exports.resendOtp = async (req, res) => {
