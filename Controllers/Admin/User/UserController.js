@@ -4,6 +4,7 @@ const Order = require('../../../Models/Vendor/VendorOrderModel');
 const Wishlist = require('../../../Models/User/WishlistModel');
 const Cart =  require('../../../Models/User/cartModel')
 const Review = require('../../../Models/User/ReviewModel')
+const CoinHistory = require('../../../Models/User/coinHistoryModel')
 
 
 // get all users
@@ -115,6 +116,7 @@ exports.getUserById = async (req, res) => {
 
         const referredUsers = await User.find({ referredBy: user.referralCode }).select("-password");
 
+        const coinTransactions = await CoinHistory.find({userId})
 
         // Response
         res.status(200).json({
@@ -124,7 +126,8 @@ exports.getUserById = async (req, res) => {
             orders,
             totalOrders,
             activity,
-            referredUsers
+            referredUsers,
+            coinTransactions
         });
 
     } catch (error) {
