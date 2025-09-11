@@ -93,7 +93,7 @@ const getVendorOrderStats = async (req, res) => {
     const totalOrders = await Order.countDocuments({ vendorId });
     const currentOrders = await Order.countDocuments({
       vendorId,
-      status: { $in: ['Pending', 'Processing', 'In-Transit'] }
+      status: { $nin: ['Pending', 'Cancelled', 'Return_Requested', 'Return_Processing', 'Returned'] }
     });
 
     const orderStatusCount = await Order.aggregate([
