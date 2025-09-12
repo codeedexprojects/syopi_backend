@@ -11,5 +11,8 @@ router.patch('/', verifyToken(['admin']), AdminOrderController.updateOrderStatus
 
 router.get('/:userId', verifyToken(['admin']), AdminOrderController.getOrderByUserId);
 
+router.patch('/approve', verifyToken(['admin']), AdminOrderController.adminApproveReturn);
+
+
 
 module.exports = router;

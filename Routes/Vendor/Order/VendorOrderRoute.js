@@ -9,4 +9,7 @@ router.get('/', verifyToken(['vendor']), vendorOrderManagement.getOrderByVendorI
 // Route to update order status
 router.patch('/', verifyToken(['vendor']), vendorOrderManagement.updateOrderStatus);
 
+router.patch('/approve', verifyToken(['vendor']), vendorOrderManagement.vendorApproveReturn);
+
+
 module.exports = router;

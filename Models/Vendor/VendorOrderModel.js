@@ -32,7 +32,7 @@ const VendorOrderSchema = new mongoose.Schema(
       enum: {
         values:
          [ 'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
-            'Delivered', 'Cancelled','Return_Requested', 'Return_Processing', 'Returned'
+            'Delivered', 'Cancelled','Return_Requested', 'Return_Approved', 'Return_Processing', 'Returned'
           ],
         message: 'Invalid order status'
       }, 

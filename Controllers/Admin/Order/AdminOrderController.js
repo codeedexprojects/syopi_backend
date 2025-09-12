@@ -36,11 +36,10 @@ exports.getAllOrders = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status, orderId } = req.body;
-    console.log("Updating order status:", status, "Order ID:", orderId);
 
     const validStatuses = [
       'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
-      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Processing', 'Returned'
+      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Approved', 'Return_Processing', 'Returned'
     ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid order status" });
@@ -72,7 +71,6 @@ exports.updateOrderStatus = async (req, res) => {
     if (!userOrder) {
       return res.status(404).json({ success: false, message: "User order not found" });
     }
-    console.log(vendorOrder.userId);
     
     // ✅ Fetch the user
     const user = await User.findById(vendorOrder.userId);
@@ -189,3 +187,48 @@ exports.getOrderByUserId = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server error", error: error.message });
     }
 };
+
+exports.adminApproveReturn = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    // ✅ Fetch the VendorOrder by ID
+    const vendorOrder = await VendorOrder.findById(orderId);
+    if (!vendorOrder) {
+      return res.status(404).json({ success: false, message: "Vendor order not found" });
+    }
+
+    // ✅ Check if the current status is 'Return_Approved'
+    if (vendorOrder.status !== "Return_Approved") {
+      return res.status(400).json({ success: false, message: "Return not approved by vendor yet" });
+    }
+
+    // ✅ Update VendorOrder's status to 'Return_Processing'
+    vendorOrder.status = "Return_Processing";
+    await vendorOrder.save();
+
+    // ✅ Update the corresponding UserOrder's status to 'Return_Processing'
+    const userOrder = await UserOrder.findByIdAndUpdate(
+      vendorOrder.orderId,
+      { status: "Return_Processing" },
+      { new: true }
+    );
+
+    if (!userOrder) {
+      return res.status(404).json({ success: false, message: "User order not found" });
+    }
+
+    // ✅ Return success with updated order details
+    return res.status(200).json({
+      success: true,
+      message: "Return approved by admin and now processing",
+      vendorOrder,
+      userOrder
+    });
+
+  } catch (error) {
+    console.error("Error approving return by admin:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
