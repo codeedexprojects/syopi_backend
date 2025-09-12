@@ -1,13 +1,13 @@
 const VendorOrder = require('../../../Models/Vendor/VendorOrderModel')
 const UserOrder = require('../../../Models/User/OrderModel');
 const User = require("../../../Models/User/UserModel");
+const Product = require('../../../Models/Admin/productModel')
 
 
 
 exports.getOrderByVendorId = async (req, res) => {
     try {
         const vendorId = req.user.id;  // Vendor ID comes from authenticated user
-        console.log("Fetching orders for vendor:", vendorId);
 
         const { status } = req.query;  // Filter by status if provided
         
@@ -36,14 +36,34 @@ exports.getOrderByVendorId = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status, orderId } = req.body;
-    console.log("Updating order status:", status, "Order ID:", orderId);
 
     const validStatuses = [
       'Pending', 'Confirmed', 'Processing', 'Shipping', 'In-Transit',
-      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Processing', 'Returned'
+      'Delivered', 'Cancelled', 'Return_Requested', 'Return_Approved', 'Return_Processing', 'Returned'
     ];
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid order status" });
+    }
+
+    // ✅ Fetch VendorOrder first to check current status
+    const vendorOrder = await VendorOrder.findById(orderId);
+    if (!vendorOrder) {
+      return res.status(404).json({ success: false, message: "Vendor order not found" });
+    }
+
+    // ✅ Validate state transitions
+    if (status === "Return_Processing") {
+      return res.status(400).json({ success: false, message: "Only admins can set this status" });
+    }
+
+    if (status === "Return_Approved" && vendorOrder.status !== "Return_Requested") {
+      return res.status(400).json({ success: false, message: "Can only approve return if status is Return_Requested" });
+    }
+
+    // ✅ Vendors should not set Return_Processing or Returned directly
+    if ( status === "Returned" && vendorOrder.status !== "Return_Processing") { 
+      return res.status(403).json({ success: false, message: "Can only set to returned if status is Return_Approved" });
     }
 
     const updateFields = { status };
@@ -52,51 +72,44 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     // ✅ Update VendorOrder
-    const vendorOrder = await VendorOrder.findOneAndUpdate(
-      { _id: orderId },
-      updateFields,
-      { new: true }
-    );
-
-    if (!vendorOrder) {
-      return res.status(404).json({ success: false, message: "Vendor order not found" });
+    const updatedVendorOrder = await VendorOrder.findByIdAndUpdate(orderId, updateFields, { new: true });
+    if (!updatedVendorOrder) {
+      return res.status(404).json({ success: false, message: "Vendor order not found after update" });
     }
 
     // ✅ Update corresponding UserOrder
     const userOrder = await UserOrder.findByIdAndUpdate(
-      vendorOrder.orderId,
+      updatedVendorOrder.orderId,
       updateFields,
       { new: true }
     );
-
     if (!userOrder) {
       return res.status(404).json({ success: false, message: "User order not found" });
     }
-    console.log(vendorOrder.userId);
-    
+
     // ✅ Fetch the user
-    const user = await User.findById(vendorOrder.userId);
+    const user = await User.findById(updatedVendorOrder.userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // ✅ Coins: Award on "Delivered" using coinsEarned from UserOrder
-    if (status === "Delivered" && !vendorOrder.coinsAwarded && userOrder.coinsEarned > 0) {
+    // ✅ Coins logic for Delivered
+    if (status === "Delivered" && !updatedVendorOrder.coinsAwarded && userOrder.coinsEarned > 0) {
       await user.creditCoins(
         userOrder.coinsEarned,
         userOrder._id,
         'Order',
         'Coins awarded for delivered order'
       );
-      vendorOrder.coinsAwarded = true;
-      await vendorOrder.save();
+      updatedVendorOrder.coinsAwarded = true;
+      await updatedVendorOrder.save();
     }
 
-    // ✅ Coins: Reversal on "Cancelled" or "Returned" using coinsEarned from UserOrder
+    // ✅ Coins reversal logic for Cancelled or Returned
     if (
       (status === "Cancelled" || status === "Returned") &&
-      vendorOrder.coinsAwarded &&
-      !vendorOrder.coinsReversed &&
+      updatedVendorOrder.coinsAwarded &&
+      !updatedVendorOrder.coinsReversed &&
       userOrder.coinsEarned > 0
     ) {
       await user.spendCoins(
@@ -105,8 +118,8 @@ exports.updateOrderStatus = async (req, res) => {
         'Order',
         'Coins reversed due to cancellation or return'
       );
-      vendorOrder.coinsReversed = true;
-      await vendorOrder.save();
+      updatedVendorOrder.coinsReversed = true;
+      await updatedVendorOrder.save();
     }
 
     // ✅ Update stock and sales on cancellation or return
@@ -115,18 +128,15 @@ exports.updateOrderStatus = async (req, res) => {
         const product = await Product.findById(item.productId);
         if (!product) continue;
 
-        // Increase totalStock and decrease totalSales
         product.totalStock += item.quantity;
         product.totalSales -= item.quantity;
 
-        // Find the correct variant by color and price
         const variant = product.variants.find(v =>
           v.color === item.color && v.price === item.price
         );
 
         if (variant) {
           variant.salesCount -= item.quantity;
-
           const sizeObj = variant.sizes.find(s => s.size === item.size);
           if (sizeObj) {
             sizeObj.stock += item.quantity;
@@ -141,7 +151,7 @@ exports.updateOrderStatus = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Order status updated",
-      order: vendorOrder
+      order: updatedVendorOrder
     });
 
   } catch (error) {
@@ -149,3 +159,45 @@ exports.updateOrderStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
+exports.vendorApproveReturn = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    // ✅ Fetch the vendor order
+    const vendorOrder = await VendorOrder.findById(orderId);
+    if (!vendorOrder) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // ✅ Ensure current status is Return_Requested
+    if (vendorOrder.status !== "Return_Requested") {
+      return res.status(400).json({ success: false, message: "Return not in requested state" });
+    }
+
+    // ✅ Update vendor order status
+    vendorOrder.status = "Return_Approved";
+    await vendorOrder.save();
+
+    // ✅ Also update corresponding UserOrder status
+    const userOrder = await UserOrder.findById(vendorOrder.orderId);
+    if (!userOrder) {
+      return res.status(404).json({ success: false, message: "Corresponding user order not found" });
+    }
+
+    userOrder.status = "Return_Approved";
+    await userOrder.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Return approved by vendor and user order updated",
+      vendorOrder,
+      userOrder
+    });
+
+  } catch (error) {
+    console.error("Error approving return by vendor:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+

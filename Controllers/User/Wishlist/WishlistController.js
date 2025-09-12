@@ -1,4 +1,5 @@
 const Wishlist = require("../../../Models/User/WishlistModel");
+const Cart = require('../../../Models/User/cartModel')
 
 //add to wishlist
 exports.addToWishList = async (req, res) => {
@@ -38,23 +39,55 @@ exports.getUserWishlist = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.max(1, parseInt(req.query.limit) || 10);
     const skip = (page - 1) * limit;
+
+    // ✅ Get total wishlist items for pagination
     const totalWishlistItems = await Wishlist.countDocuments({ userId });
-    const wishlist = await Wishlist.find({ userId }).populate("productId").skip(skip).limit(limit);
-     // Pagination metadata
-     const totalPages = Math.ceil(totalWishlistItems / limit);
-     const hasNextPage = page < totalPages;
-     const hasPrevPage = page > 1;
-    res.status(200).json({ wishlist ,pagination: {
-      totalWishlistItems,
-      totalPages,
-      currentPage: page,
-      hasNextPage,
-      hasPrevPage,
-  }});
+
+    // ✅ Retrieve wishlist with product details
+    const wishlistItems = await Wishlist.find({ userId })
+      .populate("productId")
+      .skip(skip)
+      .limit(limit);
+
+    // ✅ Retrieve user's cart items
+    const cart = await Cart.findOne({ userId });
+    const cartProductIds = new Set();
+    if (cart && cart.items.length > 0) {
+      for (const item of cart.items) {
+        cartProductIds.add(item.productId.toString());
+      }
+    }
+
+    // ✅ Map wishlist items to include inCart flag, handling null productId
+    const wishlist = wishlistItems.map(item => ({
+      _id: item._id,
+      productId: item.productId,
+      inCart: item.productId ? cartProductIds.has(item.productId._id.toString()) : false
+    }));
+
+    // ✅ Pagination metadata
+    const totalPages = Math.ceil(totalWishlistItems / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    // ✅ Send response
+    res.status(200).json({
+      wishlist,
+      pagination: {
+        totalWishlistItems,
+        totalPages,
+        currentPage: page,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
+
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching wishlist", error: error.message });
+    console.error("Error fetching wishlist:", error);
+    res.status(500).json({
+      message: "Error fetching wishlist",
+      error: error.message
+    });
   }
 };
 
