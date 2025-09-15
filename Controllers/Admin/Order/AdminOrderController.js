@@ -5,31 +5,51 @@ const Product = require('../../../Models/Admin/productModel')
 
 // Get all orders with optional status filtering and product details
 exports.getAllOrders = async (req, res) => {
-    try {
-        const { status } = req.query;
+  try {
+    const { status } = req.query;
 
-        // Build filter object
-        let filter = {};
-        if (status) {
-            filter.status = status;
-        }
-
-        const orders = await VendorOrder.find(filter)
-            .populate({
-                path: 'productId',
-                select: 'name images' 
-            })
-            .populate({
-                path: 'vendorId',
-                select: 'name email' 
-            })
-    
-
-        return res.status(200).json({ success: true, orders });
-    } catch (error) {
-        console.error("Error fetching orders:", error);
-        return res.status(500).json({ success: false, message: "Server error" });
+    // Build filter object
+    let filter = {};
+    if (status) {
+      filter.status = status;
     }
+
+    // ✅ Fetch all orders with populated productId and vendorId
+    const orders = await VendorOrder.find(filter)
+      .populate({
+        path: 'productId',
+        select: 'name images ownerType' // Include ownerType for classification
+      })
+      .populate({
+        path: 'vendorId',
+        select: 'name email'
+      });
+
+    // ✅ Classify orders based on product's ownerType
+    const adminOrders = [];
+    const vendorOrders = [];
+
+    for (const order of orders) {
+      if (order.productId && order.productId.ownerType === "admin") {
+        adminOrders.push(order);
+      } else if (order.productId && order.productId.ownerType === "vendor") {
+        vendorOrders.push(order);
+      } else {
+        // Optionally handle orders with missing or invalid data
+        console.warn(`Order ${order._id} has invalid product reference or ownerType`);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      adminOrders,
+      vendorOrders
+    });
+
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
 };
 
 
@@ -193,42 +213,68 @@ exports.adminApproveReturn = async (req, res) => {
     const { orderId } = req.body;
 
     // ✅ Fetch the VendorOrder by ID
-    const vendorOrder = await VendorOrder.findById(orderId);
+    const vendorOrder = await VendorOrder.findById(orderId).populate('productId');
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Vendor order not found" });
     }
 
-    // ✅ Check if the current status is 'Return_Approved'
-    if (vendorOrder.status !== "Return_Approved") {
-      return res.status(400).json({ success: false, message: "Return not approved by vendor yet" });
+    // ✅ Check if product is owned by admin
+    const product = vendorOrder.productId;
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    // ✅ Update VendorOrder's status to 'Return_Processing'
-    vendorOrder.status = "Return_Processing";
-    await vendorOrder.save();
+    if (product.ownerType === "admin") {
+      // ✅ Directly set to Return_Processing for admin-owned products
+      vendorOrder.status = "Return_Processing";
+      await vendorOrder.save();
 
-    // ✅ Update the corresponding UserOrder's status to 'Return_Processing'
-    const userOrder = await UserOrder.findByIdAndUpdate(
-      vendorOrder.orderId,
-      { status: "Return_Processing" },
-      { new: true }
-    );
+      const userOrder = await UserOrder.findByIdAndUpdate(
+        vendorOrder.orderId,
+        { status: "Return_Processing" },
+        { new: true }
+      );
 
-    if (!userOrder) {
-      return res.status(404).json({ success: false, message: "User order not found" });
+      if (!userOrder) {
+        return res.status(404).json({ success: false, message: "User order not found" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Return processing started directly for admin product",
+        vendorOrder,
+        userOrder
+      });
+    } else {
+      // ✅ For non-admin products, ensure current status is 'Return_Approved'
+      if (vendorOrder.status !== "Return_Approved") {
+        return res.status(400).json({ success: false, message: "Return not approved by vendor yet" });
+      }
+
+      vendorOrder.status = "Return_Processing";
+      await vendorOrder.save();
+
+      const userOrder = await UserOrder.findByIdAndUpdate(
+        vendorOrder.orderId,
+        { status: "Return_Processing" },
+        { new: true }
+      );
+
+      if (!userOrder) {
+        return res.status(404).json({ success: false, message: "User order not found" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Return approved by admin and now processing",
+        vendorOrder,
+        userOrder
+      });
     }
-
-    // ✅ Return success with updated order details
-    return res.status(200).json({
-      success: true,
-      message: "Return approved by admin and now processing",
-      vendorOrder,
-      userOrder
-    });
-
   } catch (error) {
     console.error("Error approving return by admin:", error);
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
 

@@ -124,14 +124,20 @@ exports.searchNotifications = async (req,res) => {
     }
 }
 
-const sendNotification = async (userId, title, message, data = {}) => {
+const sendNotification = async (userId, title, message, data = {}, image) => {
+  const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
+
   const payload = {
     app_id: process.env.ONESIGNAL_APP_ID,
-    include_external_user_ids: Array.isArray(userId) ? userId : [userId], // ✅ always array
+    include_external_user_ids: Array.isArray(userId) ? userId : [userId],
     headings: { en: title },
     contents: { en: message },
-    data // ✅ pass customData directly
+    data
   };
+
+  if (imageUrl) {
+    payload.big_picture = imageUrl;
+  }
 
   await axios.post('https://onesignal.com/api/v1/notifications', payload, {
     headers: {
@@ -141,11 +147,11 @@ const sendNotification = async (userId, title, message, data = {}) => {
   });
 };
 
-
-
 exports.notifyUser = async (req, res) => {
   try {
     const { userId, title, message, orderId, productId, categoryId, subCategoryId, notificationType } = req.body;
+    const image = req.file ? req.file.filename : null;
+    const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
 
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -160,7 +166,7 @@ exports.notifyUser = async (req, res) => {
     if (subCategoryId) customData.subCategoryId = subCategoryId;
 
     // Send the notification
-    await sendNotification(userId, title, message, customData);
+    await sendNotification(userId, title, message, customData, image);
 
     // Store the notification once
     await NotificationModel.create({
@@ -172,6 +178,7 @@ exports.notifyUser = async (req, res) => {
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
       notificationType,
+      image: imageUrl,
       isBroadcast: false
     });
 
@@ -184,14 +191,21 @@ exports.notifyUser = async (req, res) => {
 
 
 
-const sendBroadcastNotification = async (title, message, data = {}) => {
+
+const sendBroadcastNotification = async (title, message, data = {}, image) => {
+  const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
+
   const payload = {
     app_id: process.env.ONESIGNAL_APP_ID,
-    included_segments: ["All"], 
+    included_segments: ["All"],
     headings: { en: title },
     contents: { en: message },
     data
   };
+
+  if (imageUrl) {
+    payload.big_picture = imageUrl;
+  }
 
   await axios.post("https://onesignal.com/api/v1/notifications", payload, {
     headers: {
@@ -204,13 +218,15 @@ const sendBroadcastNotification = async (title, message, data = {}) => {
 exports.notifyAllUsers = async (req, res) => {
   try {
     const { title, message, productId, categoryId, subCategoryId, notificationType } = req.body;
+    const image = req.file ? req.file.filename : null;
+    const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
 
     const customData = {};
     if (productId) customData.productId = productId;
     if (categoryId) customData.categoryId = categoryId;
     if (subCategoryId) customData.subCategoryId = subCategoryId;
 
-    await sendBroadcastNotification(title, message, customData);
+    await sendBroadcastNotification(title, message, customData, image);
 
     await NotificationModel.create({
       title,
@@ -219,6 +235,7 @@ exports.notifyAllUsers = async (req, res) => {
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
       notificationType,
+      image: imageUrl,
       isBroadcast: true  
     });
 
@@ -226,5 +243,40 @@ exports.notifyAllUsers = async (req, res) => {
   } catch (error) {
     console.error("Error sending broadcast notification:", error.message);
     res.status(500).json({ message: "Failed to send broadcast notification", error: error.message });
+  }
+};
+
+exports.resendNotification = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    const notification = await NotificationModel.findById(notificationId);
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    // Build custom data
+    const customData = {};
+    if (notification.orderId) customData.orderId = notification.orderId;
+    if (notification.productId) customData.productId = notification.productId;
+    if (notification.categoryId) customData.categoryId = notification.categoryId;
+    if (notification.subCategoryId) customData.subCategoryId = notification.subCategoryId;
+
+    // Image URL if exists
+    const imageUrl = notification.image || null;
+
+    // Decide between user-specific or broadcast
+    if (notification.isBroadcast) {
+      // Broadcast
+      await sendBroadcastNotification(notification.title, notification.message, customData, imageUrl);
+    } else if (notification.userId) {
+      // User-specific
+      await sendNotification(notification.userId, notification.title, notification.message, customData, imageUrl);
+    }
+
+    res.status(200).json({ message: "Notification resent successfully" });
+  } catch (error) {
+    console.error("Error resending notification:", error);
+    res.status(500).json({ message: "Failed to resend notification", error: error.message });
   }
 };
