@@ -5,51 +5,31 @@ const Product = require('../../../Models/Admin/productModel')
 
 // Get all orders with optional status filtering and product details
 exports.getAllOrders = async (req, res) => {
-  try {
-    const { status } = req.query;
+    try {
+        const { status } = req.query;
 
-    // Build filter object
-    let filter = {};
-    if (status) {
-      filter.status = status;
+        // Build filter object
+        let filter = {};
+        if (status) {
+            filter.status = status;
+        }
+
+        const orders = await VendorOrder.find(filter)
+            .populate({
+                path: 'productId',
+                select: 'name images' 
+            })
+            .populate({
+                path: 'vendorId',
+                select: 'name email' 
+            })
+    
+
+        return res.status(200).json({ success: true, orders });
+    } catch (error) {
+        console.error("Error fetching orders:", error);
+        return res.status(500).json({ success: false, message: "Server error" });
     }
-
-    // ✅ Fetch all orders with populated productId and vendorId
-    const orders = await VendorOrder.find(filter)
-      .populate({
-        path: 'productId',
-        select: 'name images ownerType' // Include ownerType for classification
-      })
-      .populate({
-        path: 'vendorId',
-        select: 'name email'
-      });
-
-    // ✅ Classify orders based on product's ownerType
-    const adminOrders = [];
-    const vendorOrders = [];
-
-    for (const order of orders) {
-      if (order.productId && order.productId.ownerType === "admin") {
-        adminOrders.push(order);
-      } else if (order.productId && order.productId.ownerType === "vendor") {
-        vendorOrders.push(order);
-      } else {
-        // Optionally handle orders with missing or invalid data
-        console.warn(`Order ${order._id} has invalid product reference or ownerType`);
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      adminOrders,
-      vendorOrders
-    });
-
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    return res.status(500).json({ success: false, message: "Server error", error: error.message });
-  }
 };
 
 
