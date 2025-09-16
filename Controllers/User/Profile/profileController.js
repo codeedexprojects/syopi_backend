@@ -39,7 +39,7 @@ exports.updateUserData = async(req,res) => {
           if (req.file && req.file.filename) {
             updatedData.image = req.file.filename;
           }else if (req.body.image) {
-            updatedData.image = req.body.image; 
+            updatedData.image = path.basename(req.body.image); 
           }
         const userId = req.user.id;
         const updatedUser = await User.findByIdAndUpdate(userId,updatedData,{ new: true, runValidators: true}).select("-password");
