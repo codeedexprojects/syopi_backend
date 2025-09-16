@@ -21,7 +21,7 @@ exports.getAllOrders = async (req, res) => {
             })
             .populate({
                 path: 'vendorId',
-                select: 'name email' 
+                select: 'ownername email businessname' 
             })
     
 
