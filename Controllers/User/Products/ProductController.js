@@ -251,6 +251,7 @@ exports.getallProducts = async (req, res) => {
       // Limit the number of top sold products (e.g., top 5)
       filteredProducts = filteredProducts.slice(0, 5);
     }
+filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     // ✅ Sorting (optional, after top sales filter)
 if (sort) {
