@@ -229,9 +229,7 @@ exports.fetchDeliveryDetails = async (pincode) => {
       success: true,
       deliveryDate: deliveryDate.format("YYYY-MM-DD"),
       deliveryMessage,
-      pincode,
-      state,
-      officeType,
+      pincode
     };
   } catch (error) {
     console.error("Error fetching delivery details:", error.message);
