@@ -137,6 +137,9 @@ const sendNotification = async (userId, title, message, data = {}, image) => {
 
   if (imageUrl) {
     payload.big_picture = imageUrl;
+    payload.ios_attachments = {
+      id1: imageUrl 
+    };
   }
 
   await axios.post('https://onesignal.com/api/v1/notifications', payload, {
