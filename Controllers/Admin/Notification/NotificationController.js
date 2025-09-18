@@ -154,7 +154,6 @@ exports.notifyUser = async (req, res) => {
   try {
     const { userId, title, message, orderId, productId, categoryId, subCategoryId, notificationType } = req.body;
     const image = req.file ? req.file.filename : null;
-    const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
 
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -181,7 +180,7 @@ exports.notifyUser = async (req, res) => {
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
       notificationType,
-      image: imageUrl,
+      image,
       isBroadcast: false
     });
 
