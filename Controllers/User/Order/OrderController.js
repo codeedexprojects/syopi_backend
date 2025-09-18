@@ -179,45 +179,62 @@ exports.placeOrder = async (req, res) => {
 
 
 
-const fetchDeliveryDetails = async (pincode) => {
-    try {
-        // Fetch pincode details
-        const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
-        const data = response.data;
+exports.fetchDeliveryDetails = async (pincode) => {
+  try {
+    const options = {
+      method: "POST",
+      url: "https://pincode.p.rapidapi.com/v1/postalcodes/india",
+      headers: {
+        "x-rapidapi-key": process.env.RAPIDAPI_KEY,
+        "x-rapidapi-host": "pincode.p.rapidapi.com",
+        "Content-Type": "application/json",
+      },
+      data: { search: pincode },
+    };
 
-        if (data[0].Status === "Success" && data[0].PostOffice.length > 0) {
-            const state = data[0].PostOffice[0].State.toLowerCase();
-            const officeType = data[0].PostOffice[0].BranchType.toLowerCase();
+    const response = await axios.request(options);
+    const data = response.data;
 
-            let daysToAdd;
-            if (state === "kerala") {
-                // Inside Kerala: Head/Sub office -> 1 day, Branch office -> 2 days
-                daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 1 : 2;
-            } else {
-                // Outside Kerala: Head/Sub office -> 5 days, Branch office -> 7 days
-                daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 5 : 7;
-            }
-
-             const deliveryDate = moment().add(daysToAdd, 'days');
-
-            // Constructing the delivery message
-            let deliveryMessage;
-            if (daysToAdd === 1) {
-                deliveryMessage = "Delivered by tomorrow";
-            } else if (daysToAdd === 2) {
-                deliveryMessage = "Delivered within 2 days";
-            } else {
-                deliveryMessage = `Delivered by ${moment(deliveryDate).format("dddd")}, ${moment(deliveryDate).format("MMMM D")}`;
-            }
-
-            return { deliveryDate: deliveryDate.format("YYYY-MM-DD"), deliveryMessage };
-        } else {
-            throw new Error("Invalid Pincode or No Post Office found");
-        }
-    } catch (error) {
-        console.error("Error fetching delivery details:", error.message);
-        return null;
+    // ✅ API returns an array, not { postalCodes: [] }
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("Invalid Pincode or No Post Office found");
     }
+
+    // Pick the first office (you could enhance later to prefer S.O/H.O)
+    const postOffice = data[0];
+    const state = (postOffice.state || "").toLowerCase();
+    const officeType = (postOffice.office_type || "").toLowerCase();
+
+    // ✅ Delivery calculation logic
+    let daysToAdd;
+    if (state === "kerala") {
+      daysToAdd = 2; // Always minimum 2 days inside Kerala
+    } else {
+      daysToAdd =
+        officeType.includes("s.o") || officeType.includes("h.o") ? 5 : 7;
+    }
+
+    // ✅ Safeguard: enforce minimum 2 days
+    if (daysToAdd < 2) daysToAdd = 2;
+
+    const deliveryDate = moment().add(daysToAdd, "days");
+    let deliveryMessage =
+      daysToAdd === 2
+        ? "Delivered within 2 days"
+        : `Delivered by ${deliveryDate.format("dddd")}, ${deliveryDate.format(
+            "MMMM D"
+          )}`;
+
+    return {
+      success: true,
+      deliveryDate: deliveryDate.format("YYYY-MM-DD"),
+      deliveryMessage,
+      pincode
+    };
+  } catch (error) {
+    console.error("Error fetching delivery details:", error.message);
+    return { success: false, message: "Error fetching delivery details" };
+  }
 };
 
 
