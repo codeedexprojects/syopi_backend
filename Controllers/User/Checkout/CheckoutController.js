@@ -9,89 +9,106 @@ const DeliverySetting = require('../../../Models/Admin/DeliveryChargeModel');
 
 // create checkout
 exports.createCheckout = async (req, res) => {
-    const { cartId } = req.body;
-    const userId = req.user.id;
+  const { cartId } = req.body;
+  const userId = req.user.id;
 
-    try {
-        if (!userId || !cartId) {
-            return res.status(400).json({ message: 'User ID and Cart ID are required.' });
-        }
-
-        const cart = await Cart.findById(cartId).populate('items.productId');
-        if (!cart) {
-            return res.status(404).json({ message: 'Cart not found.' });
-        }
-
-        if (String(cart.userId) !== userId) {
-            return res.status(403).json({ message: 'Unauthorized: Cart does not belong to the user.' });
-        }
-
-        // **Check stock for each item in the cart**
-        for (let item of cart.items) {
-            const product = await Product.findById(item.productId._id);
-
-            if (!product) {
-                return res.status(404).json({ message: `Product not found: ${item.productId._id}` });
-            }
-
-            // Find variant and size in product
-            const variant = product.variants.find(v => v.color === item.color);
-            if (!variant) {
-                return res.status(400).json({ message: `Selected color is not available for ${product.name}.` });
-            }
-
-            const sizeDetail = variant.sizes.find(s => s.size === item.size);
-            if (!sizeDetail) {
-                return res.status(400).json({ message: `Selected size is not available for ${product.name}.` });
-            }
-
-            if (sizeDetail.stock < item.quantity) {
-                return res.status(400).json({ 
-                    message: `Insufficient stock for ${product.name} (${item.size}, ${item.color}). Only ${sizeDetail.stock} left.` 
-                });
-            }
-        }
-
-        // **Fetch delivery settings**
-        let deliverySetting = await DeliverySetting.findOne();
-        if (!deliverySetting) {
-            deliverySetting = await DeliverySetting.create({});
-        }
-
-        // **Calculate subtotal**
-        const subtotal = cart.subtotal;
-
-        // **Determine delivery charge**
-        const deliveryCharge = subtotal < deliverySetting.minAmountForCharge 
-            ? deliverySetting.deliveryCharge 
-            : 0;
-
-        // **Final total**
-        const finalTotal = subtotal + deliveryCharge;
-
-        // **Create checkout**
-        const newCheckout = new Checkout({
-            userId,
-            cartId,
-            subtotal,
-            deliveryCharge,
-            finalTotal
-        });
-
-        await newCheckout.save();
-
-        res.status(201).json({
-            message: 'Checkout created successfully.',
-            checkout: newCheckout,
-        });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            message: 'Internal server error.',
-            error: error.message || error,
-        });
+  try {
+    if (!userId || !cartId) {
+      return res
+        .status(400)
+        .json({ message: 'User ID and Cart ID are required.' });
     }
+
+    const cart = await Cart.findById(cartId).populate('items.productId');
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found.' });
+    }
+
+    if (String(cart.userId) !== userId) {
+      return res
+        .status(403)
+        .json({ message: 'Unauthorized: Cart does not belong to the user.' });
+    }
+
+    // **Check product status and stock for each item**
+    for (let item of cart.items) {
+      const product = await Product.findById(item.productId._id);
+
+      if (!product) {
+        return res
+          .status(404)
+          .json({ message: `Product not found: ${item.productId._id}` });
+      }
+
+      // ❌ If product inactive → block checkout
+      if (product.status !== 'active') {
+        return res.status(400).json({
+          message: `Product "${product.name}" is inactive and cannot be purchased.`,
+        });
+      }
+
+      // ✅ Find variant and size in product
+      const variant = product.variants.find((v) => v.color === item.color);
+      if (!variant) {
+        return res.status(400).json({
+          message: `Selected color is not available for ${product.name}.`,
+        });
+      }
+
+      const sizeDetail = variant.sizes.find((s) => s.size === item.size);
+      if (!sizeDetail) {
+        return res.status(400).json({
+          message: `Selected size is not available for ${product.name}.`,
+        });
+      }
+
+      if (sizeDetail.stock < item.quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.name} (${item.size}, ${item.color}). Only ${sizeDetail.stock} left.`,
+        });
+      }
+    }
+
+    // **Fetch delivery settings**
+    let deliverySetting = await DeliverySetting.findOne();
+    if (!deliverySetting) {
+      deliverySetting = await DeliverySetting.create({});
+    }
+
+    // **Calculate subtotal**
+    const subtotal = cart.subtotal;
+
+    // **Determine delivery charge**
+    const deliveryCharge =
+      subtotal < deliverySetting.minAmountForCharge
+        ? deliverySetting.deliveryCharge
+        : 0;
+
+    // **Final total**
+    const finalTotal = subtotal + deliveryCharge;
+
+    // **Create checkout**
+    const newCheckout = new Checkout({
+      userId,
+      cartId,
+      subtotal,
+      deliveryCharge,
+      finalTotal,
+    });
+
+    await newCheckout.save();
+
+    res.status(201).json({
+      message: 'Checkout created successfully.',
+      checkout: newCheckout,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'Internal server error.',
+      error: error.message || error,
+    });
+  }
 };
 
 
