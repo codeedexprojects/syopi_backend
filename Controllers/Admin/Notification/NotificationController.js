@@ -132,23 +132,25 @@ const sendNotification = async (userId, title, message, data = {}, image) => {
     include_external_user_ids: Array.isArray(userId) ? userId : [userId],
     headings: { en: title },
     contents: { en: message },
-    data
+    data,
+    mutable_content: true 
   };
 
   if (imageUrl) {
     payload.big_picture = imageUrl;
     payload.ios_attachments = {
-      id1: imageUrl 
+      id: imageUrl
     };
   }
 
-  await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+  await axios.post("https://onesignal.com/api/v1/notifications", payload, {
     headers: {
       Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 };
+
 
 exports.notifyUser = async (req, res) => {
   try {
