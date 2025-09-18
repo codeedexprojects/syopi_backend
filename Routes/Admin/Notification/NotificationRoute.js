@@ -25,7 +25,7 @@ router.get('/search',verifyToken(['admin']),notificationController.searchNotific
 
 //notify user
 router.post('/notify-user',verifyToken(['admin']), multerConfig.single('image'), notificationController.notifyUser)
-router.post('/notify-all-users',verifyToken(['admin']),notificationController.notifyAllUsers)
+router.post('/notify-all-users',verifyToken(['admin']),multerConfig.single('image'), notificationController.notifyAllUsers)
 
 router.post('/resend/:notificationId',verifyToken(['admin']),notificationController.resendNotification)
 
