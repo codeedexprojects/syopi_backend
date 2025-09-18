@@ -45,7 +45,11 @@ const notificationSchema = new mongoose.Schema({
   orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null },
   isRead: { type: Boolean, default: false },
   isBroadcast: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-});
+  image: {
+        type:String
+    }
+},
+{timestamps: true}
+);
 
 module.exports = mongoose.model("Notification", notificationSchema);

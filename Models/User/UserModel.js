@@ -96,7 +96,8 @@ userSchema.methods.creditCoins = async function(amount, referenceId, referenceTy
         referenceId: referenceId,
         referenceType: referenceType,
         description: description,
-        type: 'credit'
+        type: 'credit',
+        balanceAfter: this.coins  
     });
 };
 
@@ -112,8 +113,10 @@ userSchema.methods.spendCoins = async function(amount, referenceId, referenceTyp
         referenceId: referenceId,
         referenceType: referenceType,
         description: description,
-        type: 'debit'
+        type: 'debit',
+        balanceAfter: this.coins  // ✅ Store new balance
     });
 };
+
 
 module.exports = mongoose.model('User', userSchema);

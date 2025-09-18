@@ -151,7 +151,7 @@ exports.getCart = async (req, res) => {
 
 // increment or decrement quantity
 exports.updateCartQuantity = async (req, res) => {
-  const { userId, itemId, action } = req.body; // Using itemId instead of productId, color, size
+  const { userId, itemId, action } = req.body;
 
   if (!userId || !itemId || !action) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -167,19 +167,36 @@ exports.updateCartQuantity = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    // Find the specific item by its _id
     const item = cart.items.id(itemId);
     if (!item) {
       return res.status(404).json({ success: false, message: 'Product not found in cart' });
     }
 
+    // Fetch the product to check stock availability
+    const product = await Product.findById(item.productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // Find the variant and size to get actual stock
+    const variant = product.variants.find(v => v.color === item.color);
+    if (!variant) {
+      return res.status(404).json({ success: false, message: 'Product variant not found' });
+    }
+
+    const sizeObj = variant.sizes.find(s => s.size === item.size);
+    if (!sizeObj) {
+      return res.status(404).json({ success: false, message: 'Product size not found' });
+    }
+
     if (action === 'increment') {
+      if (item.quantity + 1 > sizeObj.stock) {
+        return res.status(400).json({ success: false, message: 'Insufficient stock available' });
+      }
       item.quantity += 1;
     } else if (action === 'decrement') {
       item.quantity -= 1;
-
       if (item.quantity <= 0) {
-        // Remove the item if the quantity becomes 0 or less
         item.remove();
       }
     }
@@ -193,9 +210,10 @@ exports.updateCartQuantity = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to update product quantity' });
+    res.status(500).json({ success: false, message: 'Failed to update product quantity', error: error.message });
   }
 };
+
 
 
 

@@ -229,11 +229,10 @@ exports.getUserOrder = async (req, res) => {
     const limit = Math.max(1, parseInt(req.query.limit) || 10);
     const skip = (page - 1) * limit;
 
-    const totalOrders = await Order.countDocuments({ userId });
+    const totalOrders = await VendorOrder.countDocuments({ userId });
 
-    const orders = await Order.find({ userId })
-      .populate("products.productId", "name images")
-      .populate("coupon", "code discountType discountValue")
+    const orders = await VendorOrder.find({ userId })
+      .populate("productId", "name images")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -272,79 +271,88 @@ exports.getSingleOrder = async (req, res) => {
     const { orderId } = req.params;
     const userId = req.user.id;
 
-    const order = await Order.findOne({ _id: orderId, userId })
-      .populate("products.productId", "name images returnWithinDays description");
+    // Fetch the single vendor order by orderId and userId
+    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId })
+      .populate("productId", "name images returnWithinDays description")
+      .lean();
 
-    if (!order) {
+    if (!vendorOrder) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
       });
     }
 
-    const vendorOrders = await VendorOrder.find({ orderId })
-      .select("productId deliveryDetails status")
-      .lean();
+    // Extract shipping address and product details
+    const shippingAddress = vendorOrder.shippingAddress;
+    const deliveredAt = vendorOrder.deliveredAt || null;
+    const firstProduct = vendorOrder.productId || null;
 
-    const deliveryMap = {};
-    vendorOrders.forEach(vo => {
-      deliveryMap[vo.productId.toString()] = {
-        deliveryDetails: vo.deliveryDetails,
-        status: vo.status,
-      };
-    });
-    
-
-    const deliveredAt = order.deliveredAt;
-    const firstProduct = order.products?.[0]?.productId;
     let returnExpired = false;
-    let expiryDateFormatted = null;
+    let returnExpiryDate = null;
 
     if (deliveredAt && firstProduct?.returnWithinDays) {
       const expiryDate = moment(deliveredAt).add(firstProduct.returnWithinDays, "days");
       returnExpired = moment().isAfter(expiryDate);
-      expiryDateFormatted = expiryDate.format("YYYY-MM-DD");
+      returnExpiryDate = expiryDate.format("YYYY-MM-DD");
     }
 
+    // Build the products array (with one product in this case)
+    const products = [{
+      _id: vendorOrder._id,
+      productId: vendorOrder.productId,
+      quantity: vendorOrder.quantity,
+      price: vendorOrder.price,
+      color: vendorOrder.color,
+      size: vendorOrder.size,
+      deliveryDetails: vendorOrder.deliveryDetails || null,
+      deliveryStatus: vendorOrder.status,
+    }];
 
-    const productsWithDelivery = order.products.map(p => {
-  const pId = p.productId._id.toString();
-  return {
-    ...p._doc,
-    productId: {
-      ...p.productId.toObject(), 
-    },
-    deliveryDetails: deliveryMap[pId]?.deliveryDetails || null,
-    deliveryStatus: deliveryMap[pId]?.status || "Pending"
-  };
-});
+    // Aggregate fields
+    const totalPrice = vendorOrder.price * vendorOrder.quantity;
+    const discountedAmount = vendorOrder.discountedPrice || 0;
+    const coinsEarned = vendorOrder.coinsEarned || 0;
 
-    
     const formattedOrder = {
-      ...order._doc,
-      products: productsWithDelivery,
-      createdAt: moment(order.createdAt).format("YYYY-MM-DD HH:mm:ss"),
-      updatedAt: moment(order.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
-      deliveredAt: deliveredAt
-        ? moment(deliveredAt).format("YYYY-MM-DD HH:mm:ss")
-        : null,
+      shippingAddress,
+      _id: vendorOrder._id,
+      userId: vendorOrder.userId,
+      checkoutId: vendorOrder.orderId, // Assuming this is set properly
+      deliveryCharge: 0, // Set if applicable
+      paymentMethod: vendorOrder.paymentMethod || "Cash on Delivery",
+      status: vendorOrder.status,
+      discountedAmount,
+      cancellationOrReturnReason: vendorOrder.cancellationOrReturnReason || "",
+      cancellationOrReturnDescription: vendorOrder.cancellationOrReturnDescription || "",
+      coinsEarned,
+      products,
+      createdAt: moment(vendorOrder.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+      updatedAt: moment(vendorOrder.updatedAt).format("YYYY-MM-DD HH:mm:ss"),
+      totalPrice,
+      finalPayableAmount: totalPrice - discountedAmount,
+      coupon: null, // Set if applicable
+      __v: vendorOrder.__v || 0,
+      deliveredAt: deliveredAt ? moment(deliveredAt).format("YYYY-MM-DD HH:mm:ss") : null,
       returnExpired,
-      returnExpiryDate: expiryDateFormatted,
+      returnExpiryDate,
     };
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       order: formattedOrder,
     });
 
   } catch (error) {
     console.error("Error fetching user order:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message || "Failed to fetch order",
     });
   }
 };
+
+
 
 
 
@@ -356,7 +364,7 @@ exports.requestOrderReturn = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find VendorOrder for the user and orderId
-    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
+    const vendorOrder = await VendorOrder.findOne({ _id: orderId, userId }).populate("productId");
 
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
@@ -422,13 +430,13 @@ exports.cancelOrder = async (req, res) => {
     const userId = req.user.id;
 
     // Step 1: Find vendor order by _id and userId
-    const vendorOrder = await VendorOrder.findOne({ orderId, userId }).populate("productId");
+    const vendorOrder = await VendorOrder.findOne({ _id : orderId, userId }).populate("productId");
     if (!vendorOrder) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
     if (vendorOrder.status === "Delivered") {
-      return res.status(400).json({ success: false, message: "Delivered orders cannot be canceled" });
+      return res.status(400).json({ success: false, message: "Delivered orders cannot be cancelled" });
     }
 
     if (vendorOrder.status === "Cancelled") {
