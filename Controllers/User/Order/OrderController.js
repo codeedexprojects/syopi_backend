@@ -179,7 +179,7 @@ exports.placeOrder = async (req, res) => {
 
 
 
-export const fetchDeliveryDetails = async (pincode) => {
+exports.fetchDeliveryDetails = async (pincode) => {
   try {
     const options = {
       method: "POST",
