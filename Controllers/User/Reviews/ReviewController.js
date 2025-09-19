@@ -71,3 +71,49 @@ exports.getReviewsByProduct = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+exports.hasReviewedLatestDelivered = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Find the latest delivered order for this user
+    const latestDeliveredOrder = await Order.findOne({
+      userId,
+      status: "Delivered",
+    }).sort({ createdAt: -1 });
+
+    if (!latestDeliveredOrder) {
+      return res.status(404).json({
+        message: "You have no delivered orders yet.",
+        product: null,
+        hasReviewed: false,
+      });
+    }
+
+    // Get product details
+    const product = await Product.findById(latestDeliveredOrder.productId, "name images");
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found",
+        product: null,
+        hasReviewed: false,
+      });
+    }
+
+    // Check if review exists
+    const existingReview = await Review.findOne({
+      userId,
+      productId: latestDeliveredOrder.productId,
+    });
+
+    res.status(200).json({
+      product: {
+        name: product.name,
+        image: product.images?.[0] || null,
+      },
+      hasReviewed: !!existingReview,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

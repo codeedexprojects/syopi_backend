@@ -408,6 +408,39 @@ exports.applyCoins = async (req, res) => {
     }
 };
 
+// remove coupon
+exports.removeCoupon = async (req, res) => {
+  const { checkoutId } = req.body;
+  const userId = req.user.id;
 
+  try {
+    if (!userId || !checkoutId) {
+      return res.status(400).json({ message: 'User ID and Checkout ID are required.' });
+    }
 
+    const checkout = await Checkout.findById(checkoutId);
+    if (!checkout) return res.status(404).json({ message: 'Checkout not found.' });
+
+    if (String(checkout.userId) !== userId) {
+      return res.status(403).json({ message: 'Unauthorized: Checkout does not belong to the user.' });
+    }
+
+    if (!checkout.coupon) {
+      return res.status(400).json({ message: 'No coupon applied to this checkout.' });
+    }
+
+    await checkout.removeCoupon();
+
+    return res.status(200).json({
+      message: 'Coupon removed successfully.',
+      checkout,
+    });
+  } catch (error) {
+    console.error('Remove Coupon Error:', error);
+    return res.status(500).json({
+      message: 'Internal server error.',
+      error: error.message || error,
+    });
+  }
+};
 
