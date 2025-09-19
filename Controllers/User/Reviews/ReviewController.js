@@ -84,7 +84,9 @@ exports.getLatestReviewStatus = async (req, res) => {
     const latestOrder = await Order.findOne({ 
       userId, 
       status: "Delivered" 
-    }).sort({ deliveredAt: -1 }).populate('productId', 'name images');
+    }).sort({ deliveredAt: -1 })
+    .populate("productId", "name images")
+    .select("productId _id"); 
 
     if (!latestOrder) {
       return res.status(200).json({ 
@@ -94,10 +96,8 @@ exports.getLatestReviewStatus = async (req, res) => {
     }
 
     const productInfo = {
-      name: latestOrder.productId.name,
-      image: latestOrder.productId.images[0] || null,
+      latestOrder,
       canReview: latestOrder.reviewStatus === 'pending', 
-      orderId: latestOrder._id
     };
 
     res.status(200).json({ product: productInfo });
