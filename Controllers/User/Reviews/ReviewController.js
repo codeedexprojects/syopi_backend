@@ -43,6 +43,10 @@ exports.addReview = async (req, res) => {
     });
 
     await review.save();
+
+    order.reviewStatus = 'reviewed';
+    await order.save();
+
   
       // Recalculate product's average rating
       const reviews = await Review.find({ productId });
@@ -72,47 +76,54 @@ exports.getReviewsByProduct = async (req, res) => {
   }
 };
 
-exports.hasReviewedLatestDelivered = async (req, res) => {
+exports.getLatestReviewStatus = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Find the latest delivered order for this user
-    const latestDeliveredOrder = await Order.findOne({
-      userId,
-      status: "Delivered",
-    }).sort({ createdAt: -1 });
+    // Get latest delivered product
+    const latestOrder = await Order.findOne({ 
+      userId, 
+      status: "Delivered" 
+    }).sort({ deliveredAt: -1 }).populate('productId', 'name images');
 
-    if (!latestDeliveredOrder) {
-      return res.status(404).json({
-        message: "You have no delivered orders yet.",
-        product: null,
-        hasReviewed: false,
+    if (!latestOrder) {
+      return res.status(200).json({ 
+        product: null, 
+        canReview: false 
       });
     }
 
-    // Get product details
-    const product = await Product.findById(latestDeliveredOrder.productId, "name images");
-    if (!product) {
-      return res.status(404).json({
-        message: "Product not found",
-        product: null,
-        hasReviewed: false,
-      });
+    const productInfo = {
+      name: latestOrder.productId.name,
+      image: latestOrder.productId.images[0] || null,
+      canReview: latestOrder.reviewStatus === 'pending', 
+      orderId: latestOrder._id
+    };
+
+    res.status(200).json({ product: productInfo });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+exports.dismissReview = async (req, res) => {
+  const { orderId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const order = await Order.findOne({ _id: orderId, userId });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    // Check if review exists
-    const existingReview = await Review.findOne({
-      userId,
-      productId: latestDeliveredOrder.productId,
-    });
+    order.reviewStatus = 'dismissed';
+    await order.save();
 
-    res.status(200).json({
-      product: {
-        name: product.name,
-        image: product.images?.[0] || null,
-      },
-      hasReviewed: !!existingReview,
-    });
+    res.status(200).json({ message: "Review prompt dismissed" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

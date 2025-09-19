@@ -7,7 +7,9 @@ const verifyToken=require('../../../Middlewares/jwtConfig')
 
 
 router.post("/add",  verifyToken(['customer']), ReviewController.addReview); 
-router.get("/has-reviewed", verifyToken(['customer']), ReviewController.hasReviewedLatestDelivered); 
+router.get("/has-reviewed", verifyToken(['customer']), ReviewController.getLatestReviewStatus); 
+router.post("/dismiss-review", verifyToken(['customer']), ReviewController.dismissReview); 
+
 router.get("/:productId", ReviewController.getReviewsByProduct); 
 
 
