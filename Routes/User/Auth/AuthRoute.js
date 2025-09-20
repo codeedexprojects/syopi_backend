@@ -4,6 +4,7 @@ const passport = require('passport');
 const userController = require('../../../Controllers/User/Auth/Auth');
 const { registerUserValidator, loginUserValidator } = require('../../../validators/userValidator');
 const validationHandler = require('../../../Middlewares/validationHandler');
+const { otpLimiter } = require('../../../Middlewares/rateLimiter')
 
 // Register User
 router.post('/register', registerUserValidator, validationHandler, userController.registerUser);
@@ -39,9 +40,9 @@ router.get("/apple", passport.authenticate("apple", { scope: ["name", "email"] }
 // Apple Callback
 router.post("/apple/callback", userController.appleLoginCallback);
 
-router.post('/send-otp', loginUserValidator, validationHandler, userController.sendOtp);
+router.post('/send-otp', otpLimiter, loginUserValidator, validationHandler, userController.sendOtp);
 
-router.post('/resend-otp',userController.resendOtp);
+router.post('/resend-otp', otpLimiter, userController.resendOtp);
 
 
 router.post('/verify-otp', userController.verifyOtp);

@@ -14,5 +14,7 @@ router.patch("/update/:id", verifyToken(["admin"]), upload, productController.up
 router.delete("/delete/:id", verifyToken(["admin"]), productController.deleteProduct);
 router.delete("/delete/:id/image", verifyToken(["admin"]), productController.deleteProductImage);
 router.delete("/delete/:productId/variant/:variantId", verifyToken(["admin"]), productController.deleteVariantFromProduct)
+router.patch("/:id/status", verifyToken(["admin"]), productController.toggleProductStatus);
+
 
 module.exports = router;
