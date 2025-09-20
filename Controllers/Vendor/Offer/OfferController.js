@@ -43,13 +43,13 @@ const applyOfferToProducts = async (offer) => {
 
     // Apply the offer to each variant
     for (const variant of product.variants) {
-      if (!variant.price || variant.price <= 0) continue;
+      if (!variant.wholesalePrice || variant.wholesalePrice <= 0) continue;
 
       if (offerType === "percentage") {
-        const discount = (variant.price * amount) / 100;
-        variant.offerPrice = Math.max(0, variant.price - discount);
+        const discount = (variant.wholesalePrice * amount) / 100;
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - discount);
       } else if (offerType === "fixed") {
-        variant.offerPrice = Math.max(0, variant.price - amount);
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - amount);
       }
 
       minOfferPrice = Math.min(minOfferPrice, variant.offerPrice);

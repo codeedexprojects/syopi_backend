@@ -9,14 +9,12 @@ const Brand = require("../../../Models/Admin/BrandModel");
 
 //apply offer
 const applyOfferToProducts = async (offer) => {
-  const { _id: offerId, category, subcategory, brands, products, ownerId, ownerType, offerType, amount, expireDate } = offer;
+  const { _id: offerId, category, subcategory, brands, products, offerType, amount, expireDate } = offer;
 
   if (offer.status !== "active") throw new Error("Offer is not active.");
   if (new Date() > expireDate) throw new Error("Offer has expired.");
   
   const applicableProducts = await Product.find({
-    owner: ownerId,
-    ownerType,
     $or: [
       { _id: { $in: products } },
       { category: { $in: category } },
@@ -40,13 +38,13 @@ const applyOfferToProducts = async (offer) => {
     let minOfferPrice = Infinity;
 
     for (const variant of product.variants) {
-      if (!variant.price || variant.price <= 0) continue;
+      if (!variant.wholesalePrice || variant.wholesalePrice <= 0) continue;
 
       if (offerType === "percentage") {
-        const discount = (variant.price * amount) / 100;
-        variant.offerPrice = Math.max(0, variant.price - discount);
+        const discount = (variant.wholesalePrice * amount) / 100;
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - discount);
       } else if (offerType === "fixed") {
-        variant.offerPrice = Math.max(0, variant.price - amount);
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - amount);
       }
 
       minOfferPrice = Math.min(minOfferPrice, variant.offerPrice);
@@ -60,6 +58,7 @@ const applyOfferToProducts = async (offer) => {
 
   console.log(`Offer applied to ${applicableProducts.length} products.`);
 };
+
 
 
 // remove offer

@@ -135,12 +135,18 @@ exports.getallProducts = async (req, res) => {
       // ✅ Price filtering
       if ((minPrice || maxPrice) && product.variants?.length) {
         const firstVariant = product.variants[0];
-        const offerPrice = firstVariant?.offerPrice || 0;
 
-        if ((minPrice && offerPrice < parseFloat(minPrice)) || (maxPrice && offerPrice > parseFloat(maxPrice))) {
+        // If product has offers, use offerPrice, else use normal price
+        const effectivePrice = (product.offers && product.offers.length > 0)
+          ? (firstVariant?.offerPrice ?? firstVariant?.price ?? 0)
+          : (firstVariant?.price ?? 0);
+
+        if ((minPrice && effectivePrice < parseFloat(minPrice)) ||
+            (maxPrice && effectivePrice > parseFloat(maxPrice))) {
           isMatching = false;
         }
       }
+
 
       // ✅ Size filtering
       if (sizesArray && product.variants) {
