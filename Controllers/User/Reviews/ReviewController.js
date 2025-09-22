@@ -86,7 +86,8 @@ exports.getLatestReviewStatus = async (req, res) => {
       status: "Delivered" 
     }).sort({ deliveredAt: -1 })
     .populate("productId", "name images")
-    .select("productId _id"); 
+    .select("productId _id reviewStatus"); 
+    
 
     if (!latestOrder) {
       return res.status(200).json({ 
