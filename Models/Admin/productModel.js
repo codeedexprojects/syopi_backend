@@ -6,7 +6,7 @@ const Admin = require("../Admin/AdminModel");
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   productCode: { type: String, unique: true },
-  productType: { type: String, enum: ["Dress", "Chappal"], required: true },
+  productType: { type: String, enum: ["Dress", "Chappal", "Accessories"], required: true },
   images: { type: [String], required: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
   subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "SubCategory" },
