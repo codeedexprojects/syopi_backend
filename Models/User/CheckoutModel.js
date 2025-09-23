@@ -36,6 +36,7 @@ const CheckoutSchema = new mongoose.Schema(
     deliveryCharge: { type: Number, default: 0 },
     finalTotal: { type: Number, required: true },
     isProcessed: { type: Boolean, default: false },
+    newUserDiscount: { type: Number },
     expiresAt: {
       type: Date,
       default: function () {

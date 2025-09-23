@@ -21,5 +21,11 @@ router.delete('/delete/:id', verifyAdminToken(['admin']), offerController.delete
 //expire
 router.post("/trigger-cleanup", verifyAdminToken(['admin']), offerController.triggerOfferCleanup)
 
+// Get New User Discount
+router.get('/discount', offerController.getDiscountSettings);
+
+// Update New User Discount
+router.put('/discount', offerController.updateDiscountSettings);
+
 module.exports = router;
  

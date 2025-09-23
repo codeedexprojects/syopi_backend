@@ -150,6 +150,8 @@ exports.getCart = async (req, res) => {
 
     cart.subtotal = updatedSubtotal;
     cart.totalPrice = updatedSubtotal - (cart.discount || 0);
+  
+    cart.save()
 
     res.status(200).json(cart);
   } catch (error) {
