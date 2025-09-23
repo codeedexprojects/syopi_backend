@@ -6,7 +6,9 @@ const coinHistorySchema = new mongoose.Schema({
     referenceId: { type: mongoose.Schema.Types.ObjectId, required: true },
     referenceType: { type: String, required: true },
     description: { type: String },
-    type: { type: String, enum: ['credit', 'debit'], required: true }
+    type: { type: String, enum: ['credit', 'debit'], required: true },
+    balanceAfter: { type: Number, required: true }
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('CoinHistory', coinHistorySchema);

@@ -132,26 +132,30 @@ const sendNotification = async (userId, title, message, data = {}, image) => {
     include_external_user_ids: Array.isArray(userId) ? userId : [userId],
     headings: { en: title },
     contents: { en: message },
-    data
+    data,
+    mutable_content: true 
   };
 
   if (imageUrl) {
     payload.big_picture = imageUrl;
+    payload.ios_attachments = {
+      id: imageUrl
+    };
   }
 
-  await axios.post('https://onesignal.com/api/v1/notifications', payload, {
+  await axios.post("https://onesignal.com/api/v1/notifications", payload, {
     headers: {
       Authorization: `Basic ${process.env.ONESIGNAL_REST_API_KEY}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 };
+
 
 exports.notifyUser = async (req, res) => {
   try {
     const { userId, title, message, orderId, productId, categoryId, subCategoryId, notificationType } = req.body;
     const image = req.file ? req.file.filename : null;
-    const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
 
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -178,7 +182,7 @@ exports.notifyUser = async (req, res) => {
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
       notificationType,
-      image: imageUrl,
+      image,
       isBroadcast: false
     });
 
@@ -197,14 +201,18 @@ const sendBroadcastNotification = async (title, message, data = {}, image) => {
 
   const payload = {
     app_id: process.env.ONESIGNAL_APP_ID,
-    included_segments: ["All"],
+    included_segments: ["All"], 
     headings: { en: title },
     contents: { en: message },
-    data
+    data,
+    mutable_content: true 
   };
 
   if (imageUrl) {
     payload.big_picture = imageUrl;
+    payload.ios_attachments = {
+      id1: imageUrl
+    };
   }
 
   await axios.post("https://onesignal.com/api/v1/notifications", payload, {
@@ -215,11 +223,11 @@ const sendBroadcastNotification = async (title, message, data = {}, image) => {
   });
 };
 
+
 exports.notifyAllUsers = async (req, res) => {
   try {
     const { title, message, productId, categoryId, subCategoryId, notificationType } = req.body;
     const image = req.file ? req.file.filename : null;
-    const imageUrl = image ? `${process.env.SERVER_URL}/uploads/${image}` : null;
 
     const customData = {};
     if (productId) customData.productId = productId;
@@ -235,16 +243,24 @@ exports.notifyAllUsers = async (req, res) => {
       categoryId: categoryId || null,
       subCategoryId: subCategoryId || null,
       notificationType,
-      image: imageUrl,
-      isBroadcast: true  
+      image,
+      isBroadcast: true
     });
 
     res.status(200).json({ message: "Broadcast notification sent & stored once" });
+
   } catch (error) {
-    console.error("Error sending broadcast notification:", error.message);
-    res.status(500).json({ message: "Failed to send broadcast notification", error: error.message });
+    console.error(
+      "Error sending broadcast notification:",
+      error.response?.data || error.message || error
+    );
+    res.status(500).json({
+      message: "Failed to send broadcast notification",
+      error: error.response?.data || error.message
+    });
   }
 };
+
 
 exports.resendNotification = async (req, res) => {
   try {

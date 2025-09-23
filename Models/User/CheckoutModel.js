@@ -215,39 +215,67 @@ CheckoutSchema.pre('save', async function (next) {
   }
 });
 
+// Instance method to remove coupon
+CheckoutSchema.methods.removeCoupon = async function () {
+  try {
+    if (!this.coupon) return this;
+
+    this.coupon = null;
+    this.couponDiscount = 0;
+
+    this.items = this.items.map((item) => ({
+      ...item.toObject ? item.toObject() : item,
+      discountedPrice: item.price,
+      couponDiscountedValue: 0,
+      isCoupon: false,
+    }));
+
+    this.finalTotal = Math.max(
+      0,
+      this.subtotal - this.coinDiscount + this.deliveryCharge
+    );
+
+    await this.save();
+    return this;
+  } catch (err) {
+    throw err;
+  }
+};
+
+
 // Restore coins if order is deleted before processing
-CheckoutSchema.post('findOneAndDelete', async function (doc) {
-  if (!doc || doc.isProcessed) return;
+// CheckoutSchema.post('findOneAndDelete', async function (doc) {
+//   if (!doc || doc.isProcessed) return;
 
-  try {
-    await User.findByIdAndUpdate(doc.userId, { $inc: { coins: doc.coinsApplied } });
-    console.log(`Restored ${doc.coinsApplied} coins to User ${doc.userId}`);
-  } catch (error) {
-    console.error('Error restoring coins:', error);
-  }
-});
+//   try {
+//     await User.findByIdAndUpdate(doc.userId, { $inc: { coins: doc.coinsApplied } });
+//     console.log(`Restored ${doc.coinsApplied} coins to User ${doc.userId}`);
+//   } catch (error) {
+//     console.error('Error restoring coins:', error);
+//   }
+// });
 
-CheckoutSchema.post('deleteMany', async function (result) {
-  if (result.deletedCount === 0) return;
+// CheckoutSchema.post('deleteMany', async function (result) {
+//   if (result.deletedCount === 0) return;
 
-  try {
-    const deletedDocs = await this.model.find(result);
-    const updates = deletedDocs
-      .filter((doc) => !doc.isProcessed)
-      .map((doc) => ({
-        updateOne: {
-          filter: { _id: doc.userId },
-          update: { $inc: { coins: doc.coinsApplied } },
-        },
-      }));
+//   try {
+//     const deletedDocs = await this.model.find(result);
+//     const updates = deletedDocs
+//       .filter((doc) => !doc.isProcessed)
+//       .map((doc) => ({
+//         updateOne: {
+//           filter: { _id: doc.userId },
+//           update: { $inc: { coins: doc.coinsApplied } },
+//         },
+//       }));
 
-    if (updates.length) {
-      await User.bulkWrite(updates);
-      console.log(`${updates.length} users had their coins restored.`);
-    }
-  } catch (error) {
-    console.error('Error restoring coins after deleteMany:', error);
-  }
-});
+//     if (updates.length) {
+//       await User.bulkWrite(updates);
+//       console.log(`${updates.length} users had their coins restored.`);
+//     }
+//   } catch (error) {
+//     console.error('Error restoring coins after deleteMany:', error);
+//   }
+// });
 
 module.exports = mongoose.model('Checkout', CheckoutSchema);

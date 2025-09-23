@@ -65,7 +65,7 @@ const productSchema = new mongoose.Schema({
     default: null,
   }],
   coupon: { type: Number },
-  status: { type: String, enum: ["approved", "pending", "rejected"], default: "pending" },
+  status: { type: String, enum: ["active", "inactive"], default: "active" },
 }, { timestamps: true });
 
 

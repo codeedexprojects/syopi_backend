@@ -43,6 +43,10 @@ exports.addReview = async (req, res) => {
     });
 
     await review.save();
+
+    order.reviewStatus = 'reviewed';
+    await order.save();
+
   
       // Recalculate product's average rating
       const reviews = await Review.find({ productId });
@@ -67,6 +71,60 @@ exports.getReviewsByProduct = async (req, res) => {
   try {
     const reviews = await Review.find({ productId }).populate("userId", "name").sort({createdAt:-1})
     res.status(200).json(reviews);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.getLatestReviewStatus = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Get latest delivered product
+    const latestOrder = await Order.findOne({ 
+      userId, 
+      status: "Delivered" 
+    }).sort({ deliveredAt: -1 })
+    .populate("productId", "name images")
+    .select("productId _id reviewStatus"); 
+    
+
+    if (!latestOrder) {
+      return res.status(200).json({ 
+        product: null, 
+        canReview: false 
+      });
+    }
+
+    const productInfo = {
+      latestOrder,
+      canReview: latestOrder.reviewStatus === 'pending', 
+    };
+
+    res.status(200).json({ product: productInfo });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+exports.dismissReview = async (req, res) => {
+  const { orderId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const order = await Order.findOne({ _id: orderId, userId });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.reviewStatus = 'dismissed';
+    await order.save();
+
+    res.status(200).json({ message: "Review prompt dismissed" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

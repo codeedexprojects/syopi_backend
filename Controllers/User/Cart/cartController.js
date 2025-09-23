@@ -113,45 +113,57 @@ exports.getCart = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const cart = await Cart.findOne({ userId }).populate('items.productId', 'name images variants offers').exec();
+    const cart = await Cart.findOne({ userId })
+      .populate('items.productId', 'name images variants offers status')
+      .exec();
+
     if (!cart) {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    // ✅ Update prices based on current offers before sending response
     let updatedSubtotal = 0;
 
     for (const item of cart.items) {
       const product = item.productId;
+      if (!product) continue;
+
+      if (product.status !== "active") {
+        item.status = "inactive";
+        item.price = 0;
+        continue;
+      }
+
       const variant = product.variants.find(v => v.color === item.color);
       if (!variant) continue;
 
       const hasOffer = Array.isArray(product.offers) && product.offers.length > 0;
-      const effectivePrice = hasOffer && variant.offerPrice && variant.offerPrice > 0
-        ? variant.offerPrice
-        : variant.price;
+      const effectivePrice =
+        hasOffer && variant.offerPrice && variant.offerPrice > 0
+          ? variant.offerPrice
+          : variant.price;
 
       item.price = effectivePrice;
+      item.status = product.status;
+
       updatedSubtotal += item.price * item.quantity;
     }
 
     cart.subtotal = updatedSubtotal;
-    cart.totalPrice = updatedSubtotal - cart.discount;
+    cart.totalPrice = updatedSubtotal - (cart.discount || 0);
 
     res.status(200).json(cart);
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get cart'
+      message: error.message || 'Failed to get cart',
     });
   }
 };
 
-
 // increment or decrement quantity
 exports.updateCartQuantity = async (req, res) => {
-  const { userId, itemId, action } = req.body; // Using itemId instead of productId, color, size
+  const { userId, itemId, action } = req.body;
 
   if (!userId || !itemId || !action) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -167,19 +179,36 @@ exports.updateCartQuantity = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Cart not found' });
     }
 
-    // Find the specific item by its _id
     const item = cart.items.id(itemId);
     if (!item) {
       return res.status(404).json({ success: false, message: 'Product not found in cart' });
     }
 
+    // Fetch the product to check stock availability
+    const product = await Product.findById(item.productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // Find the variant and size to get actual stock
+    const variant = product.variants.find(v => v.color === item.color);
+    if (!variant) {
+      return res.status(404).json({ success: false, message: 'Product variant not found' });
+    }
+
+    const sizeObj = variant.sizes.find(s => s.size === item.size);
+    if (!sizeObj) {
+      return res.status(404).json({ success: false, message: 'Product size not found' });
+    }
+
     if (action === 'increment') {
+      if (item.quantity + 1 > sizeObj.stock) {
+        return res.status(400).json({ success: false, message: 'Insufficient stock available' });
+      }
       item.quantity += 1;
     } else if (action === 'decrement') {
       item.quantity -= 1;
-
       if (item.quantity <= 0) {
-        // Remove the item if the quantity becomes 0 or less
         item.remove();
       }
     }
@@ -193,9 +222,10 @@ exports.updateCartQuantity = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to update product quantity' });
+    res.status(500).json({ success: false, message: 'Failed to update product quantity', error: error.message });
   }
 };
+
 
 
 

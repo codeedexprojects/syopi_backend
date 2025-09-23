@@ -50,6 +50,7 @@
 const Product = require('../Models/Admin/productModel');
 const Wishlist = require('../Models/User/WishlistModel');
 const Cart = require('../Models/User/cartModel');
+const Vendor = require('../Models/Admin/VendorModel')
 
 const getProduct = async (userId) => {
     try {
@@ -71,22 +72,38 @@ const getProduct = async (userId) => {
             }
         }
 
-        const products = await Product.find().populate({ path: "offers", select: "offerType amount" });
+        // ✅ Fetch all products with offers
+        const products = await Product.find()
+            .populate({ path: "offers", select: "offerType amount" })
+            .lean();
 
-        const updatedProducts = products.map((product) => {
+        // ✅ Filter products whose vendor is blocked
+        const filteredProducts = [];
+        for (const product of products) {
+            if (product.ownerType === "vendor") {
+                const vendor = await Vendor.findById(product.owner).select("status");
+                if (!vendor || vendor.status === "blocked") {
+                    continue; // skip blocked vendor's product
+                }
+            }
+            filteredProducts.push(product);
+        }
+
+        // ✅ Update product details
+        const updatedProducts = filteredProducts.map((product) => {
             const variants = product.variants?.map(variant => {
                 const updatedSizes = variant.sizes.map(sizeObj => {
                     const key = `${product._id.toString()}_${variant.color}_${sizeObj.size}`;
                     const isCarted = cartItemMap.has(key);
 
                     return {
-                        ...sizeObj.toObject(),
+                        ...sizeObj,
                         isCarted,
                     };
                 });
 
                 return {
-                    ...variant.toObject(),
+                    ...variant,
                     sizes: updatedSizes,
                 };
             });
@@ -103,8 +120,8 @@ const getProduct = async (userId) => {
                 discountPercentage = Math.floor(((wholesalePrice - effectivePrice) / wholesalePrice) * 100);
             }
 
-             return {
-                ...product.toObject(),
+            return {
+                ...product,
                 variants,
                 isWishlisted: productWishlists.includes(product._id.toString()),
                 defaultPrice: price,
@@ -119,5 +136,6 @@ const getProduct = async (userId) => {
         throw new Error('Error fetching products from the database');
     }
 };
+
 
 module.exports = getProduct;

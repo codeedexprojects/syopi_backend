@@ -18,4 +18,8 @@ router.post('/return/:orderId', verifyToken(['customer']), orderController.reque
 // Cancel order
 router.post('/cancel/:orderId', verifyToken(['customer']), orderController.cancelOrder);
 
+// Invoice
+router.get('/invoice/:orderId', verifyToken(['customer']), orderController.downloadInvoice);
+
+
 module.exports = router;

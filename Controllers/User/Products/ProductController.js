@@ -561,54 +561,72 @@ exports.getSimilarProducts = async (req, res) => {
 exports.getExpectedDeliveryDate = async (req, res) => {
   const { pincode } = req.query;
 
+  if (!pincode) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Pincode is required" });
+  }
+
   try {
-      const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
-      const data = response.data;
+    const options = {
+      method: "POST",
+      url: "https://pincode.p.rapidapi.com/v1/postalcodes/india",
+      headers: {
+        "x-rapidapi-key": process.env.RAPIDAPI_KEY,
+        "x-rapidapi-host": "pincode.p.rapidapi.com",
+        "Content-Type": "application/json",
+      },
+      data: { search: pincode },
+    };
 
-      if (data[0].Status === "Success") {
-          const state = data[0].PostOffice[0].State.toLowerCase();
-          const officeType = data[0].PostOffice[0].BranchType.toLowerCase();
+    const response = await axios.request(options);
+    const data = response.data;
 
-          let daysToAdd;
-          if (state === "kerala") {
-              // Inside Kerala: Head/Sub office -> 1 day, Branch office -> 2 days
-              daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 1 : 2;
-          } else {
-              // Outside Kerala: Head/Sub office -> 5 days, Branch office -> 7 days
-              daysToAdd = (officeType === "head post office" || officeType === "sub post office") ? 5 : 7;
-          }
+    // ✅ API returns an array, not { postalCodes: [] }
+    if (!Array.isArray(data) || data.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid Pincode" });
+    }
 
-          const deliveryDate = moment().add(daysToAdd, 'days');
+    // Pick the first office (or you can enhance to pick best S.O/H.O)
+    const postOffice = data[0];
+    const state = (postOffice.state || "").toLowerCase();
+    const officeType = (postOffice.office_type || "").toLowerCase();
 
-          // Constructing the delivery message
-          let deliveryMessage;
-          if (daysToAdd === 1) {
-              deliveryMessage = "Delivered by tomorrow";
-          } else if (daysToAdd === 2) {
-              deliveryMessage = "Delivered within 2 days";
-          } else {
-              deliveryMessage = `Delivered by ${deliveryDate.format("dddd")}, ${deliveryDate.format("MMMM D")}`;
-          }
+    // ✅ Delivery calculation logic with min = 2 days
+    let daysToAdd;
+    if (state === "kerala") {
+      daysToAdd = 2; // always at least 2 days inside Kerala
+    } else {
+      daysToAdd =
+        officeType.includes("s.o") || officeType.includes("h.o") ? 5 : 7;
+    }
 
-          return res.status(200).json({
-              success: true,
-              message: "Expected delivery date calculated successfully",
-              deliveryDate: deliveryDate.format("YYYY-MM-DD"),
-              deliveryMessage,
-              pincode
-          });
-      }
+    // Absolute safeguard: enforce min = 2 days
+    if (daysToAdd < 2) daysToAdd = 2;
 
-      return res.status(400).json({
-          success: false,
-          message: "Invalid Pincode",
-      });
+    const deliveryDate = moment().add(daysToAdd, "days");
+    let deliveryMessage =
+      daysToAdd === 2
+        ? "Delivered within 2 days"
+        : `Delivered by ${deliveryDate.format("dddd")}, ${deliveryDate.format(
+            "MMMM D"
+          )}`;
+
+    return res.status(200).json({
+      success: true,
+      message: "Expected delivery date calculated successfully",
+      deliveryDate: deliveryDate.format("YYYY-MM-DD"),
+      deliveryMessage,
+      pincode
+    });
   } catch (error) {
-      console.error("Error fetching pincode data:", error.message);
-      return res.status(500).json({
-          success: false,
-          message: "Error occurred while calculating delivery date",
-      });
+    console.error("Error fetching pincode data:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error occurred while calculating delivery date",
+    });
   }
 };
   

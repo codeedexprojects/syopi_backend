@@ -24,7 +24,10 @@ router.delete('/delete/:id',verifyToken(['admin']),notificationController.delete
 router.get('/search',verifyToken(['admin']),notificationController.searchNotifications);
 
 //notify user
-router.post('/notify-user',verifyToken(['admin']),notificationController.notifyUser)
-router.post('/notify-all-users',verifyToken(['admin']),notificationController.notifyAllUsers)
+router.post('/notify-user',verifyToken(['admin']), multerConfig.single('image'), notificationController.notifyUser)
+router.post('/notify-all-users',verifyToken(['admin']),multerConfig.single('image'), notificationController.notifyAllUsers)
+
+router.post('/resend/:notificationId',verifyToken(['admin']),notificationController.resendNotification)
+
 
 module.exports = router;
