@@ -70,47 +70,67 @@ const productSchema = new mongoose.Schema({
 
 
 // Pre-save hook to generate product code, populate supplierName, and calculate total stock
+// Define a reusable mapping
+const productTypeMap = {
+  Dress: "D",
+  Chappal: "C",
+  Accessories: "A"
+};
+
+// Virtual field for productTypeCode
+productSchema.virtual("productTypeCode").get(function () {
+  return productTypeMap[this.productType] || null;
+});
+
+// Ensure virtuals show up
+productSchema.set("toJSON", { virtuals: true });
+productSchema.set("toObject", { virtuals: true });
+
+// Pre-save hook
 productSchema.pre("save", async function (next) {
   if (this.isNew) {
-
     const ownerId = this.owner;
     const productType = this.productType;
-    const ownerType = this.ownerType.trim().toUpperCase(); // Ensure ownerType is uppercase
+    const ownerType = this.ownerType.trim().toUpperCase();
 
-    const productTypeCode = productType === "Dress" ? "D" : "C"; // 'D' for Dress, 'C' for Chappal
-    let ownerInitials = '';
+    // ✅ use map instead of if/else
+    const productTypeCode = productTypeMap[productType];
+    if (!productTypeCode) {
+      return next(new Error(`Invalid productType: ${productType}`));
+    }
 
-    // Generate owner initials (use vendor or admin initials for the product code)
+    let ownerInitials = "";
+
     if (this.ownerType === "vendor") {
       const vendor = await Vendor.findById(ownerId);
       if (vendor) {
-        ownerInitials = vendor.businessname ? vendor.businessname.slice(0, 2).toUpperCase() : vendor.ownername.slice(0, 2).toUpperCase();
+        ownerInitials = vendor.businessname
+          ? vendor.businessname.slice(0, 2).toUpperCase()
+          : vendor.ownername.slice(0, 2).toUpperCase();
       } else {
         return next(new Error("Vendor not found for the provided owner ID"));
       }
     } else if (this.ownerType === "admin") {
       const admin = await Admin.findById(ownerId);
       if (admin) {
-        ownerInitials = admin.role.slice(0, 2).toUpperCase(); // Using the first two letters of admin's name
+        ownerInitials = admin.role.slice(0, 2).toUpperCase();
       } else {
         return next(new Error("Admin not found for the provided owner ID"));
       }
     }
 
-    // Generate the sequential number (e.g., 001, 002)
+    // Generate sequential number
     const lastProduct = await this.constructor.findOne({ owner: ownerId, productType })
       .sort({ createdAt: -1 })
       .limit(1);
 
     let sequentialNumber = 1;
-
-    // Check if there is a previous product and handle the split logic
     if (lastProduct && lastProduct.productCode) {
-      const lastProductCode = lastProduct.productCode;
-      const lastSeqNum = parseInt(lastProductCode.split("-").pop()); // Get the last part of the product code
-      sequentialNumber = isNaN(lastSeqNum) ? 1 : lastSeqNum + 1; // Handle NaN case
+      const lastSeqNum = parseInt(lastProduct.productCode.split("-").pop());
+      sequentialNumber = isNaN(lastSeqNum) ? 1 : lastSeqNum + 1;
     }
-    // Generate product code in the format: {ProductType}-{OwnerInitials}-{SequentialNumber}
+
+    // ✅ now code is always {TypeCode}-{OwnerInitials}-{Seq}
     this.productCode = `${productTypeCode}-${ownerInitials}-${String(sequentialNumber).padStart(3, "0")}`;
 
     // Populate supplierName
@@ -124,32 +144,33 @@ productSchema.pre("save", async function (next) {
     } else if (this.ownerType === "admin") {
       const admin = await Admin.findById(ownerId);
       if (admin) {
-        this.supplierName = "Admin"; // Default name for admin products
+        this.supplierName = "Admin";
       } else {
         return next(new Error("Admin not found for the provided owner ID"));
       }
     }
-    // Initialize `offerPrice` as the same value as `price` for each variant
-    if (this.variants && this.variants.length > 0) {
+
+    // Initialize offerPrice if missing
+    if (this.variants?.length > 0) {
       this.variants.forEach((variant) => {
         if (!variant.offerPrice) {
-          variant.offerPrice = variant.price; // Set offerPrice to price if it's not explicitly set
+          variant.offerPrice = variant.price;
         }
       });
     }
 
-    // Calculate the total stock from all variants
+    // Calculate total stock
     if (this.isNew || this.isModified("variants")) {
       const totalStock = this.variants.reduce((total, variant) => {
         const sizeStock = variant.sizes.reduce((sizeTotal, size) => sizeTotal + size.stock, 0);
         return total + sizeStock;
       }, 0);
-    
       this.totalStock = totalStock;
     }
   }
   next();
 });
+
 
 const Product = mongoose.model('Product', productSchema);
 module.exports = Product;
