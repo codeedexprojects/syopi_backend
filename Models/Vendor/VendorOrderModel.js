@@ -38,13 +38,9 @@ const VendorOrderSchema = new mongoose.Schema(
       }, 
       default: "Pending" 
     },
-    deliveryDetails:{
-      deliveryDate:{
-        type:String
-      },
-      deliveryMessage:{
-        type:String
-      }
+    deliveryDetails: {
+      deliveryDate: { type: String },
+      deliveryMessage: { type: String }
     },
     deliveredAt: { type: Date }, 
     cancellationOrReturnReason: { type: String, default: "" }, 
@@ -68,6 +64,12 @@ const VendorOrderSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'reviewed', 'dismissed'],
       default: 'pending'
+    },
+
+    // ✅ New Field for delivery charge assignment
+    deliveryCharge: {
+      type: Number,
+      default: 0
     }
   },
   { timestamps: true }  // This ensures 'createdAt' and 'updatedAt' fields are automatically managed
@@ -82,7 +84,7 @@ VendorOrderSchema.pre("save", async function (next) {
 
     const vendor = await mongoose.model("Vendor").findById(this.vendorId);
     if (!vendor || vendor.status !== "approved") {
-      return next(); 
+      return next();
     }
 
     // Get Admin Commission settings
@@ -92,8 +94,9 @@ VendorOrderSchema.pre("save", async function (next) {
     }
 
     const vendorId = this.vendorId;
+
     const orderAmount = this.itemTotal;
-    const couponDiscount = this.couponDiscountedValue;
+    const couponDiscount = this.couponDiscountedValue || 0;
     const adminCommission = (orderAmount * adminCommissionSettings.commissionRate) / 100;
     const netPayable = orderAmount - adminCommission - couponDiscount;
 
@@ -123,7 +126,6 @@ VendorOrderSchema.pre("save", async function (next) {
     next(error);
   }
 });
-
 
 
 module.exports = mongoose.model("VendorOrder", VendorOrderSchema);
