@@ -8,7 +8,7 @@ const removeExpiredOffers = require("../../../utils/removeExpiredOffers")
 
 //apply offer
 const applyOfferToProducts = async (offer) => {
-  const { _id: offerId, category, subcategory, products, ownerId, ownerType, offerType, amount, expireDate } = offer;
+  const { _id: offerId, products, ownerId, ownerType, offerType, amount, expireDate } = offer;
 
   // Validate offer status and expiry
   if (offer.status !== "active") throw new Error("Offer is not active.");
@@ -20,8 +20,6 @@ const applyOfferToProducts = async (offer) => {
     ownerType,
     $or: [
       { _id: { $in: products } }, // Specific products
-      { category: { $in: category } }, // Products in the specified category
-      { subcategory: { $in: subcategory } }, // Products in the specified subcategory
     ],
   });
 
@@ -43,13 +41,13 @@ const applyOfferToProducts = async (offer) => {
 
     // Apply the offer to each variant
     for (const variant of product.variants) {
-      if (!variant.price || variant.price <= 0) continue;
+      if (!variant.wholesalePrice || variant.wholesalePrice <= 0) continue;
 
       if (offerType === "percentage") {
-        const discount = (variant.price * amount) / 100;
-        variant.offerPrice = Math.max(0, variant.price - discount);
+        const discount = (variant.wholesalePrice * amount) / 100;
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - discount);
       } else if (offerType === "fixed") {
-        variant.offerPrice = Math.max(0, variant.price - amount);
+        variant.offerPrice = Math.max(0, variant.wholesalePrice - amount);
       }
 
       minOfferPrice = Math.min(minOfferPrice, variant.offerPrice);
@@ -107,7 +105,7 @@ const removeOfferFromProducts = async (offer, productIds = []) => {
 // Create Offer
 exports.createOffer = async (req, res) => {
   try {
-    const { offerName, ownerId, offerType, amount, startDate, expireDate, category, subcategory, products } = req.body;
+    const { offerName, ownerId, offerType, amount, startDate, expireDate, products } = req.body;
 
     // Validate offer amount
     if (!amount || amount <= 0) {
@@ -124,8 +122,6 @@ exports.createOffer = async (req, res) => {
       amount,
       startDate,
       expireDate,
-      category: category ? category.map((id) => new mongoose.Types.ObjectId(id)) : [],
-      subcategory: subcategory ? subcategory.map((id) => new mongoose.Types.ObjectId(id)) : [],
       products: products ? products.map((id) => new mongoose.Types.ObjectId(id)) : [],
       createdBy,
       ownerType,
@@ -146,20 +142,13 @@ exports.createOffer = async (req, res) => {
 // Get All Offers with Filtering
 exports.getOffers = async (req, res) => {
     try {
-      const { ownerId, category, subcategory, status } = req.query; // Get filters from query params
-  
+      const { status } = req.query; // Get filters from query params
+      const ownerId = req.user.id
+      
       let filter = {}; // Base filter object
   
       if (ownerId) {
         filter.ownerId = ownerId; // Filter by ownerId
-      }
-  
-      if (category) {
-        filter.category = { $in: category.split(",") }; // Filter by multiple categories
-      }
-  
-      if (subcategory) {
-        filter.subcategory = { $in: subcategory.split(",") }; // Filter by multiple subcategories
       }
   
       if (status) {
@@ -204,7 +193,7 @@ exports.getOfferById = async (req, res) => {
 // Update Offer
 exports.updateOffer = async (req, res) => {
   const { id } = req.params;
-  const { offerName, offerType, amount, startDate, expireDate, category, subcategory, status } = req.body;
+  const { offerName, offerType, amount, startDate, expireDate, status } = req.body;
 
   try {
     const updatedOffer = await Offer.findByIdAndUpdate(
@@ -215,8 +204,6 @@ exports.updateOffer = async (req, res) => {
         ...(amount && { amount }),
         ...(startDate && { startDate }),
         ...(expireDate && { expireDate }),
-        ...(category && { category }),
-        ...(subcategory && { subcategory }),
         ...(status && { status }),
       },
       { new: true }
