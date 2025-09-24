@@ -6,6 +6,8 @@ const SubCategory = require("../../../Models/Admin/SubCategoryModel")
 const mongoose = require('mongoose')
 const removeExpiredOffers = require("../../../utils/removeExpiredOffers")
 const Brand = require("../../../Models/Admin/BrandModel");
+const DiscountSettings = require('../../../Models/Admin/DiscountModel');
+
 
 //apply offer
 const applyOfferToProducts = async (offer) => {
@@ -261,5 +263,49 @@ exports.triggerOfferCleanup = async (req, res) => {
     res.status(200).json({ message: "Expired offers processed successfully." });
   } catch (error) {
     res.status(500).json({ message: "Error processing expired offers.", error: error.message });
+  }
+};
+
+// ✅ Create or Update Discount Settings
+exports.updateDiscountSettings = async (req, res) => {
+  try {
+    const { newUserDiscountType, newUserDiscountValue } = req.body;
+
+    if (!['percentage', 'fixed'].includes(newUserDiscountType)) {
+      return res.status(400).json({ message: 'Invalid discount type. Must be "percentage" or "fixed".' });
+    }
+
+    if (newUserDiscountValue <= 0) {
+      return res.status(400).json({ message: 'Discount value must be greater than 0.' });
+    }
+
+    const settings = await DiscountSettings.findOneAndUpdate(
+      {}, // since we expect only one settings doc
+      { newUserDiscountType, newUserDiscountValue },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Discount settings updated successfully',
+      settings,
+    });
+  } catch (error) {
+    console.error('Error updating discount settings:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+  }
+};
+
+// ✅ Get Current Discount Settings
+exports.getDiscountSettings = async (req, res) => {
+  try {
+    const settings = await DiscountSettings.findOne();
+    res.status(200).json({
+      success: true,
+      settings: settings || {},
+    });
+  } catch (error) {
+    console.error('Error fetching discount settings:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
   }
 };

@@ -24,5 +24,8 @@ router.post('/buy-now',verifyToken(['customer']),CheckoutController.createBuyNow
 // apply syopi coins
 router.post('/apply/coin',verifyToken(['customer']),CheckoutController.applyCoins)
 
+// Remove Coupon
+router.post('/remove-coupon',verifyToken(['customer']),CheckoutController.removeCoupon)
+
 
 module.exports=router

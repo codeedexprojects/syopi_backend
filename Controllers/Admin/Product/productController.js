@@ -453,3 +453,32 @@ exports.deleteVariantFromProduct = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+
+exports.toggleProductStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // product id
+    const { status } = req.body; // expected: "active" or "inactive"
+
+    if (!["active", "inactive"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Use 'active' or 'inactive'" });
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      message: `Product ${status === "active" ? "activated" : "inactivated"} successfully`,
+      product,
+    });
+  } catch (err) {
+    console.error("Error updating product status:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};

@@ -64,7 +64,11 @@ const VendorOrderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
+    reviewStatus: {
+      type: String,
+      enum: ['pending', 'reviewed', 'dismissed'],
+      default: 'pending'
+    }
   },
   { timestamps: true }  // This ensures 'createdAt' and 'updatedAt' fields are automatically managed
 );

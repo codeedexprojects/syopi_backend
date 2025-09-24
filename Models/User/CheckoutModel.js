@@ -36,6 +36,7 @@ const CheckoutSchema = new mongoose.Schema(
     deliveryCharge: { type: Number, default: 0 },
     finalTotal: { type: Number, required: true },
     isProcessed: { type: Boolean, default: false },
+    newUserDiscount: { type: Number },
     expiresAt: {
       type: Date,
       default: function () {
@@ -214,6 +215,34 @@ CheckoutSchema.pre('save', async function (next) {
     next(error);
   }
 });
+
+// Instance method to remove coupon
+CheckoutSchema.methods.removeCoupon = async function () {
+  try {
+    if (!this.coupon) return this;
+
+    this.coupon = null;
+    this.couponDiscount = 0;
+
+    this.items = this.items.map((item) => ({
+      ...item.toObject ? item.toObject() : item,
+      discountedPrice: item.price,
+      couponDiscountedValue: 0,
+      isCoupon: false,
+    }));
+
+    this.finalTotal = Math.max(
+      0,
+      this.subtotal - this.coinDiscount + this.deliveryCharge
+    );
+
+    await this.save();
+    return this;
+  } catch (err) {
+    throw err;
+  }
+};
+
 
 // Restore coins if order is deleted before processing
 // CheckoutSchema.post('findOneAndDelete', async function (doc) {
