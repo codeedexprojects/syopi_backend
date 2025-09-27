@@ -40,32 +40,37 @@ exports.getUserWishlist = async (req, res) => {
     const limit = Math.max(1, parseInt(req.query.limit) || 10);
     const skip = (page - 1) * limit;
 
-    // ✅ Get total wishlist items for pagination
+    // ✅ Get total wishlist items for pagination (before cleaning)
     const totalWishlistItems = await Wishlist.countDocuments({ userId });
 
     // ✅ Retrieve wishlist with product details
-    const wishlistItems = await Wishlist.find({ userId })
+    let wishlistItems = await Wishlist.find({ userId })
       .populate("productId")
       .skip(skip)
       .limit(limit);
+
+    // ✅ Remove wishlist items with deleted products
+    wishlistItems = wishlistItems.filter(item => item.productId && item.productId !== null);
 
     // ✅ Retrieve user's cart items
     const cart = await Cart.findOne({ userId });
     const cartProductIds = new Set();
     if (cart && cart.items.length > 0) {
       for (const item of cart.items) {
-        cartProductIds.add(item.productId.toString());
+        if (item.productId) {
+          cartProductIds.add(item.productId.toString());
+        }
       }
     }
 
-    // ✅ Map wishlist items to include inCart flag, handling null productId
+    // ✅ Map wishlist items to include inCart flag
     const wishlist = wishlistItems.map(item => ({
       _id: item._id,
       productId: item.productId,
-      inCart: item.productId ? cartProductIds.has(item.productId._id.toString()) : false
+      inCart: cartProductIds.has(item.productId._id.toString())
     }));
 
-    // ✅ Pagination metadata
+    // ✅ Pagination metadata (recalculate after filtering)
     const totalPages = Math.ceil(totalWishlistItems / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
@@ -90,6 +95,7 @@ exports.getUserWishlist = async (req, res) => {
     });
   }
 };
+
 
 //remove product from wishlist
 exports.removeFromWishlist = async (req, res) => {

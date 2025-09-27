@@ -113,7 +113,7 @@ exports.getCart = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const cart = await Cart.findOne({ userId })
+    let cart = await Cart.findOne({ userId })
       .populate('items.productId', 'name images variants offers status')
       .exec();
 
@@ -123,19 +123,30 @@ exports.getCart = async (req, res) => {
 
     let updatedSubtotal = 0;
 
+    // Remove items where product does not exist in DB anymore
+    cart.items = cart.items.filter(item => {
+      if (!item.productId || item.productId === null) {
+        return false; // remove this item
+      }
+      return true;
+    });
+
     for (const item of cart.items) {
       const product = item.productId;
       if (!product) continue;
 
+      // If product inactive
       if (product.status !== "active") {
         item.status = "inactive";
         item.price = 0;
         continue;
       }
 
+      // Match variant
       const variant = product.variants.find(v => v.color === item.color);
       if (!variant) continue;
 
+      // Check offer
       const hasOffer = Array.isArray(product.offers) && product.offers.length > 0;
       const effectivePrice =
         hasOffer && variant.offerPrice && variant.offerPrice > 0
@@ -150,8 +161,8 @@ exports.getCart = async (req, res) => {
 
     cart.subtotal = updatedSubtotal;
     cart.totalPrice = updatedSubtotal - (cart.discount || 0);
-  
-    cart.save()
+
+    await cart.save();
 
     res.status(200).json(cart);
   } catch (error) {
@@ -162,6 +173,7 @@ exports.getCart = async (req, res) => {
     });
   }
 };
+
 
 // increment or decrement quantity
 exports.updateCartQuantity = async (req, res) => {

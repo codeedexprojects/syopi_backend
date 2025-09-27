@@ -47,6 +47,8 @@ const productSchema = new mongoose.Schema({
     sleevesType: { type: String },
     length: { type: String },
     occasion: { type: String },
+    pattern: { type: String },
+    style: { type: String },
   },
   cost: { type: Number }, // Only for admin products
   owner: { type: mongoose.Schema.Types.ObjectId, refPath: "ownerType", required: true },
