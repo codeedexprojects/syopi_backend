@@ -142,7 +142,7 @@ const getOrderStats = async (req, res) => {
                     },
                     totalSales: {
                         $sum: {
-                            $cond: [{ $eq: ["$status", "Delivered"] }, "$finalPayableAmount", 0]
+                            $cond: [{ $eq: ["$status", "Delivered"] }, "$itemTotal", 0]
                         }
                     },
                     orderCount: { $sum: 1 }
