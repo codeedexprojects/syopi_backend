@@ -269,19 +269,39 @@ exports.triggerOfferCleanup = async (req, res) => {
 // ✅ Create or Update Discount Settings
 exports.updateDiscountSettings = async (req, res) => {
   try {
-    const { newUserDiscountType, newUserDiscountValue } = req.body;
+    const { newUserDiscountType, newUserDiscountValue, expirationDate } = req.body;
 
+    // Validate type
     if (!['percentage', 'fixed'].includes(newUserDiscountType)) {
-      return res.status(400).json({ message: 'Invalid discount type. Must be "percentage" or "fixed".' });
+      return res.status(400).json({
+        message: 'Invalid discount type. Must be "percentage" or "fixed".'
+      });
     }
 
+    // Validate value
     if (newUserDiscountValue <= 0) {
-      return res.status(400).json({ message: 'Discount value must be greater than 0.' });
+      return res.status(400).json({
+        message: 'Discount value must be greater than 0.'
+      });
+    }
+
+    // Validate expirationDate (if provided)
+    let expiry = null;
+    if (expirationDate) {
+      const parsedDate = new Date(expirationDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid expiration date format.' });
+      }
+      expiry = parsedDate;
     }
 
     const settings = await DiscountSettings.findOneAndUpdate(
-      {}, // since we expect only one settings doc
-      { newUserDiscountType, newUserDiscountValue },
+      {}, // only one settings document
+      {
+        newUserDiscountType,
+        newUserDiscountValue,
+        expirationDate: expiry
+      },
       { upsert: true, new: true }
     );
 
@@ -292,7 +312,11 @@ exports.updateDiscountSettings = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating discount settings:', error);
-    res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Internal Server Error',
+      error: error.message
+    });
   }
 };
 
@@ -300,12 +324,25 @@ exports.updateDiscountSettings = async (req, res) => {
 exports.getDiscountSettings = async (req, res) => {
   try {
     const settings = await DiscountSettings.findOne();
+
+    // Check if discount expired
+    let isExpired = false;
+    if (settings?.expirationDate && settings.expirationDate <= new Date()) {
+      isExpired = true;
+    }
+
     res.status(200).json({
       success: true,
       settings: settings || {},
+      isExpired,
     });
   } catch (error) {
     console.error('Error fetching discount settings:', error);
-    res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Internal Server Error',
+      error: error.message
+    });
   }
 };
+

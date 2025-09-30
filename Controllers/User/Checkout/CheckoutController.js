@@ -80,18 +80,23 @@ exports.createCheckout = async (req, res) => {
 
     if (!previousOrders) {
       const discountSettings = await DiscountSettings.findOne();
+
       if (discountSettings) {
-        if (discountSettings.newUserDiscountType === 'percentage') {
-          newUserDiscount = subtotal * (discountSettings.newUserDiscountValue / 100);
-        } else if (discountSettings.newUserDiscountType === 'fixed') {
-          newUserDiscount = discountSettings.newUserDiscountValue;
+        const now = new Date();
+
+        // 🔄 Apply only if no expiration OR still valid
+        if (!discountSettings.expirationDate || discountSettings.expirationDate > now) {
+          if (discountSettings.newUserDiscountType === 'percentage') {
+            newUserDiscount = subtotal * (discountSettings.newUserDiscountValue / 100);
+          } else if (discountSettings.newUserDiscountType === 'fixed') {
+            newUserDiscount = discountSettings.newUserDiscountValue;
+          }
         }
       }
     }
 
     // ✅ Final total
     const finalTotal = Math.max(0, subtotal + deliveryCharge - newUserDiscount);
-    
 
     // ✅ Create checkout
     const newCheckout = new Checkout({
