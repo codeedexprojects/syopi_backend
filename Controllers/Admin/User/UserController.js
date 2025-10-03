@@ -9,79 +9,102 @@ const CoinHistory = require('../../../Models/User/coinHistoryModel')
 
 // get all users
 exports.getAllUsers = async (req, res) => {
-    try {
-        const users = await User.find().select("-password");
+  try {
+    const {
+      sort = "newest",
+      page = 1,
+      limit = 10,
+      startDate,
+      endDate
+    } = req.query;
 
-        if (!users) {
-            return res.status(404).json({ message: "Users not found" });
-        }
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, parseInt(limit));
+    const skip = (pageNum - 1) * limitNum;
 
-        const totalUsers = await User.countDocuments();
-        const activeUsers = await User.countDocuments({ isActive: true });
-        const inactiveUsers = totalUsers - activeUsers;
-
-        // Calculate today's registered users
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const todayRegisteredUsers = await User.countDocuments({
-            createdAt: { $gte: startOfDay, $lte: endOfDay }
-        });
-
-        // Most wishlisted product with count
-        const mostWishlistedProduct = await Wishlist.aggregate([
-            { $group: { _id: "$productId", count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 1 },
-            {
-                $lookup: {
-                    from: "products",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "product"
-                }
-            },
-            { $unwind: "$product" },
-            {
-                $project: {
-                    _id: 0,
-                    count: 1,
-                    product: 1
-                }
-            }
-        ]);
-
-        // Top ordered product with count
-        const topOrderedProduct = await Product.findOne({ totalSales: { $gt: 0 } })
-            .sort({ totalSales: -1 });
-
-        res.status(200).json({
-            users,
-            totalUsers,
-            activeUsers,
-            inactiveUsers,
-            todayRegisteredUsers,
-            mostWishlistedProduct: mostWishlistedProduct[0]
-                ? {
-                    product: mostWishlistedProduct[0].product,
-                    count: mostWishlistedProduct[0].count
-                }
-                : null,
-            topOrderedProduct: topOrderedProduct
-                ? {
-                    product: topOrderedProduct,
-                    count: topOrderedProduct.totalSales
-                }
-                : null
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: "Internal server error", error: error.message });
+    let filter = {};
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
     }
+
+    const sortOption = sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
+
+    const users = await User.find(filter)
+      .select("-password")
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNum);
+
+    const totalUsers = await User.countDocuments(filter);
+    const activeUsers = await User.countDocuments({ ...filter, isActive: true });
+    const inactiveUsers = totalUsers - activeUsers;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayRegisteredUsers = await User.countDocuments({
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    const mostWishlistedProduct = await Wishlist.aggregate([
+      { $group: { _id: "$productId", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 1 },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product"
+        }
+      },
+      { $unwind: "$product" },
+      { $project: { _id: 0, count: 1, product: 1 } }
+    ]);
+
+    const topOrderedProduct = await Product.findOne({ totalSales: { $gt: 0 } })
+      .sort({ totalSales: -1 });
+
+    res.status(200).json({
+      users,
+      pagination: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        todayRegisteredUsers,
+        totalPages: Math.ceil(totalUsers / limitNum),
+        currentPage: pageNum,
+        hasNextPage: pageNum * limitNum < totalUsers,
+        hasPrevPage: pageNum > 1
+      },
+      mostWishlistedProduct: mostWishlistedProduct[0]
+        ? {
+            product: mostWishlistedProduct[0].product,
+            count: mostWishlistedProduct[0].count
+          }
+        : null,
+      topOrderedProduct: topOrderedProduct
+        ? {
+            product: topOrderedProduct,
+            count: topOrderedProduct.totalSales
+          }
+        : null
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
 };
+
 
 
 

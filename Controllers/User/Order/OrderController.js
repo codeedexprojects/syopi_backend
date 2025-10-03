@@ -79,6 +79,8 @@ exports.placeOrder = async (req, res) => {
     await newOrder.save();
 
     // ✅ Update inventory for each item and create vendor orders
+    let deliveryChargeAssigned = false;
+
     for (const item of checkout.items) {
       const product = await Product.findById(item.productId);
       if (!product) continue;
@@ -124,8 +126,11 @@ exports.placeOrder = async (req, res) => {
         size: item.size,
         deliveryDetails,
         status: "Pending",
-        coinsEarned: 0, // placeholder; will calculate globally
+        coinsEarned: 0, // placeholder
+        deliveryCharge: !deliveryChargeAssigned ? checkout.deliveryCharge : 0, // ✅ only first vendor order
       });
+
+      deliveryChargeAssigned = true; // ✅ after first assignment
 
       await vendorOrder.save();
     }
@@ -171,12 +176,10 @@ exports.placeOrder = async (req, res) => {
         await session.abortTransaction();
         session.endSession();
         console.error("Coin deduction failed:", error);
-        return res
-          .status(500)
-          .json({
-            message: "Failed to apply coins to order.",
-            error: error.message,
-          });
+        return res.status(500).json({
+          message: "Failed to apply coins to order.",
+          error: error.message,
+        });
       }
     }
 
@@ -192,11 +195,13 @@ exports.placeOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Order placement error:", error);
-    return res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
+
 
 const fetchDeliveryDetails = async (pincode) => {
   try {
