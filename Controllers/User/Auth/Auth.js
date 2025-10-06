@@ -414,93 +414,90 @@ exports.verifyLoginOtp = async (req, res) => {
 
 exports.googleLoginCallback = (req, res, next) => {
   passport.authenticate('google', { session: false }, async (err, user, info) => {
-      if (err) {
-          return res.status(500).json({ message: 'Authentication failed', error: err.message });
+    if (err) {
+      return res.status(500).json({ message: 'Authentication failed', error: err.message });
+    }
+    try {
+      // Check if a user with this email exists
+      const existingUser = await User.findOne({ email: user.email });
+      if (existingUser) {
+        user = existingUser; // Link to existing user
+      } else {
+        // Create a new user if not found
+        user = await User.create({
+          name: user.name,
+          email: user.email,
+          googleId: user.id,
+        });
       }
-      try {
-          // Check if a user with this email exists
-          const existingUser = await User.findOne({ email: user.email });
-          if (existingUser) {
-              user = existingUser; // Link to existing user
-          } else {
-              // Create a new user if not found
-              user = await User.create({
-                  name: user.name,
-                  email: user.email,
-                  googleId: user.id,
-              });
-          }
-          // Generate JWT token
-          const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-          res.status(200).json({
-              message: 'Google login successful',
-              token,
-              user: {
-                  name: user.name,
-                  email: user.email,
-                  role: user.role,
-                  userId:user._id
-              },
-          });
-      } catch (error) {
-        console.log(err)
-          res.status(500).json({ message: 'Server error', error: error.message });
-      }
+
+      // ✅ Generate JWT token (no expiration)
+      const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
+
+      res.status(200).json({
+        message: 'Google login successful',
+        token,
+        user: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          userId: user._id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
   })(req, res, next);
 };
 
 
 
+// ✅ Android Google Login
 exports.androidLoginCallback = async (req, res) => {
   const { idToken } = req.body;
 
   try {
-      // Verify the ID token
-      // const ticket = await client.verifyIdToken({
-      //     idToken,
-      //     audience: process.env.GOOGLE_CLIENT_ID,
-      // });
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { uid, email, name } = decodedToken;
 
-      // const payload = ticket.getPayload();
-      // const { sub, email, name } = payload;
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const { uid, email, name } = decodedToken;
-      // Check if a user with this email exists
-      let user = await User.findOne({ email });
-      if (!user) {
-          user = await User.create({
-              name:name || "user",
-              email,
-              googleId: uid,
-          });
-      }
-
-      // Generate JWT token
-      const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-      res.status(200).json({
-          message: 'Google login successful',
-          token,
-          user: {
-              name: user.name,
-              email: user.email,
-              role: user.role,
-              userId: user._id,
-          },
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        name: name || "user",
+        email,
+        googleId: uid,
       });
+    }
+
+    // ✅ Generate JWT token (no expiration)
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
+
+    res.status(200).json({
+      message: 'Google login successful',
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        userId: user._id,
+      },
+    });
   } catch (error) {
-      console.log(error);
-      res.status(401).json({ message: 'Invalid Google ID token', error: error.message });
+    console.log(error);
+    res.status(401).json({ message: 'Invalid Google ID token', error: error.message });
   }
 };
 
-//apple login callback
+
+
+// ✅ Apple Login
 exports.appleLoginCallback = (req, res, next) => {
   passport.authenticate("apple", { session: false }, async (err, user, info) => {
     if (err) {
       return res.status(500).json({ message: "Authentication failed", error: err.message });
     }
     try {
-      // Check if the user exists
       let existingUser = await User.findOne({ appleId: user.appleId });
 
       if (!existingUser) {
@@ -511,10 +508,8 @@ exports.appleLoginCallback = (req, res, next) => {
         });
       }
 
-      // Generate JWT token
-      const token = jwt.sign({ id: existingUser._id, role: existingUser.role }, process.env.JWT_SECRET, {
-        expiresIn: "1d",
-      });
+      // ✅ Generate JWT token (no expiration)
+      const token = jwt.sign({ id: existingUser._id, role: existingUser.role }, process.env.JWT_SECRET);
 
       res.status(200).json({
         message: "Apple login successful",
@@ -532,6 +527,7 @@ exports.appleLoginCallback = (req, res, next) => {
     }
   })(req, res, next);
 };
+
 
 const predefinedPhone = "9999999999";
 const predefinedOTP = "123456";
