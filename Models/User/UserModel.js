@@ -65,6 +65,9 @@ const userSchema = new mongoose.Schema({
     playerId: { type: String, default: null },
     externalUserId: { type: String, unique: true, sparse: true },
     isActive: { type: Boolean, default: true },
+    recommendedPreferences: {
+      keywords: [{ type: String, index: true }], 
+    },
 }, { timestamps: true });
 
 // ✅ Pre-save hook to assign userId

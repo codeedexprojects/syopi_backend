@@ -16,4 +16,5 @@ router.get('/view/subcategory/:id',SubcategoryController.getSubCategoryByCategor
 
 
 
+
 module.exports=router

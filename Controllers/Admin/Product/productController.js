@@ -26,10 +26,27 @@ exports.createProduct = async (req, res) => {
       CODAvailable,
       features,
       variants,
-      cost 
+      cost,
+      keywords, // ✅ new
     } = req.body;
 
-    // Parse variants
+    // ✅ Parse keywords (accept string, JSON array, or CSV)
+    let parsedKeywords = [];
+    if (keywords) {
+      try {
+        if (typeof keywords === "string") {
+          parsedKeywords = keywords.startsWith("[")
+            ? JSON.parse(keywords)
+            : keywords.split(",").map((k) => k.trim());
+        } else if (Array.isArray(keywords)) {
+          parsedKeywords = keywords;
+        }
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid format for keywords", error: error.message });
+      }
+    }
+
+    // ✅ Parse variants
     let parsedVariants = [];
     try {
       parsedVariants = Array.isArray(JSON.parse(variants)) ? JSON.parse(variants) : [];
@@ -37,7 +54,7 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: "Invalid JSON format for variants", error: error.message });
     }
 
-    // Parse features
+    // ✅ Parse features
     let parsedFeatures = {};
     try {
       parsedFeatures = features ? JSON.parse(features) : {};
@@ -45,9 +62,9 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: "Invalid JSON format for features", error: error.message });
     }
 
-    // Attach images to variants
+    // ✅ Map variant images
     const variantImageMap = {};
-    req.files.forEach(file => {
+    req.files.forEach((file) => {
       const match = file.fieldname.match(/^variantImages\[(\d+)]$/);
       if (match) {
         const index = match[1];
@@ -58,24 +75,24 @@ exports.createProduct = async (req, res) => {
 
     parsedVariants = parsedVariants.map((variant, index) => ({
       ...variant,
-      images: variantImageMap[index] || []
+      images: variantImageMap[index] || [],
     }));
 
-    // Determine ownerType
+    // ✅ Determine ownerType
     let ownerType = null;
     const admin = await Admin.findById(req.body.owner);
     if (admin) {
-      ownerType = admin.role;
+      ownerType = "admin";
     } else {
       const vendor = await Vendor.findById(req.body.owner);
       if (vendor) {
-        ownerType = vendor.role || "vendor";
+        ownerType = "vendor";
       } else {
         return res.status(400).json({ message: "Invalid owner ID" });
       }
     }
 
-    // Validate category & subcategory
+    // ✅ Validate category & subcategory
     if (req.body.category && !(await Category.findById(req.body.category))) {
       return res.status(400).json({ message: "Invalid category ID" });
     }
@@ -83,7 +100,7 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: "Invalid subcategory ID" });
     }
 
-    // ✅ Create product with cost
+    // ✅ Create product
     const newProduct = new Product({
       name,
       productType,
@@ -101,12 +118,14 @@ exports.createProduct = async (req, res) => {
       features: parsedFeatures,
       owner: req.body.owner,
       ownerType,
+      keywords: parsedKeywords, // ✅ added
     });
 
     await newProduct.save();
 
     res.status(201).json({ message: "Product created successfully", product: newProduct });
   } catch (err) {
+    console.error("Error creating product:", err);
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
@@ -203,7 +222,6 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-
     const {
       name,
       productType,
@@ -219,27 +237,38 @@ exports.updateProduct = async (req, res) => {
       cost,
       newVariants,
       updatedVariants,
+      keywords, 
     } = req.body;
 
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
+    // ✅ Parse keywords
+    let parsedKeywords = [];
+    if (keywords) {
+      try {
+        if (typeof keywords === "string") {
+          parsedKeywords = keywords.startsWith("[")
+            ? JSON.parse(keywords)
+            : keywords.split(",").map((k) => k.trim());
+        } else if (Array.isArray(keywords)) {
+          parsedKeywords = keywords;
+        }
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid format for keywords", error: error.message });
+      }
+    }
+
     // ✅ Parse features
-    const parsedFeatures =
-      typeof features === "string" ? JSON.parse(features) : features;
+    const parsedFeatures = typeof features === "string" ? JSON.parse(features) : features;
 
     // ✅ Parse newVariants
     let parsedNewVariants = [];
     if (newVariants) {
       try {
-        parsedNewVariants = Array.isArray(JSON.parse(newVariants))
-          ? JSON.parse(newVariants)
-          : [];
+        parsedNewVariants = Array.isArray(JSON.parse(newVariants)) ? JSON.parse(newVariants) : [];
       } catch (error) {
-        return res.status(400).json({
-          message: "Invalid JSON format for newVariants",
-          error: error.message,
-        });
+        return res.status(400).json({ message: "Invalid JSON format for newVariants", error: error.message });
       }
     }
 
@@ -247,14 +276,9 @@ exports.updateProduct = async (req, res) => {
     let parsedUpdatedVariants = [];
     if (updatedVariants) {
       try {
-        parsedUpdatedVariants = Array.isArray(JSON.parse(updatedVariants))
-          ? JSON.parse(updatedVariants)
-          : [];
+        parsedUpdatedVariants = Array.isArray(JSON.parse(updatedVariants)) ? JSON.parse(updatedVariants) : [];
       } catch (error) {
-        return res.status(400).json({
-          message: "Invalid JSON format for updatedVariants",
-          error: error.message,
-        });
+        return res.status(400).json({ message: "Invalid JSON format for updatedVariants", error: error.message });
       }
     }
 
@@ -276,7 +300,7 @@ exports.updateProduct = async (req, res) => {
       }
     });
 
-    // ✅ Update existing variants with new images
+    // ✅ Update existing variant images
     product.variants.forEach((variant) => {
       const images = variantImageMapById[variant._id.toString()];
       if (images?.length) {
@@ -284,7 +308,7 @@ exports.updateProduct = async (req, res) => {
       }
     });
 
-    // ✅ Update existing variant fields
+    // ✅ Update variant data
     parsedUpdatedVariants.forEach((variantUpdate) => {
       const existingVariant = product.variants.id(variantUpdate._id);
       if (existingVariant) {
@@ -305,7 +329,7 @@ exports.updateProduct = async (req, res) => {
       product.variants.push(...mappedNewVariants);
     }
 
-    // ✅ Update product fields
+    // ✅ Update fields
     if (name) product.name = name;
     if (productType) product.productType = productType;
     if (description) product.description = description;
@@ -318,6 +342,7 @@ exports.updateProduct = async (req, res) => {
     if (features) product.features = parsedFeatures;
     if (category) product.category = category;
     if (subcategory) product.subcategory = subcategory;
+    if (parsedKeywords.length > 0) product.keywords = parsedKeywords; // ✅ added
 
     await product.save();
 

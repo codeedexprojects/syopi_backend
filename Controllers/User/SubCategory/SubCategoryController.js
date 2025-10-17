@@ -70,3 +70,37 @@ exports.getSubCategoryByCategory = async (req, res) => {
         res.status(500).json({ message: 'Error fetching subcategories', error: err.message });
     }
 };
+
+exports.getSubCategoriesByIds = async (req, res) => {
+  try {
+    const { ids } = req.body; // Expecting an array of subcategory IDs in request body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide an array of subcategory IDs" });
+    }
+
+    const validIds = ids.filter(id => /^[0-9a-fA-F]{24}$/.test(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({ message: "No valid SubCategory IDs provided" });
+    }
+
+    const subCategories = await SubCategory.find({ _id: { $in: validIds } })
+      .populate("category");
+
+    if (!subCategories.length) {
+      return res.status(404).json({ message: "No subcategories found for the provided IDs" });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: subCategories.length,
+      subCategories
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching subcategories by IDs",
+      error: err.message
+    });
+  }
+};
