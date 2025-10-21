@@ -869,7 +869,6 @@ exports.getRecommendedProducts = async (req, res) => {
 
     const user = await User.findById(userId).lean();
     const keywords = user?.recommendedPreferences?.keywords || [];
-        
 
     const baseQuery = { status: "active" };
     if (vendorId && mongoose.Types.ObjectId.isValid(vendorId)) {
@@ -889,7 +888,6 @@ exports.getRecommendedProducts = async (req, res) => {
         { $limit: limit },
       ]);
     }
-    
 
     if (!products.length) {
       products = await Product.aggregate([
@@ -898,6 +896,16 @@ exports.getRecommendedProducts = async (req, res) => {
       ]);
     }
 
+    const brandIds = products
+      .filter(p => mongoose.Types.ObjectId.isValid(p.brand))
+      .map(p => new mongoose.Types.ObjectId(p.brand));
+
+    const Brand = mongoose.model("Brand");
+    const brands = await Brand.find({ _id: { $in: brandIds } }).lean();
+    const brandMap = {};
+    brands.forEach(b => { brandMap[b._id.toString()] = b.name; });
+    
+
     const formattedProducts = products.map((p) => {
       const variant = p.variants?.[0];
       const price = variant?.price || 0;
@@ -905,10 +913,15 @@ exports.getRecommendedProducts = async (req, res) => {
       const discount =
         price > offerPrice ? Math.round(((price - offerPrice) / price) * 100) : 0;
 
+      let brandName = p.brand;      
+      if (mongoose.Types.ObjectId.isValid(p.brand)) {
+        brandName = brandMap[p.brand.toString()] ;
+      }
+
       return {
         _id: p._id,
         name: p.name,
-        brand: p.brand || "Brand",
+        brand: brandName,
         image: p.images?.[0] || null,
         price,
         offerPrice,

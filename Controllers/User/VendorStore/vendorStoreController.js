@@ -11,8 +11,16 @@ exports.getVendorStore = async (req, res) => {
         select: "name images price offerPrice totalSales",
       })
       .populate({
+        path: "bottomBanner.productIds",
+        select: "name images price offerPrice totalSales",
+      })
+      .populate({
         path: "subcategories",
         select: "name image",
+      })
+      .populate({
+        path: "vendorId",
+        select: "businessname storelogo city",
       });
 
     if (!store) {
@@ -32,6 +40,7 @@ exports.getVendorStore = async (req, res) => {
     });
   }
 };
+
 
 exports.getAllVendorStores = async (req, res) => {
   try {

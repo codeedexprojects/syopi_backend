@@ -11,25 +11,22 @@ exports.getVendorStore = async (req, res) => {
         select: "name images price offerPrice totalSales",
       })
       .populate({
-        path: "subcategories.subcategoryId",
+        path: "subcategories",
         select: "name image",
+      })
+      .populate({
+        path: "bottomBanner.productIds",
+        select: "name images price offerPrice totalSales",
       });
 
     if (!store) {
       return res.status(404).json({ message: "Vendor store not found" });
     }
 
-    res.status(200).json({
-      success: true,
-      data: store,
-    });
+    res.status(200).json({ success: true, data: store });
   } catch (error) {
     console.error("Error fetching vendor store:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 };
 
@@ -38,24 +35,16 @@ exports.getAllVendorStores = async (req, res) => {
     const stores = await VendorStore.find()
       .populate("vendorId", "businessname storelogo city");
 
-    res.status(200).json({
-      success: true,
-      count: stores.length,
-      data: stores,
-    });
+    res.status(200).json({ success: true, count: stores.length, data: stores });
   } catch (error) {
     console.error("Error fetching vendor stores:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 };
 
 exports.addVendorStore = async (req, res) => {
   try {
-    const { vendorId, subcategories } = req.body;
+    const { vendorId, subcategories, background } = req.body;
 
     if (!vendorId) return res.status(400).json({ message: "vendorId is required" });
 
@@ -78,7 +67,16 @@ exports.addVendorStore = async (req, res) => {
       ? {
           title: req.body.bottomBanner.title || "",
           subtitle: req.body.bottomBanner.subtitle || "",
+          productIds: req.body.bottomBanner.productIds ? [].concat(req.body.bottomBanner.productIds) : [],
           image: req.files?.bottomBanner?.[0]?.filename || null,
+        }
+      : null;
+
+    const bg = background
+      ? {
+          title: background.title || "",
+          subtitle: background.subtitle || "",
+          image: req.files?.background?.[0]?.filename || null,
         }
       : null;
 
@@ -87,6 +85,7 @@ exports.addVendorStore = async (req, res) => {
       banners,
       subcategories: subcategories ? [].concat(subcategories) : [],
       bottomBanner,
+      background: bg,
     });
 
     await newStore.save();
@@ -98,10 +97,10 @@ exports.addVendorStore = async (req, res) => {
   }
 };
 
-
+// ✅ Update Vendor Store
 exports.updateVendorStore = async (req, res) => {
   try {
-    const { vendorId, subcategories } = req.body;
+    const { vendorId, subcategories, background } = req.body;
 
     if (!vendorId) return res.status(400).json({ message: "vendorId is required" });
 
@@ -121,12 +120,22 @@ exports.updateVendorStore = async (req, res) => {
       ? {
           title: req.body.bottomBanner.title || "",
           subtitle: req.body.bottomBanner.subtitle || "",
+          productIds: req.body.bottomBanner.productIds ? [].concat(req.body.bottomBanner.productIds) : [],
           image: req.files?.bottomBanner?.[0]?.filename || vendorStore.bottomBanner?.image || null,
         }
       : vendorStore.bottomBanner;
 
+    const bg = background
+      ? {
+          title: background.title || "",
+          subtitle: background.subtitle || "",
+          image: req.files?.background?.[0]?.filename || vendorStore.background?.image || null,
+        }
+      : vendorStore.background;
+
     vendorStore.banners = banners;
     vendorStore.bottomBanner = bottomBanner;
+    vendorStore.background = bg;
     vendorStore.subcategories = subcategories ? [].concat(subcategories) : vendorStore.subcategories;
 
     await vendorStore.save();
@@ -137,5 +146,3 @@ exports.updateVendorStore = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 };
-
-

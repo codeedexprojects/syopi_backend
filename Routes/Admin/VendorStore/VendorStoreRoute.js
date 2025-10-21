@@ -8,6 +8,7 @@ router.post(
   upload.fields([
     { name: "banners", maxCount: 5 },
     { name: "bottomBanner", maxCount: 1 },
+    { name: "background", maxCount: 1 },
   ]),
   vendorStoreController.addVendorStore
 );
@@ -17,6 +18,7 @@ router.put(
   upload.fields([
     { name: "banners", maxCount: 5 },
     { name: "bottomBanner", maxCount: 1 },
+    { name: "background", maxCount: 1 },
   ]),
   vendorStoreController.updateVendorStore
 );

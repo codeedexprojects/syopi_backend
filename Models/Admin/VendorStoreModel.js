@@ -31,11 +31,16 @@ const vendorStoreSchema = new mongoose.Schema(
       title: { type: String },
       subtitle: { type: String },
       productIds: [
-          {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Product",
-          },
-        ],
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+        },
+      ],
+    },
+    background: {
+      image: { type: String, required: true }, 
+      title: { type: String },
+      subtitle: { type: String },
     },
   },
   { timestamps: true }
