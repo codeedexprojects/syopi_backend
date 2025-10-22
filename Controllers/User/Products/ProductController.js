@@ -10,6 +10,7 @@ const TopSaleSection = require('../../../Models/Admin/TopSaleSectionModel')
 const ProductSlider = require('../../../Models/Admin/SliderModel')
 const Product = require('../../../Models/Admin/productModel')
 const User = require('../../../Models/User/UserModel')
+const Wishlist = require("../../../Models/User/WishlistModel");
 
 
 // const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
@@ -752,29 +753,18 @@ exports.getProductsByKeyword = async (req, res) => {
     // ✅ Step 1: Find keywords that start with this search term
     const keywordDocs = await Product.aggregate([
       { $unwind: "$keywords" },
-      {
-        $match: {
-          keywords: { $regex: new RegExp(`^${cleanKeyword}`, "i") },
-        },
-      },
-      {
-        $group: {
-          _id: "$keywords",
-          count: { $sum: 1 },
-        },
-      },
+      { $match: { keywords: { $regex: new RegExp(`^${cleanKeyword}`, "i") } } },
+      { $group: { _id: "$keywords", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 },
     ]);
 
     const matchingKeywords = keywordDocs.map((k) => k._id);
 
-    // ✅ Step 2: Build product query
+    // ✅ Step 2: Build query
     const query = {
       status: "active",
-      $or: [
-        { keywords: { $in: matchingKeywords.length ? matchingKeywords : [cleanKeyword] } },
-      ],
+      $or: [{ keywords: { $in: matchingKeywords.length ? matchingKeywords : [cleanKeyword] } }],
     };
 
     if (category && mongoose.Types.ObjectId.isValid(category)) {
@@ -787,7 +777,7 @@ exports.getProductsByKeyword = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // ✅ Step 4: Apply price and rating filters
+    // ✅ Step 4: Price & Rating Filters
     if (minPrice || maxPrice) {
       const min = parseFloat(minPrice) || 0;
       const max = parseFloat(maxPrice) || Number.MAX_VALUE;
@@ -829,18 +819,51 @@ exports.getProductsByKeyword = async (req, res) => {
       }
     }
 
-    // ✅ Step 6: Pagination
+    // ✅ Step 6: Wishlist Integration
+    let wishlistProductIds = [];
+    if (userId) {
+      const wishlist = await Wishlist.find({ userId }).lean();
+      wishlistProductIds = wishlist.map((w) => w.productId.toString());
+    }
+
+    // ✅ Step 7: Discount Calculation
+    const productsWithDiscount = products.map((p) => {
+      const variant = p.variants?.[0];
+      const price = variant?.price || null;
+      const wholesalePrice = variant?.wholesalePrice || null;
+
+      const hasOffer = p.offers && p.offers.length > 0;
+      const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
+
+      let discountPercentage = 0;
+      if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((wholesalePrice - effectivePrice) / wholesalePrice) * 100
+        );
+      }
+
+      const isWishlisted = wishlistProductIds.includes(p._id.toString());
+
+      return {
+        ...p,
+        defaultPrice: price,
+        defaultOfferPrice: hasOffer ? variant?.offerPrice : null,
+        discountPercentage,
+        isWishlisted,
+      };
+    });
+
+    // ✅ Step 8: Pagination
     const pageNumber = parseInt(page);
     const pageSize = parseInt(limit);
     const startIndex = (pageNumber - 1) * pageSize;
-    const paginated = products.slice(startIndex, startIndex + pageSize);
+    const paginated = productsWithDiscount.slice(startIndex, startIndex + pageSize);
 
-    // ✅ Step 7: Save only matched keywords (limit 6)
+    // ✅ Step 9: Save matched keywords (limit 6)
     if (userId && matchingKeywords.length) {
       await updateUserRecentKeywords(userId, matchingKeywords);
     }
 
-    // ✅ Step 8: Send response
     res.status(200).json({
       total: products.length,
       currentPage: pageNumber,
@@ -857,6 +880,7 @@ exports.getProductsByKeyword = async (req, res) => {
   }
 };
 
+
 exports.getRecommendedProducts = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -864,7 +888,13 @@ exports.getRecommendedProducts = async (req, res) => {
     const limit = 8;
 
     if (!userId) {
-      return res.status(401).json({ message: "User not authenticated" });
+      return res.status(200).json({
+        success: true,
+        usedKeywords: [],
+        isFallback: false,
+        total: 0,
+        products: [],
+      });
     }
 
     const user = await User.findById(userId).lean();
@@ -896,27 +926,42 @@ exports.getRecommendedProducts = async (req, res) => {
       ]);
     }
 
+    const wishlist = await Wishlist.find({ userId }).lean();
+    const wishlistProductIds = wishlist.map((item) => item.productId.toString());
+
     const brandIds = products
-      .filter(p => mongoose.Types.ObjectId.isValid(p.brand))
-      .map(p => new mongoose.Types.ObjectId(p.brand));
+      .filter((p) => mongoose.Types.ObjectId.isValid(p.brand))
+      .map((p) => new mongoose.Types.ObjectId(p.brand));
 
     const Brand = mongoose.model("Brand");
     const brands = await Brand.find({ _id: { $in: brandIds } }).lean();
+
     const brandMap = {};
-    brands.forEach(b => { brandMap[b._id.toString()] = b.name; });
-    
+    brands.forEach((b) => {
+      brandMap[b._id.toString()] = b.name;
+    });
 
     const formattedProducts = products.map((p) => {
       const variant = p.variants?.[0];
-      const price = variant?.price || 0;
-      const offerPrice = variant?.offerPrice || price;
-      const discount =
-        price > offerPrice ? Math.round(((price - offerPrice) / price) * 100) : 0;
+      const price = variant?.price || null;
+      const wholesalePrice = variant?.wholesalePrice || null;
 
-      let brandName = p.brand;      
-      if (mongoose.Types.ObjectId.isValid(p.brand)) {
-        brandName = brandMap[p.brand.toString()] ;
+      const hasOffer = p.offers && p.offers.length > 0;
+      const offerPrice = hasOffer ? variant?.offerPrice : variant?.price;
+
+      let discountPercentage = 0;
+      if (wholesalePrice && offerPrice && offerPrice < wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((wholesalePrice - offerPrice) / wholesalePrice) * 100
+        );
       }
+
+      let brandName = p.brand;
+      if (mongoose.Types.ObjectId.isValid(p.brand)) {
+        brandName = brandMap[p.brand.toString()];
+      }
+
+      const isWishlisted = wishlistProductIds.includes(p._id.toString());
 
       return {
         _id: p._id,
@@ -925,7 +970,8 @@ exports.getRecommendedProducts = async (req, res) => {
         image: p.images?.[0] || null,
         price,
         offerPrice,
-        discount,
+        discountPercentage,
+        isWishlisted,
       };
     });
 
@@ -945,3 +991,5 @@ exports.getRecommendedProducts = async (req, res) => {
     });
   }
 };
+
+
