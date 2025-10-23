@@ -9,7 +9,7 @@ const verifyToken = require('../../../Middlewares/jwtConfig')
 router.post('/add',verifyToken(['customer']),cartController.createOrUpdateCart)
 
 // view cart
-router.get('/view/:userId',verifyToken(['customer']),cartController.getCart)
+router.get('/view/',verifyToken(['customer']),cartController.getCart)
 
 // increment or decrement qauntity from cart
 router.patch('/update/quantity',verifyToken(['customer']),cartController.updateCartQuantity)
@@ -18,7 +18,7 @@ router.patch('/update/quantity',verifyToken(['customer']),cartController.updateC
 router.delete('/remove/product',verifyToken(['customer']),cartController.removeProductFromCart)
 
 // delete cart
-router.delete('/delete/:userId',verifyToken(['customer']),cartController.deleteCart)
+router.delete('/delete/',verifyToken(['customer']),cartController.deleteCart)
 
 
 

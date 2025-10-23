@@ -5,9 +5,10 @@ const Product=require('../../../Models/Admin/productModel')
 
 // create cart or add new product to cart
 exports.createOrUpdateCart = async (req, res) => {
-  const { userId, productId, quantity, color, colorName, size } = req.body;
-
-  if (!userId || !productId || !quantity || !color || !size || !colorName) {
+  const {  productId, quantity, color, colorName, size } = req.body;
+  const userId = req.user.id
+  
+  if ( !productId || !quantity || !color || !size || !colorName) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
@@ -110,8 +111,7 @@ exports.createOrUpdateCart = async (req, res) => {
 
 // Get Cart for User
 exports.getCart = async (req, res) => {
-  const { userId } = req.params;
-
+  const userId = req.user.id
   try {
     let cart = await Cart.findOne({ userId })
       .populate('items.productId', 'name images variants offers status')
@@ -177,9 +177,9 @@ exports.getCart = async (req, res) => {
 
 // increment or decrement quantity
 exports.updateCartQuantity = async (req, res) => {
-  const { userId, itemId, action } = req.body;
-
-  if (!userId || !itemId || !action) {
+  const { itemId, action } = req.body;
+  const userId = req.user.id
+  if (!itemId || !action) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
@@ -245,9 +245,9 @@ exports.updateCartQuantity = async (req, res) => {
 
 // Remove Product from Cart
 exports.removeProductFromCart = async (req, res) => {
-  const { userId, itemId } = req.body; // Using itemId to identify the cart item
-
-  if (!userId || !itemId) {
+  const { itemId } = req.body; // Using itemId to identify the cart item
+  const userId = req.user.id
+  if ( !itemId) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
@@ -285,11 +285,9 @@ exports.removeProductFromCart = async (req, res) => {
 
 // delete cart
 exports.deleteCart = async (req, res) => {
-  const { userId } = req.params;
+  const userId  = req.user.id;
 
-  if (!userId) {
-    return res.status(400).json({ success: false, message: "User ID is required" });
-  }
+
 
   try {
     const cart = await Cart.findOneAndDelete({ userId });
