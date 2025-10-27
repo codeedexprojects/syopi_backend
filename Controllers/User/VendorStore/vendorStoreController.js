@@ -5,7 +5,7 @@ exports.getVendorStore = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    const store = await VendorStore.findOne({ vendorId })
+    const store = await VendorStore.findOne({ vendorId, isActive: true })
       .populate({
         path: "banners.productIds",
         select: "name images price offerPrice totalSales",
@@ -24,13 +24,11 @@ exports.getVendorStore = async (req, res) => {
       });
 
     if (!store) {
-      return res.status(404).json({ message: "Vendor store not found" });
+      return res.status(404).json({ message: "Vendor store not found or inactive" });
     }
 
-    res.status(200).json({
-      success: true,
-      data: store,
-    });
+    res.status(200).json({ success: true, data: store });
+
   } catch (error) {
     console.error("Error fetching vendor store:", error);
     res.status(500).json({
@@ -42,9 +40,10 @@ exports.getVendorStore = async (req, res) => {
 };
 
 
+
 exports.getAllVendorStores = async (req, res) => {
   try {
-    const stores = await VendorStore.find()
+    const stores = await VendorStore.find({isActive: true})
       .populate("vendorId", "businessname storelogo city");
 
     res.status(200).json({

@@ -13,7 +13,7 @@ router.post(
   vendorStoreController.addVendorStore
 );
 
-router.put(
+router.patch(
   "/update/:vendorId",
   upload.fields([
     { name: "banners", maxCount: 5 },

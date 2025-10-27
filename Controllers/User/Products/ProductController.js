@@ -17,28 +17,396 @@ const Wishlist = require("../../../Models/User/WishlistModel");
 // get all products
 const mongoose = require('mongoose');
 
+// exports.getallProducts = async (req, res) => {
+//   try {
+//     const { 
+//       brand, productType, minPrice, maxPrice, size, newArrivals, 
+//       discountMin, discountMax, sort, search, minRating, maxRating, 
+//       category, subcategory, page = 1, limit = 20, topSales, topPicksId,
+//       topSaleSectionId, productSliderId
+//     } = req.query;
+    
+//     let userId = req.user?.id;
+//     let allProducts = await getProduct(userId);
+
+//     if (!allProducts || allProducts.length === 0) {
+
+//       return res.status(200).json({
+//         message: "No products found",
+//         total: 0,
+//         products: [],
+//       });
+//    }
+
+//    // ✅ If topPicksId is provided, filter products by that section's productIds
+//     if (topPicksId) {
+//       if (!mongoose.Types.ObjectId.isValid(topPicksId)) {
+//         return res.status(400).json({ message: "Invalid TopPicks ID" });
+//       }
+
+//       const topPicks = await TopPicks.findById(topPicksId).select("productIds");
+//       if (!topPicks) {
+//         return res.status(404).json({ message: "TopPicks not found" });
+//       }
+
+//       const topPicksIds = topPicks.productIds.map(id => id.toString());
+//       allProducts = allProducts.filter(p => topPicksIds.includes(p._id.toString()));
+
+//       if (allProducts.length === 0) {
+//         return res.status(200).json({ message: "No products found in TopPicks", total: 0, products: [] });
+//       }
+//     }
+
+//     // ✅ If topSaleSectionId is provided, filter products by that section's productIds
+//     if (topSaleSectionId) {
+//       if (!mongoose.Types.ObjectId.isValid(topSaleSectionId)) {
+//         return res.status(400).json({ message: "Invalid TopSaleSection ID" });
+//       }
+
+//       const topSaleSection = await TopSaleSection.findById(topSaleSectionId).select("productIds");
+//       if (!topSaleSection) {
+//         return res.status(404).json({ message: "TopSaleSection not found" });
+//       }
+
+//       const topSaleIds = topSaleSection.productIds.map(id => id.toString());
+//       allProducts = allProducts.filter(p => topSaleIds.includes(p._id.toString()));
+
+//       if (allProducts.length === 0) {
+//         return res.status(200).json({ message: "No products found in TopSaleSection", total: 0, products: [] });
+//       }
+//     }
+
+
+//       if (productSliderId) {
+//   if (!mongoose.Types.ObjectId.isValid(productSliderId)) {
+//     return res.status(400).json({ message: "Invalid Product Slider ID" });
+//   }
+
+//   const sliderDoc = await ProductSlider.findById(productSliderId).select("productIds");
+
+//   if (!sliderDoc) {
+//     return res.status(404).json({ message: "Products not found" });
+//   }
+
+//   const productIdsSet = new Set(sliderDoc.productIds.map(id => id.toString()));
+//   allProducts = allProducts.filter(p => productIdsSet.has(p._id.toString()));
+
+//   if (!allProducts.length) {
+//     return res.status(200).json({ message: "No products found", total: 0, products: [] });
+//   }
+// }
+
+
+//     let brandIds = [];
+//     if (brand) {
+//       const brandArray = brand.split(",").map((b) => b.trim());
+//       const brandDocs = await Brand.find({ $or: [{ name: { $in: brandArray } }, { _id: { $in: brandArray } }] });
+
+//       if (brandDocs.length > 0) {
+//         brandIds = brandDocs.map((doc) => doc._id.toString());
+//       }
+
+//       if (brandArray.length > 0 && brandIds.length === 0) {
+//         return res.status(200).json({ message: "No matching brands found", total: 0, products: [] });
+//       }
+//     }
+
+//     const sizesArray = size ? size.split(",") : null;
+//     const newArrivalDate = new Date();
+//     newArrivalDate.setDate(newArrivalDate.getDate() - 2);
+
+//     const discountMinValue = discountMin ? parseFloat(discountMin) : null;
+//     const discountMaxValue = discountMax ? parseFloat(discountMax) : null;
+//     const minRatingValue = minRating ? parseFloat(minRating) : null;
+//     const maxRatingValue = maxRating ? parseFloat(maxRating) : null;
+//     const searchQuery = search ? search.trim().toLowerCase() : null;
+
+//     // Filtering products
+//     let filteredProducts = allProducts.filter((product) => {
+//       let isMatching = true;
+
+//       // ✅ Brand filtering
+//       if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) {
+//         isMatching = false;
+//       }
+
+//       // ✅ Product type filtering
+//       if (productType && product.productType !== productType) {
+//         isMatching = false;
+//       }
+
+//       // ✅ Price filtering
+//       if ((minPrice || maxPrice) && product.variants?.length) {
+//         const firstVariant = product.variants[0];
+
+//         // If product has offers, use offerPrice, else use normal price
+//         const effectivePrice = (product.offers && product.offers.length > 0)
+//           ? (firstVariant?.offerPrice ?? firstVariant?.price ?? 0)
+//           : (firstVariant?.price ?? 0);
+
+//         if ((minPrice && effectivePrice < parseFloat(minPrice)) ||
+//             (maxPrice && effectivePrice > parseFloat(maxPrice))) {
+//           isMatching = false;
+//         }
+//       }
+
+
+//       // ✅ Size filtering
+//       if (sizesArray && product.variants) {
+//         const sizeMatch = product.variants.some((variant) =>
+//           variant.sizes?.some((s) => sizesArray.includes(s.size))
+//         );
+//         if (!sizeMatch) isMatching = false;
+//       }
+
+//       // ✅ New arrivals filtering
+//       if (newArrivals === "true" && new Date(product.createdAt) < newArrivalDate) {
+//         isMatching = false;
+//       }
+
+//       // ✅ Discount filtering
+//       if ((discountMinValue || discountMaxValue) && product.offers?.length) {
+//         const offer = product.offers[0];
+//         let discountPercentage = 0;
+
+//         if (offer.offerType === "percentage") {
+//           discountPercentage = offer.amount;
+//         } else if (offer.offerType === "fixed" && product.variants?.[0]?.price) {
+//           discountPercentage = (offer.amount / product.variants[0].price) * 100;
+//         }
+
+//         if ((discountMinValue && discountPercentage < discountMinValue) || (discountMaxValue && discountPercentage > discountMaxValue)) {
+//           isMatching = false;
+//         }
+//       } else if (discountMinValue || discountMaxValue) {
+//         isMatching = false;
+//       }
+
+//       // ✅ Rating filtering
+//       if ((minRatingValue !== null || maxRatingValue !== null) && product.averageRating !== undefined) {
+//         const productRating = product.averageRating || 0;
+
+//         if ((minRatingValue !== null && productRating < minRatingValue) ||
+//             (maxRatingValue !== null && productRating > maxRatingValue)) {
+//           isMatching = false;
+//         }
+//       }
+
+//       // ✅ Category filtering (Handle ObjectId comparison)
+//       if (category) {
+//         if (!mongoose.Types.ObjectId.isValid(category)) {
+//           isMatching = false;
+//         }
+//         const categoryId = new mongoose.Types.ObjectId(category);
+//         if (!product.category?.equals(categoryId)) {
+//           isMatching = false;
+//         }
+//       }
+
+//       // ✅ Subcategory filtering (Handle ObjectId comparison)
+//       if (subcategory) {
+//         if (!mongoose.Types.ObjectId.isValid(subcategory)) {
+//           isMatching = false;
+//         }
+//         const subcategoryId = new mongoose.Types.ObjectId(subcategory);
+//         if (!product.subcategory?.equals(subcategoryId)) {
+//           isMatching = false;
+//         }
+//       }
+
+//       if (searchQuery) {
+//         const searchWords = searchQuery.split(" ");
+
+//         const isMatch = searchWords.every((word) => {
+//           const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/gi, "");
+
+//           const clean = (str) => str?.toLowerCase().replace(/[^a-z0-9]/gi, "") || "";
+
+//           return (
+//             clean(product.name).includes(cleanWord) ||
+//             clean(product.description).includes(cleanWord) ||
+//             clean(product.features?.material).includes(cleanWord) ||
+//             clean(product.features?.fit).includes(cleanWord) ||
+//             clean(product.features?.occasion).includes(cleanWord) ||
+//             clean(product.supplierName).includes(cleanWord) ||
+//             product.variants?.some(variant =>
+//               clean(variant.colorName).includes(cleanWord)
+//             )
+//           );
+//         });
+
+//         if (!isMatch) isMatching = false;
+//       }
+
+//       return isMatching;
+//     });
+
+//     if (!filteredProducts.length) {
+//       return res.status(200).json({ message: "No products found matching the criteria", total: 0, products: [] });
+//     }
+
+//     // ✅ Filter for Top Sold in Category
+//     if (topSales === "true" && category) {
+//       // Only filter products within the specified category
+//       filteredProducts = filteredProducts.filter((product) => product.category.equals(new mongoose.Types.ObjectId(category)));
+
+//       // Sort products by salesCount (or another metric) in descending order to get the top sold products
+//       filteredProducts.sort((a, b) => {
+//         const salesCountA = a.salesCount || 0;
+//         const salesCountB = b.salesCount || 0;
+//         return salesCountB - salesCountA; // Sort descending by sales count
+//       });
+
+//       // Limit the number of top sold products (e.g., top 5)
+//       filteredProducts = filteredProducts.slice(0, 5);
+//     }
+// filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+//     // ✅ Sorting (optional, after top sales filter)
+// if (sort) {
+//   switch (sort) {
+//     case "asc": // Price ascending, consider offerPrice only if offer exists
+//       filteredProducts.sort((a, b) => {
+//         const variantA = a.variants?.[0];
+//         const variantB = b.variants?.[0];
+
+//         const hasOfferA = a.offers && a.offers.length > 0;
+//         const hasOfferB = b.offers && b.offers.length > 0;
+
+//         const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
+//         const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
+
+//         return priceA - priceB;
+//       });
+//       break;
+
+//     case "desc": // Price descending, consider offerPrice only if offer exists
+//       filteredProducts.sort((a, b) => {
+//         const variantA = a.variants?.[0];
+//         const variantB = b.variants?.[0];
+
+//         const hasOfferA = a.offers && a.offers.length > 0;
+//         const hasOfferB = b.offers && b.offers.length > 0;
+
+//         const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
+//         const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
+
+//         return priceB - priceA;
+//       });
+//       break;
+
+//     case "rating": // Rating descending
+//       filteredProducts.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+//       break;
+
+//     default:
+//       return res.status(400).json({ message: 'Invalid sort parameter. Use "asc", "desc", or "rating"' });
+//   }
+// }
+
+
+
+//     // ✅ Pagination Logic
+//     const pageNumber = parseInt(page) || 1; // Ensure page is a number
+//     const pageSize = parseInt(limit) || 20; // Set default limit to 20
+
+//     const startIndex = (pageNumber - 1) * pageSize;
+//     const endIndex = startIndex + pageSize;
+    
+//     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+//     // const productsWithDefaults = paginatedProducts.map(product => {
+//     //   const variant = product.variants?.[0];
+//     //   const price = variant?.price || null;
+//     //   const offerPrice = variant?.offerPrice;
+    
+//     //   const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
+    
+//     //   return {
+//     //     ...product,
+//     //     defaultPrice: price,
+//     //     defaultOfferPrice: hasValidOffer ? offerPrice : null
+//     //   };
+//     // });
+
+//     const productsWithDiscount = paginatedProducts.map(product => {
+//       const variant = product.variants?.[0];
+//       const price = variant?.price || null;
+//       const wholesalePrice = variant?.wholesalePrice || null;
+
+//       // ✅ check if product has valid offer
+//       const hasOffer = product.offers && product.offers.length > 0;
+//       const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
+
+//       let discountPercentage = 0;
+
+//       if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
+//         discountPercentage = Math.floor(
+//           ((wholesalePrice - effectivePrice) / wholesalePrice) * 100
+//         );
+//       }
+
+//       return {
+//         ...product,
+//         defaultPrice: price,
+//         defaultOfferPrice: hasOffer ? variant?.offerPrice : null,
+//         discountPercentage
+//       };
+//     });
+
+
+//     // ✅ Response with pagination info
+//     res.status(200).json({
+//       total: filteredProducts.length,
+//       currentPage: pageNumber,
+//       totalPages: Math.ceil(filteredProducts.length / pageSize),
+//       products: productsWithDiscount
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({ message: "Error fetching products", error: error.message });
+//   }
+// };
+
+
 exports.getallProducts = async (req, res) => {
   try {
     const { 
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
       category, subcategory, page = 1, limit = 20, topSales, topPicksId,
-      topSaleSectionId, productSliderId
+      topSaleSectionId, productSliderId, vendorId 
     } = req.query;
     
     let userId = req.user?.id;
     let allProducts = await getProduct(userId);
 
     if (!allProducts || allProducts.length === 0) {
-
       return res.status(200).json({
         message: "No products found",
         total: 0,
         products: [],
       });
-   }
+    }
 
-   // ✅ If topPicksId is provided, filter products by that section's productIds
+    // ✅ Filter by vendorId (NEW ADDITION)
+    if (vendorId) {
+      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+        return res.status(400).json({ message: "Invalid vendorId" });
+      }
+
+      allProducts = allProducts.filter(p => p.owner?.toString() === vendorId.toString());
+
+      if (!allProducts.length) {
+        return res.status(200).json({
+          message: "No products found for this vendor",
+          total: 0,
+          products: [],
+        });
+      }
+    }
+
+    // ✅ Top Picks Filter
     if (topPicksId) {
       if (!mongoose.Types.ObjectId.isValid(topPicksId)) {
         return res.status(400).json({ message: "Invalid TopPicks ID" });
@@ -57,7 +425,7 @@ exports.getallProducts = async (req, res) => {
       }
     }
 
-    // ✅ If topSaleSectionId is provided, filter products by that section's productIds
+    // ✅ Top Sale Section Filter
     if (topSaleSectionId) {
       if (!mongoose.Types.ObjectId.isValid(topSaleSectionId)) {
         return res.status(400).json({ message: "Invalid TopSaleSection ID" });
@@ -76,26 +444,25 @@ exports.getallProducts = async (req, res) => {
       }
     }
 
+    // ✅ Product Slider Filter
+    if (productSliderId) {
+      if (!mongoose.Types.ObjectId.isValid(productSliderId)) {
+        return res.status(400).json({ message: "Invalid Product Slider ID" });
+      }
 
-      if (productSliderId) {
-  if (!mongoose.Types.ObjectId.isValid(productSliderId)) {
-    return res.status(400).json({ message: "Invalid Product Slider ID" });
-  }
+      const sliderDoc = await ProductSlider.findById(productSliderId).select("productIds");
 
-  const sliderDoc = await ProductSlider.findById(productSliderId).select("productIds");
+      if (!sliderDoc) {
+        return res.status(404).json({ message: "Products not found" });
+      }
 
-  if (!sliderDoc) {
-    return res.status(404).json({ message: "Products not found" });
-  }
+      const productIdsSet = new Set(sliderDoc.productIds.map(id => id.toString()));
+      allProducts = allProducts.filter(p => productIdsSet.has(p._id.toString()));
 
-  const productIdsSet = new Set(sliderDoc.productIds.map(id => id.toString()));
-  allProducts = allProducts.filter(p => productIdsSet.has(p._id.toString()));
-
-  if (!allProducts.length) {
-    return res.status(200).json({ message: "No products found", total: 0, products: [] });
-  }
-}
-
+      if (!allProducts.length) {
+        return res.status(200).json({ message: "No products found", total: 0, products: [] });
+      }
+    }
 
     let brandIds = [];
     if (brand) {
@@ -121,37 +488,22 @@ exports.getallProducts = async (req, res) => {
     const maxRatingValue = maxRating ? parseFloat(maxRating) : null;
     const searchQuery = search ? search.trim().toLowerCase() : null;
 
-    // Filtering products
     let filteredProducts = allProducts.filter((product) => {
       let isMatching = true;
 
-      // ✅ Brand filtering
-      if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) {
-        isMatching = false;
-      }
+      if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) isMatching = false;
+      if (productType && product.productType !== productType) isMatching = false;
 
-      // ✅ Product type filtering
-      if (productType && product.productType !== productType) {
-        isMatching = false;
-      }
-
-      // ✅ Price filtering
       if ((minPrice || maxPrice) && product.variants?.length) {
         const firstVariant = product.variants[0];
-
-        // If product has offers, use offerPrice, else use normal price
         const effectivePrice = (product.offers && product.offers.length > 0)
           ? (firstVariant?.offerPrice ?? firstVariant?.price ?? 0)
           : (firstVariant?.price ?? 0);
 
         if ((minPrice && effectivePrice < parseFloat(minPrice)) ||
-            (maxPrice && effectivePrice > parseFloat(maxPrice))) {
-          isMatching = false;
-        }
+            (maxPrice && effectivePrice > parseFloat(maxPrice))) isMatching = false;
       }
 
-
-      // ✅ Size filtering
       if (sizesArray && product.variants) {
         const sizeMatch = product.variants.some((variant) =>
           variant.sizes?.some((s) => sizesArray.includes(s.size))
@@ -159,59 +511,36 @@ exports.getallProducts = async (req, res) => {
         if (!sizeMatch) isMatching = false;
       }
 
-      // ✅ New arrivals filtering
-      if (newArrivals === "true" && new Date(product.createdAt) < newArrivalDate) {
-        isMatching = false;
-      }
+      if (newArrivals === "true" && new Date(product.createdAt) < newArrivalDate) isMatching = false;
 
-      // ✅ Discount filtering
       if ((discountMinValue || discountMaxValue) && product.offers?.length) {
         const offer = product.offers[0];
         let discountPercentage = 0;
 
-        if (offer.offerType === "percentage") {
-          discountPercentage = offer.amount;
-        } else if (offer.offerType === "fixed" && product.variants?.[0]?.price) {
+        if (offer.offerType === "percentage") discountPercentage = offer.amount;
+        else if (offer.offerType === "fixed" && product.variants?.[0]?.price)
           discountPercentage = (offer.amount / product.variants[0].price) * 100;
-        }
 
-        if ((discountMinValue && discountPercentage < discountMinValue) || (discountMaxValue && discountPercentage > discountMaxValue)) {
-          isMatching = false;
-        }
-      } else if (discountMinValue || discountMaxValue) {
-        isMatching = false;
-      }
+        if ((discountMinValue && discountPercentage < discountMinValue) ||
+            (discountMaxValue && discountPercentage > discountMaxValue)) isMatching = false;
+      } else if (discountMinValue || discountMaxValue) isMatching = false;
 
-      // ✅ Rating filtering
       if ((minRatingValue !== null || maxRatingValue !== null) && product.averageRating !== undefined) {
         const productRating = product.averageRating || 0;
-
         if ((minRatingValue !== null && productRating < minRatingValue) ||
-            (maxRatingValue !== null && productRating > maxRatingValue)) {
-          isMatching = false;
-        }
+            (maxRatingValue !== null && productRating > maxRatingValue)) isMatching = false;
       }
 
-      // ✅ Category filtering (Handle ObjectId comparison)
       if (category) {
-        if (!mongoose.Types.ObjectId.isValid(category)) {
-          isMatching = false;
-        }
+        if (!mongoose.Types.ObjectId.isValid(category)) isMatching = false;
         const categoryId = new mongoose.Types.ObjectId(category);
-        if (!product.category?.equals(categoryId)) {
-          isMatching = false;
-        }
+        if (!product.category?.equals(categoryId)) isMatching = false;
       }
 
-      // ✅ Subcategory filtering (Handle ObjectId comparison)
       if (subcategory) {
-        if (!mongoose.Types.ObjectId.isValid(subcategory)) {
-          isMatching = false;
-        }
+        if (!mongoose.Types.ObjectId.isValid(subcategory)) isMatching = false;
         const subcategoryId = new mongoose.Types.ObjectId(subcategory);
-        if (!product.subcategory?.equals(subcategoryId)) {
-          isMatching = false;
-        }
+        if (!product.subcategory?.equals(subcategoryId)) isMatching = false;
       }
 
       if (searchQuery) {
@@ -219,7 +548,6 @@ exports.getallProducts = async (req, res) => {
 
         const isMatch = searchWords.every((word) => {
           const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/gi, "");
-
           const clean = (str) => str?.toLowerCase().replace(/[^a-z0-9]/gi, "") || "";
 
           return (
@@ -245,105 +573,72 @@ exports.getallProducts = async (req, res) => {
       return res.status(200).json({ message: "No products found matching the criteria", total: 0, products: [] });
     }
 
-    // ✅ Filter for Top Sold in Category
     if (topSales === "true" && category) {
-      // Only filter products within the specified category
-      filteredProducts = filteredProducts.filter((product) => product.category.equals(new mongoose.Types.ObjectId(category)));
+      filteredProducts = filteredProducts.filter((product) =>
+        product.category.equals(new mongoose.Types.ObjectId(category))
+      );
 
-      // Sort products by salesCount (or another metric) in descending order to get the top sold products
-      filteredProducts.sort((a, b) => {
-        const salesCountA = a.salesCount || 0;
-        const salesCountB = b.salesCount || 0;
-        return salesCountB - salesCountA; // Sort descending by sales count
-      });
-
-      // Limit the number of top sold products (e.g., top 5)
+      filteredProducts.sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
       filteredProducts = filteredProducts.slice(0, 5);
     }
-filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // ✅ Sorting (optional, after top sales filter)
-if (sort) {
-  switch (sort) {
-    case "asc": // Price ascending, consider offerPrice only if offer exists
-      filteredProducts.sort((a, b) => {
-        const variantA = a.variants?.[0];
-        const variantB = b.variants?.[0];
+    filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        const hasOfferA = a.offers && a.offers.length > 0;
-        const hasOfferB = b.offers && b.offers.length > 0;
+    if (sort) {
+      switch (sort) {
+        case "asc":
+          filteredProducts.sort((a, b) => {
+            const variantA = a.variants?.[0];
+            const variantB = b.variants?.[0];
+            const hasOfferA = a.offers && a.offers.length > 0;
+            const hasOfferB = b.offers && b.offers.length > 0;
+            const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
+            const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
+            return priceA - priceB;
+          });
+          break;
 
-        const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
-        const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
+        case "desc":
+          filteredProducts.sort((a, b) => {
+            const variantA = a.variants?.[0];
+            const variantB = b.variants?.[0];
+            const hasOfferA = a.offers && a.offers.length > 0;
+            const hasOfferB = b.offers && b.offers.length > 0;
+            const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
+            const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
+            return priceB - priceA;
+          });
+          break;
 
-        return priceA - priceB;
-      });
-      break;
+        case "rating":
+          filteredProducts.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
 
-    case "desc": // Price descending, consider offerPrice only if offer exists
-      filteredProducts.sort((a, b) => {
-        const variantA = a.variants?.[0];
-        const variantB = b.variants?.[0];
+        default:
+          return res.status(400).json({ message: 'Invalid sort parameter. Use "asc", "desc", or "rating"' });
+      }
+    }
 
-        const hasOfferA = a.offers && a.offers.length > 0;
-        const hasOfferB = b.offers && b.offers.length > 0;
-
-        const priceA = hasOfferA ? variantA?.offerPrice ?? variantA?.price ?? 0 : variantA?.price ?? 0;
-        const priceB = hasOfferB ? variantB?.offerPrice ?? variantB?.price ?? 0 : variantB?.price ?? 0;
-
-        return priceB - priceA;
-      });
-      break;
-
-    case "rating": // Rating descending
-      filteredProducts.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
-      break;
-
-    default:
-      return res.status(400).json({ message: 'Invalid sort parameter. Use "asc", "desc", or "rating"' });
-  }
-}
-
-
-
-    // ✅ Pagination Logic
-    const pageNumber = parseInt(page) || 1; // Ensure page is a number
-    const pageSize = parseInt(limit) || 20; // Set default limit to 20
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 20;
 
     const startIndex = (pageNumber - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     
     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-    // const productsWithDefaults = paginatedProducts.map(product => {
-    //   const variant = product.variants?.[0];
-    //   const price = variant?.price || null;
-    //   const offerPrice = variant?.offerPrice;
-    
-    //   const hasValidOffer = offerPrice !== undefined && offerPrice !== null && offerPrice < price;
-    
-    //   return {
-    //     ...product,
-    //     defaultPrice: price,
-    //     defaultOfferPrice: hasValidOffer ? offerPrice : null
-    //   };
-    // });
-
     const productsWithDiscount = paginatedProducts.map(product => {
       const variant = product.variants?.[0];
       const price = variant?.price || null;
       const wholesalePrice = variant?.wholesalePrice || null;
 
-      // ✅ check if product has valid offer
       const hasOffer = product.offers && product.offers.length > 0;
       const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
 
       let discountPercentage = 0;
 
       if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
-        discountPercentage = Math.floor(
-          ((wholesalePrice - effectivePrice) / wholesalePrice) * 100
-        );
+        discountPercentage = Math.floor(((wholesalePrice - effectivePrice) / wholesalePrice) * 100);
       }
 
       return {
@@ -354,8 +649,6 @@ if (sort) {
       };
     });
 
-
-    // ✅ Response with pagination info
     res.status(200).json({
       total: filteredProducts.length,
       currentPage: pageNumber,
@@ -367,8 +660,6 @@ if (sort) {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
-
-
 
 
 
