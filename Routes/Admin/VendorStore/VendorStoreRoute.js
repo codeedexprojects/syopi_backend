@@ -14,7 +14,7 @@ router.post(
 );
 
 router.put(
-  "/update",
+  "/update/:vendorId",
   upload.fields([
     { name: "banners", maxCount: 5 },
     { name: "bottomBanner", maxCount: 1 },
@@ -26,5 +26,10 @@ router.put(
 router.get("/:vendorId", vendorStoreController.getVendorStore);
 
 router.get("/", vendorStoreController.getAllVendorStores);
+
+router.patch("/toggle-status/:vendorId", vendorStoreController.toggleVendorStoreStatus);
+
+router.delete("/:vendorId", vendorStoreController.deleteVendorStore);
+
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const VendorStore = require("../../../Models/Admin/VendorStoreModel");
 const Vendor = require("../../../Models/Admin/VendorModel"); 
+const fs = require("fs");
+const path = require("path");
 
 exports.getVendorStore = async (req, res) => {
   try {
@@ -17,7 +19,7 @@ exports.getVendorStore = async (req, res) => {
       .populate({
         path: "bottomBanner.productIds",
         select: "name images price offerPrice totalSales",
-      });
+      });      
 
     if (!store) {
       return res.status(404).json({ message: "Vendor store not found" });
@@ -100,7 +102,8 @@ exports.addVendorStore = async (req, res) => {
 // ✅ Update Vendor Store
 exports.updateVendorStore = async (req, res) => {
   try {
-    const { vendorId, subcategories, background } = req.body;
+    const { vendorId } = req.params
+    const { subcategories, background } = req.body;
 
     if (!vendorId) return res.status(400).json({ message: "vendorId is required" });
 
@@ -144,5 +147,76 @@ exports.updateVendorStore = async (req, res) => {
   } catch (error) {
     console.error("Error updating vendor store:", error);
     res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+  }
+};
+
+exports.toggleVendorStoreStatus = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) return res.status(404).json({ message: "Vendor store not found" });
+
+    store.isActive = !store.isActive;
+    await store.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Store is now ${store.isActive ? "Active" : "Inactive"}`,
+      data: store,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+exports.deleteVendorStore = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) {
+      return res.status(404).json({ message: "Vendor store not found" });
+    }
+
+    const deleteImage = (fileName) => {
+      if (!fileName) return;
+      const filePath = path.join("uploads", fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    };
+
+    if (store.banners?.length > 0) {
+      store.banners.forEach((b) => deleteImage(b.image));
+    }
+
+    if (store.bottomBanner?.image) {
+      deleteImage(store.bottomBanner.image);
+    }
+
+    if (store.background?.image) {
+      deleteImage(store.background.image);
+    }
+
+    await VendorStore.deleteOne({ vendorId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Vendor store deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Error deleting vendor store:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
