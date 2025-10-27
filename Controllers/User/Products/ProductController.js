@@ -8,6 +8,9 @@ const Brand = require('../../../Models/Admin/BrandModel');
 const TopPicks = require('../../../Models/Admin/TopPicksModel')
 const TopSaleSection = require('../../../Models/Admin/TopSaleSectionModel')
 const ProductSlider = require('../../../Models/Admin/SliderModel')
+const Product = require('../../../Models/Admin/productModel')
+const User = require('../../../Models/User/UserModel')
+const Wishlist = require("../../../Models/User/WishlistModel");
 
 
 // const affordableProductsModel= require('../../../Models/Admin/AffordableProductModel');
@@ -637,115 +640,356 @@ exports.getExpectedDeliveryDate = async (req, res) => {
   }
 };
   
-// // sorting based on price
-// exports.getSortedProducts = async (req, res) => {
-//   try {
-//     let userId;
-//     if (req.user && req.user.id) {
-//       userId = req.user.id;
-//     }
-//     const {sort} = req.query;
+exports.searchKeywords = async (req, res) => {
+  try {
+    const { search } = req.query;
 
-//     // Validate the query parameters
-//     if (sort && sort !== 'asc' && sort !== 'desc') {
-//       return res.status(400).json({ message: 'Invalid sort parameter. Use "asc" or "desc".' });
-//     }
+    if (!search || search.trim() === "") {
+      const popularKeywords = await Product.aggregate([
+        { $unwind: "$keywords" },
+        { $group: { _id: { $toLower: "$keywords" }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 15 }, 
+        { $project: { keyword: "$_id", count: 1, _id: 0 } },
+      ]);
 
-//     const sortOrder = sort === 'asc' ? 1 : -1;
+      return res.status(200).json({
+        success: true,
+        message: "Popular keywords fetched successfully",
+        keywords: popularKeywords,
+      });
+    }
 
-//     const products = await getProduct(userId); 
+    const cleanQuery = search.trim().toLowerCase();
 
-//     // Sort the products based on the first variant's offerPrice
-//     const sortedProducts = products.sort((a, b) => {
-//       const offerPriceA = a.variants[0]?.offerPrice || 0; // Handle cases where variants might be missing
-//       const offerPriceB = b.variants[0]?.offerPrice || 0;
+    const relatedKeywords = await Product.aggregate([
+      {
+        $match: {
+          $or: [
+            { name: new RegExp(cleanQuery, "i") },
+            { description: new RegExp(cleanQuery, "i") },
+            { keywords: { $regex: cleanQuery, $options: "i" } },
+            { "features.material": new RegExp(cleanQuery, "i") },
+            { "features.occasion": new RegExp(cleanQuery, "i") },
+          ],
+        },
+      },
+      { $unwind: "$keywords" },
+      {
+        $match: {
+          keywords: { $regex: cleanQuery, $options: "i" },
+        },
+      },
+      { $group: { _id: { $toLower: "$keywords" }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 15 },
+      { $project: { keyword: "$_id", count: 1, _id: 0 } },
+    ]);
 
-//       return sortOrder === 1 ? offerPriceA - offerPriceB : offerPriceB - offerPriceA;
-//     });
+    if (relatedKeywords.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No related keywords found for the query",
+        keywords: [],
+      });
+    }
 
-//     res.status(200).json({ message: 'Products sorted successfully', products:sortedProducts });
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error fetching sorted products', error: error.message });
-//   }
-// };
+    res.status(200).json({
+      success: true,
+      message: "Related keywords fetched successfully",
+      keywords: relatedKeywords,
+    });
+  } catch (error) {
+    console.error("Error fetching search keywords:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
 
-// Get home pages 
+const updateUserRecentKeywords = async (userId, newKeywords = []) => {
+  if (!Array.isArray(newKeywords) || newKeywords.length === 0) return;
 
-// exports.getHomePage = async (req, res) => {
-//   try {
-//     let userId;
-//     if (req.user && req.user.id) {
-//       userId = req.user.id;
-//     }
+  const user = await User.findById(userId);
+  if (!user) return;
 
-//     // Fetch all products (ensure salesCount, price, offerPrice, and rating fields are included)
-//     const allProducts = await getProduct(userId);
+  let currentKeywords = user.recommendedPreferences?.keywords || [];
 
-//     if (!allProducts || allProducts.length === 0) {
-//       return res.status(404).json({ message: "No products found" });
-//     }
+  // ✅ Remove duplicates (keep unique only)
+  const uniqueKeywords = [...new Set([...newKeywords, ...currentKeywords])];
 
-//     // Sort products based on salesCount (highest to lowest)
-//     const sortedProducts = allProducts
-//       .filter(product => product.totalSales && product.totalSales > 0)
-//       .sort((a, b) => b.totalSales - a.totalSales);
+  // ✅ Keep only the 6 most recent keywords
+  const limitedKeywords = uniqueKeywords.slice(0, 6);
 
-//     // Limit results (default to top 10)
-//     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-//     const topProducts = sortedProducts.slice(0, limit);
+  user.recommendedPreferences.keywords = limitedKeywords;
+  await user.save();
+};
 
-//     // Section: Products under ₹1000
-//     const affordableProducts = await affordableProductsModel.find()
+// 🔹 Controller
+exports.getProductsByKeyword = async (req, res) => {
+  try {
+    const {
+      keyword,
+      minPrice,
+      maxPrice,
+      sort,
+      category,
+      page = 1,
+      limit = 20,
+      minRating,
+      maxRating,
+    } = req.query;
 
-//     // Section: Products sorted from lowest price to highest
-//     const lowToHighProducts = [...allProducts]
-//       .sort((a, b) => a.price - b.price) // Sort by price ascending
-//       .slice(0, 10); // Limit to 10 products
+    const userId = req.user?.id;
 
-//     // Fetch featured products (incredible delights) based on best offers
-//     const bestOfferProducts = allProducts
-//       .filter(product =>
-//         product.variants.some(variant =>
-//           variant.offerPrice !== null && variant.offerPrice < variant.price // Ensure offerPrice is lower
-//         )
-//       )
-//       .sort((a, b) => {
-//         const maxDiscountA = Math.max(...a.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-//         const maxDiscountB = Math.max(...b.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-//         return maxDiscountB - maxDiscountA; // Sort by highest discount
-//       })
-//       .slice(0, 5); // Get top 5 best offer products
+    if (!keyword || keyword.trim() === "") {
+      return res.status(400).json({ message: "Keyword is required" });
+    }
 
-//     // "Your Top Picks in the Best Price" – combining best-selling and best-priced products
-//     const topPicksBestPrice = allProducts
-//       .filter(product => 
-//         product.salesCount > 0 && 
-//         product.variants.some(variant => variant.offerPrice !== null && variant.offerPrice < variant.price)
-//       )
-//       .sort((a, b) => {
-//         const maxDiscountA = Math.max(...a.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-//         const maxDiscountB = Math.max(...b.variants.map(v => v.price - (v.offerPrice ?? v.price)));
-//         return maxDiscountB - maxDiscountA; // Sort by best discount
-//       })
-//       .slice(0, 10); // Limit to 10 products for this section
+    const cleanKeyword = keyword.trim().toLowerCase();
 
-//     // Fetch active sliders and banners
-//     const activeSliders = await Slider.find({isActive:true});
-//     const activeBanners = await Banner.find({isActive:true});
+    // ✅ Step 1: Find keywords that start with this search term
+    const keywordDocs = await Product.aggregate([
+      { $unwind: "$keywords" },
+      { $match: { keywords: { $regex: new RegExp(`^${cleanKeyword}`, "i") } } },
+      { $group: { _id: "$keywords", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+    ]);
 
-//     // Return the response with all the sections
-//     res.status(200).json({
-//       topProducts,
-//       bestOfferProducts, // Featured products with best offers
-//       affordableProducts, // Products under ₹1000
-//       lowToHighProducts, // Products sorted from low to high price
-//       topPicksBestPrice, // Your Top Picks in the Best Price section
-//       activeSliders, 
-//       activeBanners
-//     });
+    const matchingKeywords = keywordDocs.map((k) => k._id);
 
-//   } catch (error) {
-//     res.status(500).json({ message: "Error fetching homepage products", error: error.message });
-//   }
-// };
+    // ✅ Step 2: Build query
+    const query = {
+      status: "active",
+      $or: [{ keywords: { $in: matchingKeywords.length ? matchingKeywords : [cleanKeyword] } }],
+    };
+
+    if (category && mongoose.Types.ObjectId.isValid(category)) {
+      query.category = new mongoose.Types.ObjectId(category);
+    }
+
+    // ✅ Step 3: Fetch products
+    let products = await Product.find(query)
+      .populate("category", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // ✅ Step 4: Price & Rating Filters
+    if (minPrice || maxPrice) {
+      const min = parseFloat(minPrice) || 0;
+      const max = parseFloat(maxPrice) || Number.MAX_VALUE;
+      products = products.filter((p) => {
+        const v = p.variants?.[0];
+        const price = v?.offerPrice || v?.price || 0;
+        return price >= min && price <= max;
+      });
+    }
+
+    if (minRating || maxRating) {
+      const min = parseFloat(minRating) || 0;
+      const max = parseFloat(maxRating) || 5;
+      products = products.filter(
+        (p) => p.averageRating >= min && p.averageRating <= max
+      );
+    }
+
+    // ✅ Step 5: Sorting
+    if (sort) {
+      switch (sort) {
+        case "asc":
+          products.sort(
+            (a, b) =>
+              (a.variants?.[0]?.offerPrice || a.variants?.[0]?.price || 0) -
+              (b.variants?.[0]?.offerPrice || b.variants?.[0]?.price || 0)
+          );
+          break;
+        case "desc":
+          products.sort(
+            (a, b) =>
+              (b.variants?.[0]?.offerPrice || b.variants?.[0]?.price || 0) -
+              (a.variants?.[0]?.offerPrice || a.variants?.[0]?.price || 0)
+          );
+          break;
+        case "rating":
+          products.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
+      }
+    }
+
+    // ✅ Step 6: Wishlist Integration
+    let wishlistProductIds = [];
+    if (userId) {
+      const wishlist = await Wishlist.find({ userId }).lean();
+      wishlistProductIds = wishlist.map((w) => w.productId.toString());
+    }
+
+    // ✅ Step 7: Discount Calculation
+    const productsWithDiscount = products.map((p) => {
+      const variant = p.variants?.[0];
+      const price = variant?.price || null;
+      const wholesalePrice = variant?.wholesalePrice || null;
+
+      const hasOffer = p.offers && p.offers.length > 0;
+      const effectivePrice = hasOffer ? variant?.offerPrice : variant?.price;
+
+      let discountPercentage = 0;
+      if (wholesalePrice && effectivePrice && effectivePrice < wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((wholesalePrice - effectivePrice) / wholesalePrice) * 100
+        );
+      }
+
+      const isWishlisted = wishlistProductIds.includes(p._id.toString());
+
+      return {
+        ...p,
+        defaultPrice: price,
+        defaultOfferPrice: hasOffer ? variant?.offerPrice : null,
+        discountPercentage,
+        isWishlisted,
+      };
+    });
+
+    // ✅ Step 8: Pagination
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const startIndex = (pageNumber - 1) * pageSize;
+    const paginated = productsWithDiscount.slice(startIndex, startIndex + pageSize);
+
+    // ✅ Step 9: Save matched keywords (limit 6)
+    if (userId && matchingKeywords.length) {
+      await updateUserRecentKeywords(userId, matchingKeywords);
+    }
+
+    res.status(200).json({
+      total: products.length,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(products.length / pageSize),
+      matchingKeywords,
+      products: paginated,
+    });
+  } catch (error) {
+    console.error("Error fetching products by keyword:", error);
+    res.status(500).json({
+      message: "Error fetching products",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.getRecommendedProducts = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { vendorId } = req.query;
+    const limit = 8;
+
+    if (!userId) {
+      return res.status(200).json({
+        success: true,
+        usedKeywords: [],
+        isFallback: false,
+        total: 0,
+        products: [],
+      });
+    }
+
+    const user = await User.findById(userId).lean();
+    const keywords = user?.recommendedPreferences?.keywords || [];
+
+    const baseQuery = { status: "active" };
+    if (vendorId && mongoose.Types.ObjectId.isValid(vendorId)) {
+      baseQuery.owner = new mongoose.Types.ObjectId(vendorId);
+    }
+
+    let products = [];
+    if (keywords.length > 0) {
+      products = await Product.aggregate([
+        { $match: { ...baseQuery, keywords: { $in: keywords } } },
+        {
+          $addFields: {
+            matchCount: { $size: { $setIntersection: ["$keywords", keywords] } },
+          },
+        },
+        { $sort: { matchCount: -1, createdAt: -1 } },
+        { $limit: limit },
+      ]);
+    }
+
+    if (!products.length) {
+      products = await Product.aggregate([
+        { $match: baseQuery },
+        { $sample: { size: limit } },
+      ]);
+    }
+
+    const wishlist = await Wishlist.find({ userId }).lean();
+    const wishlistProductIds = wishlist.map((item) => item.productId.toString());
+
+    const brandIds = products
+      .filter((p) => mongoose.Types.ObjectId.isValid(p.brand))
+      .map((p) => new mongoose.Types.ObjectId(p.brand));
+
+    const Brand = mongoose.model("Brand");
+    const brands = await Brand.find({ _id: { $in: brandIds } }).lean();
+
+    const brandMap = {};
+    brands.forEach((b) => {
+      brandMap[b._id.toString()] = b.name;
+    });
+
+    const formattedProducts = products.map((p) => {
+      const variant = p.variants?.[0];
+      const price = variant?.price || null;
+      const wholesalePrice = variant?.wholesalePrice || null;
+
+      const hasOffer = p.offers && p.offers.length > 0;
+      const offerPrice = hasOffer ? variant?.offerPrice : variant?.price;
+
+      let discountPercentage = 0;
+      if (wholesalePrice && offerPrice && offerPrice < wholesalePrice) {
+        discountPercentage = Math.floor(
+          ((wholesalePrice - offerPrice) / wholesalePrice) * 100
+        );
+      }
+
+      let brandName = p.brand;
+      if (mongoose.Types.ObjectId.isValid(p.brand)) {
+        brandName = brandMap[p.brand.toString()];
+      }
+
+      const isWishlisted = wishlistProductIds.includes(p._id.toString());
+
+      return {
+        _id: p._id,
+        name: p.name,
+        brand: brandName,
+        image: p.images?.[0] || null,
+        price,
+        offerPrice,
+        discountPercentage,
+        isWishlisted,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      usedKeywords: keywords,
+      isFallback: !products.some((p) => p.matchCount > 0),
+      total: formattedProducts.length,
+      products: formattedProducts,
+    });
+  } catch (error) {
+    console.error("Error fetching recommended products:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching recommended products",
+      error: error.message,
+    });
+  }
+};
+
 

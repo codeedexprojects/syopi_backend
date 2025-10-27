@@ -23,8 +23,12 @@ router.get('/similar/:id', attachWishlistIfAuthenticated, productController.getS
 router.get('/expected_date',productController.getExpectedDeliveryDate)
 
 
-// // sorting based on price
-// router.get('/sort',attachWishlistIfAuthenticated,productController.getSortedProducts);
+router.get('/keywords',attachWishlistIfAuthenticated,productController.searchKeywords);
+
+router.get('/products',attachWishlistIfAuthenticated,productController.getProductsByKeyword);
+
+router.get('/recommended-products',attachWishlistIfAuthenticated,productController.getRecommendedProducts);
+
 
 module.exports=router
 

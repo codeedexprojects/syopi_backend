@@ -72,6 +72,8 @@ const HomepageEditorRoute = require('./Routes/Admin/Homepage/HomepageEditorRoute
 const homeRoute = require('./Routes/User/Home/HomeRoute')
 const notificationRoute=require('./Routes/User/Notification/notificationRoute.js')
 const userCoinSettings = require('./Routes/User/Coin/CoinRoute.js')
+const vendorStoreRoute = require('./Routes/Admin/VendorStore/VendorStoreRoute.js')
+const userVendorStoreRoute = require('./Routes/User/VendorStore/vendorStoreRoute.js')
 
 
 
@@ -102,6 +104,7 @@ app.use('/admin/dashboard',Dashboard)
 app.use('/admin/banner', adminBannerRoute)
 app.use('/admin/commission', AdminCommission)
 app.use('/admin/vendorpayout', VendorPayout)
+app.use('/admin/vendor-store', vendorStoreRoute)
 
 
 
@@ -143,6 +146,7 @@ app.use('/user/review', Review)
 app.use('/user/brand', userBrands)
 app.use('/user/notification',notificationRoute)
 app.use('/user/coin', userCoinSettings)
+app.use('/user/vendor-store', userVendorStoreRoute)
 
 //Landing page
 app.use('/home', homeRoute)

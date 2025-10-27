@@ -68,6 +68,11 @@ const productSchema = new mongoose.Schema({
   }],
   coupon: { type: Number },
   status: { type: String, enum: ["active", "inactive"], default: "active" },
+  keywords: {
+  type: [String],
+  index: true, 
+  default: [],
+},
 }, { timestamps: true });
 
 

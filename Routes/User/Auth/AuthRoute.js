@@ -45,7 +45,7 @@ router.post('/send-otp', otpLimiter, loginUserValidator, validationHandler, user
 router.post('/resend-otp', otpLimiter, userController.resendOtp);
 
 
-router.post('/verify-otp', userController.verifyOtp);
+router.post('/verify-otp', otpLimiter, userController.verifyOtp);
 
 
 module.exports = router;

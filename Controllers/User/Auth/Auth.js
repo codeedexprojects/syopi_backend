@@ -611,13 +611,19 @@ exports.verifyOtp = async (req, res) => {
             return res.status(400).json({ message: "Phone, OTP, and Session ID are required" });
 
         let user = await User.findOne({ phone });
-
-        // ✅ Test User Flow
-        if (phone == predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
-            const cachedData = cache.get(phone);
+        const cachedData = cache.get(phone);
+        if (phone === predefinedPhone && otp === predefinedOTP && sessionId === "TEST_SESSION") {
             if (!cachedData) return res.status(400).json({ message: "Session expired. Please login again." });
 
-            // Ensure test user is active
+            // Prevent OTP reuse
+            if (cachedData.verified) {
+                return res.status(400).json({ message: "This OTP has already been used." });
+            }
+
+            // Mark session as used
+            cache.set(phone, { ...cachedData, verified: true });
+
+            // Ensure user exists and is active
             if (!user) {
                 user = await User.create({
                     phone,
@@ -627,11 +633,7 @@ exports.verifyOtp = async (req, res) => {
                 });
             } else {
                 user.isActive = true;
-                await user.save();
-            }
-
-            if (playerId) {
-                user.playerId = playerId;
+                if (playerId) user.playerId = playerId;
                 await user.save();
             }
 
@@ -652,21 +654,22 @@ exports.verifyOtp = async (req, res) => {
             });
         }
 
-        // ✅ Normal OTP Verification
         const response = await axios.get(`https://2factor.in/API/V1/${api_key}/SMS/VERIFY/${sessionId}/${otp}`);
         if (response.data.Status !== "Success") {
             return res.status(401).json({ message: "Invalid OTP" });
         }
 
-        // ✅ Create new user if not exists (with referral logic)
+        if (cachedData?.verified) {
+            return res.status(400).json({ message: "This OTP has already been used." });
+        }
+        if (cachedData) cache.set(phone, { ...cachedData, verified: true });
+
         if (!user) {
-            const cachedData = cache.get(phone);
             const settings = await Coin.findOne();
             const referrerReward = settings?.referralCoins || 100;
             const newUserReward = settings?.referralCoinsUser || 40;
             let referredBy = cachedData?.referredBy;
 
-            // Anti-abuse check
             const wasDeleted = await DeletedUser.findOne({ phone });
             if (wasDeleted) referredBy = null;
 
@@ -674,10 +677,9 @@ exports.verifyOtp = async (req, res) => {
                 phone,
                 referredBy,
                 playerId,
-                isActive: true // ✅ Set active for new user
+                isActive: true
             });
 
-            // Award referral coins if applicable
             if (referredBy) {
                 const referrer = await User.findOne({ referralCode: referredBy });
                 if (referrer) {
@@ -689,18 +691,16 @@ exports.verifyOtp = async (req, res) => {
             }
 
         } else {
-            // Existing user: update playerId and set active
             if (playerId) user.playerId = playerId;
-            user.isActive = true; // ✅ Set active
+            user.isActive = true;
             await user.save();
         }
 
-        // Generate tokens
         const payload = { id: user._id, role: user.role };
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
 
-        cache.del(phone); // Cleanup cache
+        cache.del(phone); 
 
         return res.status(200).json({
             message: "Login successful",
