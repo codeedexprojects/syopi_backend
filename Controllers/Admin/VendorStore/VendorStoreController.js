@@ -234,3 +234,53 @@ exports.deleteVendorStore = async (req, res) => {
     });
   }
 };
+
+exports.deleteVendorBanner = async (req, res) => {
+  try {
+    const { vendorId, bannerId } = req.params;
+
+    if (!vendorId || !bannerId) {
+      return res.status(400).json({ message: "vendorId and bannerId are required" });
+    }
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) {
+      return res.status(404).json({ message: "Vendor store not found" });
+    }
+
+    const bannerToDelete = store.banners.id(bannerId);
+    if (!bannerToDelete) {
+      return res.status(404).json({ message: "Banner not found" });
+    }
+
+    const deleteImage = (fileName) => {
+      if (!fileName) return;
+      const filePath = path.join("uploads", fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    };
+
+    deleteImage(bannerToDelete.image);
+
+    store.banners = store.banners.filter(
+      (b) => b._id.toString() !== bannerId.toString()
+    );
+
+    await store.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Banner deleted successfully",
+      data: store.banners,
+    });
+
+  } catch (error) {
+    console.error("Error deleting vendor banner:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};

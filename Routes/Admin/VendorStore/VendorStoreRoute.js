@@ -31,5 +31,7 @@ router.patch("/toggle-status/:vendorId", vendorStoreController.toggleVendorStore
 
 router.delete("/:vendorId", vendorStoreController.deleteVendorStore);
 
+router.delete("/:vendorId/banner/:bannerId", vendorStoreController.deleteVendorBanner);
+
 
 module.exports = router;
