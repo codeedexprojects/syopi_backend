@@ -1,5 +1,7 @@
 const VendorStore = require("../../../Models/Admin/VendorStoreModel");
 const Vendor = require("../../../Models/Admin/VendorModel"); 
+const fs = require("fs");
+const path = require("path");
 
 exports.getVendorStore = async (req, res) => {
   try {
@@ -17,7 +19,7 @@ exports.getVendorStore = async (req, res) => {
       .populate({
         path: "bottomBanner.productIds",
         select: "name images price offerPrice totalSales",
-      });
+      });      
 
     if (!store) {
       return res.status(404).json({ message: "Vendor store not found" });
@@ -100,49 +102,185 @@ exports.addVendorStore = async (req, res) => {
 // ✅ Update Vendor Store
 exports.updateVendorStore = async (req, res) => {
   try {
-    const { vendorId, subcategories, background } = req.body;
-
-    if (!vendorId) return res.status(400).json({ message: "vendorId is required" });
+    const { vendorId } = req.params;
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
 
     const vendorStore = await VendorStore.findOne({ vendorId });
-    if (!vendorStore) return res.status(404).json({ message: "Vendor store not found" });
+    if (!vendorStore) {
+      return res.status(404).json({ message: "Vendor store not found" });
+    }
 
-    const banners = req.body.banners
-      ? [].concat(req.body.banners).map((banner, i) => ({
-          title: banner.title || "",
-          subtitle: banner.subtitle || "",
-          productIds: banner.productIds ? [].concat(banner.productIds) : [],
-          image: req.files?.banners?.[i]?.filename || banner.image || null,
-        }))
-      : vendorStore.banners;
+    const body = req.body;
 
-    const bottomBanner = req.body.bottomBanner
-      ? {
-          title: req.body.bottomBanner.title || "",
-          subtitle: req.body.bottomBanner.subtitle || "",
-          productIds: req.body.bottomBanner.productIds ? [].concat(req.body.bottomBanner.productIds) : [],
-          image: req.files?.bottomBanner?.[0]?.filename || vendorStore.bottomBanner?.image || null,
-        }
-      : vendorStore.bottomBanner;
+    if (body.subcategories) {
+      vendorStore.subcategories = [].concat(body.subcategories);
+    }
 
-    const bg = background
-      ? {
-          title: background.title || "",
-          subtitle: background.subtitle || "",
-          image: req.files?.background?.[0]?.filename || vendorStore.background?.image || null,
-        }
-      : vendorStore.background;
+    if (body.banners) {
+      vendorStore.banners = [].concat(body.banners).map((banner, i) => ({
+        title: banner.title ?? vendorStore.banners?.[i]?.title ?? "",
+        subtitle: banner.subtitle ?? vendorStore.banners?.[i]?.subtitle ?? "",
+        productIds: banner.productIds ? [].concat(banner.productIds) : vendorStore.banners?.[i]?.productIds ?? [],
+        image: req.files?.banners?.[i]?.filename || vendorStore.banners?.[i]?.image || null,
+      }));
+    }
 
-    vendorStore.banners = banners;
-    vendorStore.bottomBanner = bottomBanner;
-    vendorStore.background = bg;
-    vendorStore.subcategories = subcategories ? [].concat(subcategories) : vendorStore.subcategories;
+    if (body.bottomBanner) {
+      vendorStore.bottomBanner = {
+        title: body.bottomBanner.title ?? vendorStore.bottomBanner?.title ?? "",
+        subtitle: body.bottomBanner.subtitle ?? vendorStore.bottomBanner?.subtitle ?? "",
+        productIds: body.bottomBanner.productIds
+          ? [].concat(body.bottomBanner.productIds)
+          : vendorStore.bottomBanner?.productIds ?? [],
+        image: req.files?.bottomBanner?.[0]?.filename || vendorStore.bottomBanner?.image || null,
+      };
+    }
 
+    if (body.background) {
+      vendorStore.background = {
+        title: body.background.title ?? vendorStore.background?.title ?? "",
+        subtitle: body.background.subtitle ?? vendorStore.background?.subtitle ?? "",
+        image: req.files?.background?.[0]?.filename || vendorStore.background?.image || null,
+      };
+    }
     await vendorStore.save();
 
-    res.status(200).json({ success: true, message: "Vendor store updated successfully", data: vendorStore });
+    res.status(200).json({
+      success: true,
+      message: "Vendor store updated successfully",
+      data: vendorStore,
+    });
+
   } catch (error) {
     console.error("Error updating vendor store:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
+exports.toggleVendorStoreStatus = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) return res.status(404).json({ message: "Vendor store not found" });
+
+    store.isActive = !store.isActive;
+    await store.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Store is now ${store.isActive ? "Active" : "Inactive"}`,
+      data: store,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+exports.deleteVendorStore = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) {
+      return res.status(404).json({ message: "Vendor store not found" });
+    }
+
+    const deleteImage = (fileName) => {
+      if (!fileName) return;
+      const filePath = path.join("uploads", fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    };
+
+    if (store.banners?.length > 0) {
+      store.banners.forEach((b) => deleteImage(b.image));
+    }
+
+    if (store.bottomBanner?.image) {
+      deleteImage(store.bottomBanner.image);
+    }
+
+    if (store.background?.image) {
+      deleteImage(store.background.image);
+    }
+
+    await VendorStore.deleteOne({ vendorId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Vendor store deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Error deleting vendor store:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteVendorBanner = async (req, res) => {
+  try {
+    const { vendorId, bannerId } = req.params;
+
+    if (!vendorId || !bannerId) {
+      return res.status(400).json({ message: "vendorId and bannerId are required" });
+    }
+
+    const store = await VendorStore.findOne({ vendorId });
+    if (!store) {
+      return res.status(404).json({ message: "Vendor store not found" });
+    }
+
+    const bannerToDelete = store.banners.id(bannerId);
+    if (!bannerToDelete) {
+      return res.status(404).json({ message: "Banner not found" });
+    }
+
+    const deleteImage = (fileName) => {
+      if (!fileName) return;
+      const filePath = path.join("uploads", fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    };
+
+    deleteImage(bannerToDelete.image);
+
+    store.banners = store.banners.filter(
+      (b) => b._id.toString() !== bannerId.toString()
+    );
+
+    await store.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Banner deleted successfully",
+      data: store.banners,
+    });
+
+  } catch (error) {
+    console.error("Error deleting vendor banner:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };

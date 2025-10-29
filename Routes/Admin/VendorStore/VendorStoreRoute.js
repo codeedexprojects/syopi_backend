@@ -13,8 +13,8 @@ router.post(
   vendorStoreController.addVendorStore
 );
 
-router.put(
-  "/update",
+router.patch(
+  "/update/:vendorId",
   upload.fields([
     { name: "banners", maxCount: 5 },
     { name: "bottomBanner", maxCount: 1 },
@@ -26,5 +26,12 @@ router.put(
 router.get("/:vendorId", vendorStoreController.getVendorStore);
 
 router.get("/", vendorStoreController.getAllVendorStores);
+
+router.patch("/toggle-status/:vendorId", vendorStoreController.toggleVendorStoreStatus);
+
+router.delete("/:vendorId", vendorStoreController.deleteVendorStore);
+
+router.delete("/:vendorId/banner/:bannerId", vendorStoreController.deleteVendorBanner);
+
 
 module.exports = router;

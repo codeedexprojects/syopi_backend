@@ -7,6 +7,10 @@ const vendorStoreSchema = new mongoose.Schema(
       ref: "Vendor",
       required: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     banners: [
       {
         image: { type: String, required: true },
@@ -38,7 +42,7 @@ const vendorStoreSchema = new mongoose.Schema(
       ],
     },
     background: {
-      image: { type: String, required: true }, 
+      image: { type: String, required: true },
       title: { type: String },
       subtitle: { type: String },
     },
