@@ -375,7 +375,7 @@ exports.getallProducts = async (req, res) => {
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
       category, subcategory, page = 1, limit = 20, topSales, topPicksId,
-      topSaleSectionId, productSliderId, vendorId, productIds
+      topSaleSectionId, productSliderId, vendorId, productIds, keywords
     } = req.query;
     
     let userId = req.user?.id;
@@ -442,9 +442,7 @@ exports.getallProducts = async (req, res) => {
       }
 
       const topPicks = await TopPicks.findById(topPicksId).select("productIds");
-      if (!topPicks) {
-        return res.status(404).json({ message: "TopPicks not found" });
-      }
+      if (!topPicks) return res.status(404).json({ message: "TopPicks not found" });
 
       const topPicksIds = topPicks.productIds.map(id => id.toString());
       allProducts = allProducts.filter(p => topPicksIds.includes(p._id.toString()));
@@ -460,19 +458,16 @@ exports.getallProducts = async (req, res) => {
       }
 
       const topSaleSection = await TopSaleSection.findById(topSaleSectionId).select("productIds");
-      if (!topSaleSection) {
-        return res.status(404).json({ message: "TopSaleSection not found" });
-      }
+      if (!topSaleSection) return res.status(404).json({ message: "TopSaleSection not found" });
 
       const topSaleIds = topSaleSection.productIds.map(id => id.toString());
       allProducts = allProducts.filter(p => topSaleIds.includes(p._id.toString()));
 
       if (allProducts.length === 0) {
-        return res.status(200).json({ message: "No products found in TopSaleSection", total: 0, products: [] });
+        return res.status(200).json({ message: "No products found", total: 0, products: [] });
       }
     }
 
-    // ✅ Product Slider Filter
     if (productSliderId) {
       if (!mongoose.Types.ObjectId.isValid(productSliderId)) {
         return res.status(400).json({ message: "Invalid Product Slider ID" });
@@ -492,14 +487,19 @@ exports.getallProducts = async (req, res) => {
       }
     }
 
+    let keywordArray = [];
+    if (keywords) {
+      keywordArray = Array.isArray(keywords)
+        ? keywords
+        : keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+    }
+
     let brandIds = [];
     if (brand) {
       const brandArray = brand.split(",").map((b) => b.trim());
       const brandDocs = await Brand.find({ $or: [{ name: { $in: brandArray } }, { _id: { $in: brandArray } }] });
 
-      if (brandDocs.length > 0) {
-        brandIds = brandDocs.map((doc) => doc._id.toString());
-      }
+      if (brandDocs.length > 0) brandIds = brandDocs.map((doc) => doc._id.toString());
 
       if (brandArray.length > 0 && brandIds.length === 0) {
         return res.status(200).json({ message: "No matching brands found", total: 0, products: [] });
@@ -518,6 +518,12 @@ exports.getallProducts = async (req, res) => {
 
     let filteredProducts = allProducts.filter((product) => {
       let isMatching = true;
+
+      if (keywordArray.length > 0) {
+        const productKeywords = (product.keywords || []).map(k => k.toLowerCase());
+        const hasMatch = keywordArray.some(k => productKeywords.includes(k));
+        if (!hasMatch) isMatching = false;
+      }
 
       if (brandIds.length > 0 && !brandIds.includes(product.brand?.toString())) isMatching = false;
       if (productType && product.productType !== productType) isMatching = false;
@@ -784,6 +790,10 @@ exports.getProductById = async (req, res) => {
           ((defaultVariant.wholesalePrice - effectivePrice) / defaultVariant.wholesalePrice) * 100
         );
       }
+    }
+
+    if (userId && matchingKeywords.length) {
+      await updateUserRecentKeywords(userId, matchingKeywords);
     }
 
     res.status(200).json({
