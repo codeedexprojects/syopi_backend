@@ -375,7 +375,7 @@ exports.getallProducts = async (req, res) => {
       brand, productType, minPrice, maxPrice, size, newArrivals, 
       discountMin, discountMax, sort, search, minRating, maxRating, 
       category, subcategory, page = 1, limit = 20, topSales, topPicksId,
-      topSaleSectionId, productSliderId, vendorId 
+      topSaleSectionId, productSliderId, vendorId, productIds
     } = req.query;
     
     let userId = req.user?.id;
@@ -389,7 +389,6 @@ exports.getallProducts = async (req, res) => {
       });
     }
 
-    // ✅ Filter by vendorId (NEW ADDITION)
     if (vendorId) {
       if (!mongoose.Types.ObjectId.isValid(vendorId)) {
         return res.status(400).json({ message: "Invalid vendorId" });
@@ -406,7 +405,37 @@ exports.getallProducts = async (req, res) => {
       }
     }
 
-    // ✅ Top Picks Filter
+    if (productIds) {
+      let idsArray = [];
+
+      try {
+        if (Array.isArray(productIds)) {
+          idsArray = productIds;
+        } else if (typeof productIds === "string") {
+          idsArray = productIds.startsWith("[")
+            ? JSON.parse(productIds)
+            : productIds.split(",");
+        }
+
+        idsArray = idsArray
+          .map(id => id.trim())
+          .filter(id => mongoose.Types.ObjectId.isValid(id));
+
+        if (idsArray.length === 0) {
+          return res.status(400).json({ message: "Invalid productIds provided" });
+        }
+
+        const productIdSet = new Set(idsArray.map(id => id.toString()));
+        allProducts = allProducts.filter(p => productIdSet.has(p._id.toString()));
+
+        if (!allProducts.length) {
+          return res.status(200).json({ message: "No products found for provided productIds", total: 0, products: [] });
+        }
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid productIds format", error: err.message });
+      }
+    }
+
     if (topPicksId) {
       if (!mongoose.Types.ObjectId.isValid(topPicksId)) {
         return res.status(400).json({ message: "Invalid TopPicks ID" });
@@ -425,7 +454,6 @@ exports.getallProducts = async (req, res) => {
       }
     }
 
-    // ✅ Top Sale Section Filter
     if (topSaleSectionId) {
       if (!mongoose.Types.ObjectId.isValid(topSaleSectionId)) {
         return res.status(400).json({ message: "Invalid TopSaleSection ID" });
@@ -660,6 +688,7 @@ exports.getallProducts = async (req, res) => {
     res.status(500).json({ message: "Error fetching products", error: error.message });
   }
 };
+
 
 
 
